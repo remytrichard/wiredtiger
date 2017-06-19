@@ -69,9 +69,34 @@ int main() {
 		NULL,  //my_terminate
 		trk_premerge
 	};
-	ret = conn->add_data_source(conn, "trk_dsrc:", &trk_dsrc, NULL);
+	
+	ret = conn->add_data_source(conn, "trk_sst:", &trk_dsrc, NULL);
+	// TBD(kg): make sure start_generation is set as 1
+	// just set it in config_def right now.
+	//ret = conn->configure_method(conn,
+	//  "WT_SESSION.create", NULL, "start_generation=1", "int", NULL);
+	
 	/*! [WT_DATA_SOURCE register] */
 
+	{
+		WT_CURSOR *c;
+		session->create(session, "table:bucket", "type=lsm,key_format=S,value_format=S");
+		session->open_cursor(session, "table:bucket", NULL, NULL, &c);
+		for (int i = 0; i < 300000; i++) {
+			char key[20] = { 0 };
+			char value[40] = { 0 };
+			snprintf(key, 20, "key%05d", i);
+			snprintf(value, 40, "value%010d", i);
+			c->set_key(c, key);
+			c->set_value(c, value);
+			c->insert(c);
+		}
+		{
+			// cursor read ...
+		}
+
+		c->close(c);
+	}
 
 	ret = conn->close(conn, NULL);
 

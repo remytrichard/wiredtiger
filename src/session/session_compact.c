@@ -7,7 +7,7 @@
  */
 
 #include "wt_internal.h"
-
+#include "../terark_sst/bridge.h"
 /*
  * Compaction is the place where the underlying block manager becomes visible
  * in the higher engine btree and API layers.  As there is currently only one
@@ -160,9 +160,10 @@ __compact_handle_append(WT_SESSION_IMPL *session, const char *cfg[])
 
 	WT_UNUSED(cfg);
 
+	printf("session->dbhandle->name: %s\n", session->dhandle->name);
 	WT_RET(__wt_session_get_btree(
 	    session, session->dhandle->name, NULL, NULL, 0));
-
+	
 	/* Set compact active on the handle. */
 	if ((ret = __compact_start(session)) != 0) {
 		WT_TRET(__wt_session_release_btree(session));
@@ -365,6 +366,7 @@ __wt_session_compact(
 	__wt_epoch(session, &session->compact->begin);
 
 	/* Find the types of data sources being compacted. */
+	printf("schema_worker uri is: %s\n", uri);
 	WT_WITH_SCHEMA_LOCK(session,
 	    ret = __wt_schema_worker(session, uri,
 	    __compact_handle_append, __compact_uri_analyze, cfg, 0));

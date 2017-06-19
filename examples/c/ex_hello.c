@@ -74,7 +74,7 @@ main(void)
 	WT_CURSOR *c;
 	session->create(session, "table:bucket", "type=lsm,key_format=S,value_format=S");
 	session->open_cursor(session, "table:bucket", NULL, NULL, &c);
-	for (int i = 0; i < 100; i++) {
+	for (int i = 0; i < 300000; i++) {
 	    char key[20] = { 0 };
 	    char value[40] = { 0 };
 	    snprintf(key, 20, "key%05d", i);
