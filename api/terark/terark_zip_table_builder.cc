@@ -132,23 +132,6 @@ namespace rocksdb {
 		if (table_options_.debugLevel == 4) {
 			tmpDumpFile_.open(tmpValueFile_.path + ".dump", "wb+");
 		}
-
-		if (tzto.isOfflineBuild) {
-			if (tbo.compression_dict && tbo.compression_dict->size()) {
-				auto data = (byte_t*)tbo.compression_dict->data();
-				auto size = tbo.compression_dict->size();
-				tmpZipValueFile_.fpath = tmpValueFile_.path + ".zbs";
-				tmpZipDictFile_.fpath = tmpValueFile_.path + ".zbs-dict";
-				valvec<byte_t> strDict(data, size);
-#if defined(MADV_DONTNEED)
-				madvise(data, size, MADV_DONTNEED);
-#endif
-				zbuilder_.reset(this->createZipBuilder());
-				zbuilder_->useSample(strDict); // take ownership of strDict
-				//zbuilder_->finishSample(); // do not call finishSample here
-				zbuilder_->prepare(1024, tmpZipValueFile_.fpath);
-			}
-		}
 	}
 
 	DictZipBlobStore::ZipBuilder*
@@ -422,43 +405,43 @@ namespace rocksdb {
 		};
 		// indexing is also slow, run it in parallel
 		AutoDeleteFile tmpIndexFile{tmpValueFile_.path + ".index"};
-		std::future<void> asyncIndexResult = std::async(std::launch::async, [&]()
-														{
-															size_t fileOffset = 0;
-															FileStream writer(tmpIndexFile, "wb+");
-															NativeDataInput<InputBuffer> tempKeyFileReader(&tmpKeyFile_.fp);
-															for (size_t i = 0; i < histogram_.size(); ++i) {
-																auto& keyStat = histogram_[i].stat;
-																auto factory = TerarkIndex::SelectFactory(keyStat, table_options_.indexType);
-																if (!factory) {
-																	THROW_STD(invalid_argument,
-																			  "invalid indexType: %s", table_options_.indexType.c_str());
-																}
-																const size_t myWorkMem = factory->MemSizeForBuild(keyStat);
-																waitForMemory(myWorkMem, "nltTrie");
-																BOOST_SCOPE_EXIT(myWorkMem) {
-																	std::unique_lock<std::mutex> zipLock(zipMutex);
-																	assert(sumWorkingMem >= myWorkMem);
-																	sumWorkingMem -= myWorkMem;
-																	zipCond.notify_all();
-																}BOOST_SCOPE_EXIT_END;
+		std::future<void> asyncIndexResult = 
+			std::async(std::launch::async, [&]() {
+					size_t fileOffset = 0;
+					FileStream writer(tmpIndexFile, "wb+");
+					NativeDataInput<InputBuffer> tempKeyFileReader(&tmpKeyFile_.fp);
+					for (size_t i = 0; i < histogram_.size(); ++i) {
+						auto& keyStat = histogram_[i].stat;
+						auto factory = TerarkIndex::SelectFactory(keyStat, table_options_.indexType);
+						if (!factory) {
+							THROW_STD(invalid_argument,
+									  "invalid indexType: %s", table_options_.indexType.c_str());
+						}
+						const size_t myWorkMem = factory->MemSizeForBuild(keyStat);
+						waitForMemory(myWorkMem, "nltTrie");
+						BOOST_SCOPE_EXIT(myWorkMem) {
+							std::unique_lock<std::mutex> zipLock(zipMutex);
+							assert(sumWorkingMem >= myWorkMem);
+							sumWorkingMem -= myWorkMem;
+							zipCond.notify_all();
+						}BOOST_SCOPE_EXIT_END;
 
-																long long t1 = g_pf.now();
-																histogram_[i].keyFileBegin = fileOffset;
-																factory->Build(tempKeyFileReader, table_options_, [&fileOffset, &writer](const void* data, size_t size) {
-																		fileOffset += size;
-																		writer.ensureWrite(data, size);
-																	}, keyStat);
-																histogram_[i].keyFileEnd = fileOffset;
-																assert((fileOffset - histogram_[i].keyFileBegin) % 8 == 0);
-																long long tt = g_pf.now();
-																INFO(ioptions_.info_log
-																	 , "TerarkZipTableBuilder::Finish():this=%p:  index pass time =%7.2f's, %8.3f'MB/sec\n"
-																	 , this, g_pf.sf(t1, tt), properties_.raw_key_size*1.0 / g_pf.uf(t1, tt)
-																	 );
-															}
-															tmpKeyFile_.close();
-														});
+						long long t1 = g_pf.now();
+						histogram_[i].keyFileBegin = fileOffset;
+						factory->Build(tempKeyFileReader, table_options_, [&fileOffset, &writer](const void* data, size_t size) {
+								fileOffset += size;
+								writer.ensureWrite(data, size);
+							}, keyStat);
+						histogram_[i].keyFileEnd = fileOffset;
+						assert((fileOffset - histogram_[i].keyFileBegin) % 8 == 0);
+						long long tt = g_pf.now();
+						INFO(ioptions_.info_log
+							 , "TerarkZipTableBuilder::Finish():this=%p:  index pass time =%7.2f's, %8.3f'MB/sec\n"
+							 , this, g_pf.sf(t1, tt), properties_.raw_key_size*1.0 / g_pf.uf(t1, tt)
+							 );
+					}
+					tmpKeyFile_.close();
+				});
 		size_t myDictMem = std::min<size_t>(sampleLenSum_, INT32_MAX) * 6;
 		waitForMemory(myDictMem, "dictZip");
 

@@ -112,46 +112,84 @@ struct ZipValueMultiValue {
 };
 
 
+ class TerarkChunk {
+ };
 
-class TerarkZipTableFactory : public TableFactory, boost::noncopyable {
-public:
-  explicit
-    TerarkZipTableFactory(const TerarkZipTableOptions& tzto, TableFactory* fallback)
-    : table_options_(tzto), fallback_factory_(fallback) {
-    adaptive_factory_ = NewAdaptiveTableFactory();
-  }
+ class TerarkZipTableBuilder;
+ class TerarkChunkManager : boost::noncopyable {
+ private:
+	 static TerarkChunkManager* _instance;
+	 
+	 TerarkChunkManager() {}
+	 ~TerarkChunkManager() {}
 
-  const char* Name() const override { return "TerarkZipTable"; }
+ public:
+	 static TerarkChunkManager* sharedInstance() {
+		 if (!_instance) {
+			 Options opt;
+			 TerarkZipTableOptions tzo;
+			 TerarkZipAutoConfigForOnlineDB(tzo, opt, opt);
+			 int err = 0;
+			 try {
+				 TempFileDeleteOnClose test;
+				 test.path = tzo.localTempDir + "/Terark-XXXXXX";
+				 test.open_temp();
+				 test.writer << "Terark";
+				 test.complete_write();
+			 } catch (...) {
+				 fprintf(stderr
+						 , "ERROR: bad localTempDir %s %s\n"
+						 , tzo.localTempDir.c_str(), err ? strerror(err) : "");
+				 abort();
+			 }
+			 _instance = new TerarkChunkManager;
+			 if (tzo.debugLevel < 0) {
+				 STD_INFO("NewTerarkChunkManager(\n%s)\n",
+						  _instance->GetPrintableTableOptions().c_str());
+			 }
+		 }
+		 return _instance;
+	 }
 
-  Status
-    NewTableReader(const TableReaderOptions& table_reader_options,
-      unique_ptr<RandomAccessFileReader>&& file,
-      uint64_t file_size,
-      unique_ptr<TableReader>* table,
-      bool prefetch_index_and_filter_in_cache) const override;
+	 const char* Name() const { return "TerarkChunkManager"; }
 
-  TableBuilder*
-    NewTableBuilder(const TableBuilderOptions& table_builder_options,
-      uint32_t column_family_id,
-      WritableFileWriter* file) const override;
+ public:
+	 void AddChunk(TerarkChunk*);
+	 TerarkChunk* GetChunk(const char*);
 
-  std::string GetPrintableTableOptions() const override;
+ public:
+	 Status
+		 NewTableReader(const TableReaderOptions& table_reader_options,
+						unique_ptr<RandomAccessFileReader>&& file,
+						uint64_t file_size,
+						unique_ptr<TableReader>* table,
+						bool prefetch_index_and_filter_in_cache) const;
 
-  // Sanitizes the specified DB Options.
-  Status SanitizeOptions(const DBOptions& db_opts,
-    const ColumnFamilyOptions& cf_opts) const override;
+	 TerarkZipTableBuilder*
+		 NewTableBuilder(const TableBuilderOptions& table_builder_options,
+						 uint32_t column_family_id,
+						 WritableFileWriter* file) const;
 
-  void* GetOptions() override { return &table_options_; }
+	 std::string GetPrintableTableOptions() const;
 
-  bool IsDeleteRangeSupported() const override { return true; }
+	 // Sanitizes the specified DB Options.
+	 Status SanitizeOptions(const DBOptions& db_opts,
+							const ColumnFamilyOptions& cf_opts) const;
 
+	 void* GetOptions() { return &table_options_; }
+
+	 bool IsDeleteRangeSupported() const { return true; }
+
+ private:
+	 TerarkZipTableOptions table_options_;
+	 TableFactory* fallback_factory_;
+	 TableFactory* adaptive_factory_; // just for open table
+	 mutable size_t nth_new_terark_table_ = 0;
+	 mutable size_t nth_new_fallback_table_ = 0;
+ 
 private:
-  TerarkZipTableOptions table_options_;
-  TableFactory* fallback_factory_;
-  TableFactory* adaptive_factory_; // just for open table
-  mutable size_t nth_new_terark_table_ = 0;
-  mutable size_t nth_new_fallback_table_ = 0;
-};
+	 std::vector<TerarkChunk*> _chunks;
+ };
 
 
 }  // namespace rocksdb
