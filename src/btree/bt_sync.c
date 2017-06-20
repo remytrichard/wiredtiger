@@ -100,6 +100,7 @@ __sync_file(WT_SESSION_IMPL *session, WT_CACHE_OP syncop)
 		 * lock, serialize so multiple threads don't walk the tree at
 		 * the same time.
 		 */
+	    printf("sync_file: WT_SYNC_WRITE_LEAVES\n");
 		if (!btree->modified)
 			return (0);
 		__wt_spin_lock(session, &btree->flush_lock);
@@ -136,6 +137,7 @@ __sync_file(WT_SESSION_IMPL *session, WT_CACHE_OP syncop)
 					__wt_txn_get_snapshot(session);
 				leaf_bytes += page->memory_footprint;
 				++leaf_pages;
+				printf("will reconcile\n");
 				WT_ERR(__wt_reconcile(session,
 				    walk, NULL, WT_CHECKPOINTING, NULL));
 			}
