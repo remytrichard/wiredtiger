@@ -7,6 +7,7 @@
 #include "wiredtiger_ext.h"
 
 #include "terark_zip_internal.h"
+#include "terark_zip_table.h"
 
 /*#if defined(__cplusplus)
 extern "C" {
@@ -25,9 +26,20 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	(void)config;
 
 	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
-	rocksdb::Options option;
-	const rocksdb::Comparator* com = rocksdb::BytewiseComparator();
-	//manager->NewTableBuilder(
+	rocksdb::Options options;
+	const rocksdb::Comparator* comparator = rocksdb::BytewiseComparator();
+	rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
+
+	unique_ptr<WritableFile> file;
+	// TBD(kg): need more settings on env
+	rocksdb::EnvOptions env_options;
+	env_options.use_mmap_reads = env_options.use_mmap_writes = true;
+	rocksdb::Status s = options.env->NewWritableFile(*uri, &file, env_options);
+	assert(s.ok());
+	//file->SetPreallocationBlockSize(immutable_db_options_.manifest_preallocation_size);
+	unique_ptr<WritableFileWriter> file_writer(new WritableFileWriter(std::move(file), env_options));
+		
+	manager->NewTableBuilder(builder_options, 0, file_writer.get());
 	return (0);
 }
 

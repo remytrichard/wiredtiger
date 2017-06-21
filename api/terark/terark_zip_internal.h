@@ -167,7 +167,7 @@ struct ZipValueMultiValue {
 						bool prefetch_index_and_filter_in_cache) const;
 
 	 TerarkZipTableBuilder*
-		 NewTableBuilder(const TerarkTableBuilerOptions& table_builder_options,
+		 NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 						 uint32_t column_family_id,
 						 WritableFileWriter* file) const;
 

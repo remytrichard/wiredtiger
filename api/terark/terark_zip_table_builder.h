@@ -57,7 +57,7 @@ namespace rocksdb {
 	public:
 		TerarkZipTableBuilder(
 							  const TerarkZipTableOptions&,
-							  const TerarkTableBuilerOptions& tbo,
+							  const TerarkTableBuilderOptions& tbo,
 							  uint32_t column_family_id,
 							  WritableFileWriter* file,
 							  size_t key_prefixLen);

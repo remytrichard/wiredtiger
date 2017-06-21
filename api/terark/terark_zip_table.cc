@@ -57,32 +57,6 @@ namespace rocksdb {
 	const std::string kTerarkEmptyTableKey             = "ThisIsAnEmptyTable";
 
 
-	/*class TableFactory*
-	  NewTerarkZipTableFactory(const TerarkZipTableOptions& tzto,
-	  class TableFactory* fallback) {
-	  int err = 0;
-	  try {
-	  TempFileDeleteOnClose test;
-	  test.path = tzto.localTempDir + "/Terark-XXXXXX";
-	  test.open_temp();
-	  test.writer << "Terark";
-	  test.complete_write();
-	  }
-	  catch (...) {
-	  fprintf(stderr
-      , "ERROR: bad localTempDir %s %s\n"
-      , tzto.localTempDir.c_str(), err ? strerror(err) : "");
-	  abort();
-	  }
-	  TerarkZipTableFactory* factory = new TerarkZipTableFactory(tzto, fallback);
-	  if (tzto.debugLevel < 0) {
-	  STD_INFO("NewTerarkZipTableFactory(\n%s)\n",
-      factory->GetPrintableTableOptions().c_str()
-	  );
-	  }
-	  return factory;
-	  }*/
-
 	inline static
 	bool IsBytewiseComparator(const Comparator* cmp) {
 #if 1
@@ -113,7 +87,7 @@ namespace rocksdb {
 									   uint64_t file_size, unique_ptr<TableReader>* table,
 									   bool prefetch_index_and_filter_in_cache)
 		const {
-		auto userCmp = table_reader_options.internal_comparator.user_comparator();
+		const rocksdb::Comparator* userCmp = &table_reader_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",
 										   "user comparator must be 'leveldb.BytewiseComparator'");
@@ -171,11 +145,11 @@ namespace rocksdb {
 	}
 
 	TerarkZipTableBuilder*
-	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilerOptions& table_builder_options,
+	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 										uint32_t column_family_id,
 										WritableFileWriter* file)
 		const {
-		auto userCmp = table_builder_options.internal_comparator.user_comparator();
+		const rocksdb::Comparator* userCmp = &table_builder_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			THROW_STD(invalid_argument,
 					  "TerarkChunkManager::NewTableBuilder(): "

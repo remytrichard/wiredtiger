@@ -5,7 +5,7 @@ TigerDir=/newssd1/zzz/wiredtiger
 RocksDir=/newssd1/zzz/rocksdb
 CXX=g++
 CFLAGS=-g -std=c++11 -DROCKSDB_PLATFORM_POSIX
-INC=-I. -I$(TigerDir) -I$(TerarkDir) -I$(RocksDir)/include -I$(RocksDir)/port -I$(RocksDir)
+INC=-I. -I$(TigerDir) -I$(TerarkDir) -I$(RocksDir)/include -I$(RocksDir)/port -I$(RocksDir) -I$(RocksDir)/util
 LIB=-L$base_dir/.libs -lwiredtiger 
 #g++ -g -std=c++11 -I. -I$base_dir -I$base_dir/src/include -L$base_dir/.libs -lwiredtiger  -o bridge bridge.cc
 

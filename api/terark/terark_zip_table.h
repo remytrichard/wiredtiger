@@ -13,7 +13,9 @@
 #include <string>
 #include <vector>
 
+#include "rocksdb/comparator.h"
 #include "rocksdb/options.h"
+
 
 namespace rocksdb {
 
@@ -82,17 +84,21 @@ namespace rocksdb {
 		double indexCacheRatio = 0;//0.001;
 	};
 
-	struct TerarkTableBuilerOptions {
+	class TerarkTableBuilderOptions {
+	public:
+	TerarkTableBuilderOptions(const rocksdb::Comparator& comp) : internal_comparator(comp) {
+		}
+			
 		// replace ImmutableCFOptions with Options
 		rocksdb::Options ioptions;
 		//
-		const std::string& column_family_name;
+		std::string column_family_name;
 
 		//const std::vector<std::unique_ptr<IntTblPropCollectorFactory>>*
 		//  int_tbl_prop_collector_factories;
 		CompressionType compression_type;
 
-		const InternalKeyComparator& internal_comparator;
+		const Comparator& internal_comparator;
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
 	};
