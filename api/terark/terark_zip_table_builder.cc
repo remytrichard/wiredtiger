@@ -73,7 +73,7 @@ namespace rocksdb {
 
 	TerarkZipTableBuilder::TerarkZipTableBuilder(
 												 const TerarkZipTableOptions& tzto,
-												 const TableBuilderOptions& tbo,
+												 const TerarkTableBuilderOptions& tbo,
 												 uint32_t column_family_id,
 												 WritableFileWriter* file,
 												 size_t key_prefixLen)
@@ -100,14 +100,14 @@ namespace rocksdb {
 			fstring(properties_.comparator_name) == "rocksdb.Uint64Comparator";
 #endif
 
-		if (tbo.int_tbl_prop_collector_factories) {
+		/*if (tbo.int_tbl_prop_collector_factories) {
 			const auto& factories = *tbo.int_tbl_prop_collector_factories;
 			collectors_.resize(factories.size());
 			auto cfId = properties_.column_family_id;
 			for (size_t i = 0; i < collectors_.size(); ++i) {
 				collectors_[i].reset(factories[i]->CreateIntTblPropCollector(cfId));
 			}
-		}
+			}*/
 
 		std::string property_collectors_names = "[";
 		for (size_t i = 0;
@@ -173,7 +173,7 @@ namespace rocksdb {
 		}
 	}
 
-	TableProperties TerarkZipTableBuilder::GetTableProperties() const {
+	/*TableProperties TerarkZipTableBuilder::GetTableProperties() const {
 		TableProperties ret = properties_;
 		for (const auto& collector : collectors_) {
 			for (const auto& prop : collector->GetReadableProperties()) {
@@ -182,8 +182,7 @@ namespace rocksdb {
 			collector->Finish(&ret.user_collected_properties);
 		}
 		return ret;
-	}
-
+		}*/
 
 	void TerarkZipTableBuilder::Add(const Slice& key, const Slice& value) {
 
@@ -258,15 +257,15 @@ namespace rocksdb {
 			properties_.num_entries++;
 			properties_.raw_key_size += key.size();
 			properties_.raw_value_size += value.size();
-			NotifyCollectTableCollectorsOnAdd(key, value, offset,
-											  collectors_, ioptions_.info_log);
+			//NotifyCollectTableCollectorsOnAdd(key, value, offset,
+			//								  collectors_, ioptions_.info_log);
 		} else if (value_type == kTypeRangeDeletion) {
 			range_del_block_.Add(key, value);
 			properties_.num_entries++;
 			properties_.raw_key_size += key.size();
 			properties_.raw_value_size += value.size();
-			NotifyCollectTableCollectorsOnAdd(key, value, offset,
-											  collectors_, ioptions_.info_log);
+			//NotifyCollectTableCollectorsOnAdd(key, value, offset,
+			//collectors_, ioptions_.info_log);
 		} else {
 			assert(false);
 		}

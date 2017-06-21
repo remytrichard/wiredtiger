@@ -57,7 +57,7 @@ namespace rocksdb {
 	public:
 		TerarkZipTableBuilder(
 							  const TerarkZipTableOptions&,
-							  const TableBuilderOptions& tbo,
+							  const TerarkTableBuilerOptions& tbo,
 							  uint32_t column_family_id,
 							  WritableFileWriter* file,
 							  size_t key_prefixLen);
@@ -70,7 +70,6 @@ namespace rocksdb {
 		void Abandon();
 		uint64_t NumEntries() const { return properties_.num_entries; }
 		uint64_t FileSize() const;
-		TableProperties GetTableProperties() const;
 		void SetSecondPassIterator(InternalIterator* reader) {
 			if (!table_options_.disableSecondPassIter) {
 				second_pass_iter_ = reader;
@@ -114,10 +113,10 @@ namespace rocksdb {
 
 		Arena arena_;
 		const TerarkZipTableOptions& table_options_;
-		// fuck out TableBuilderOptions
-		const ImmutableCFOptions& ioptions_;
-		std::vector<std::unique_ptr<IntTblPropCollector>> collectors_;
-		// end fuck out TableBuilderOptions
+		// start TableBuilderOptions
+		const rocksdb::ColumnFamilyOptions& ioptions_; // replace ImmutableCFOptions with CFOptions
+		//std::vector<std::unique_ptr<IntTblPropCollector>> collectors_;
+		// end TableBuilderOptions
 		InternalIterator* second_pass_iter_ = nullptr;
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem ??
 		valvec<byte_t> prevUserKey_; // key after keyPrefix & seq_type striped

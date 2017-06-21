@@ -6,16 +6,15 @@
 #include "wiredtiger.h"
 #include "wiredtiger_ext.h"
 
-#if defined(__cplusplus)
+#include "terark_zip_internal.h"
+
+/*#if defined(__cplusplus)
 extern "C" {
 	#include "wt_internal.h"
 	#include "extern.h"
 }
 #endif
-
-void terark_doit(const char* tag, const char* str, int len) {
-    printf("%s: %.*s\n", tag, len, str);
-}
+*/
 
 
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
@@ -24,7 +23,11 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	(void)session;
 	(void)uri;
 	(void)config;
-	
+
+	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
+	rocksdb::Options option;
+	const rocksdb::Comparator* com = rocksdb::BytewiseComparator();
+	//manager->NewTableBuilder(
 	return (0);
 }
 

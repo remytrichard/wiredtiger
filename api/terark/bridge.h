@@ -2,7 +2,8 @@
 #ifndef __BRIDGE_H_
 #define __BRIDGE_H_
 
-//#include
+#include <vector>
+
 #include "wiredtiger.h"
 
 

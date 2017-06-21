@@ -171,8 +171,7 @@ namespace rocksdb {
 	}
 
 	TerarkZipTableBuilder*
-	TerarkChunkManager::NewTableBuilder(
-										const TableBuilderOptions& table_builder_options,
+	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilerOptions& table_builder_options,
 										uint32_t column_family_id,
 										WritableFileWriter* file)
 		const {

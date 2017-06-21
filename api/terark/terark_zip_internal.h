@@ -11,6 +11,7 @@
 #define TERARK_ZIP_INTERNAL_H_
 
 // project headers
+#include "terark_zip_common.h"
 #include "terark_zip_table.h"
 // std headers
 #include <mutex>
@@ -166,7 +167,7 @@ struct ZipValueMultiValue {
 						bool prefetch_index_and_filter_in_cache) const;
 
 	 TerarkZipTableBuilder*
-		 NewTableBuilder(const TableBuilderOptions& table_builder_options,
+		 NewTableBuilder(const TerarkTableBuilerOptions& table_builder_options,
 						 uint32_t column_family_id,
 						 WritableFileWriter* file) const;
 
