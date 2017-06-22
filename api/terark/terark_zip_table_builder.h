@@ -75,8 +75,19 @@ namespace rocksdb {
 				second_pass_iter_ = reader;
 			}
 		}
+		
+		enum ChunkState {
+			kJustCreated = 0,
+			kFirstPass = 1,
+			kSecondPass = 2,
+			kFinished = 3
+		};
+		ChunkState GetState() { return chunk_state_; }
+		void SetState(ChunkState state) { chunk_state_ = state; }
+		
 
 	private:
+
 		struct KeyValueStatus {
 			TerarkIndex::KeyStat stat;
 			valvec<char> prefix;
@@ -111,7 +122,9 @@ namespace rocksdb {
 		Status WriteMetaData(std::initializer_list<std::pair<const std::string*, BlockHandle> > blocks);
 		DictZipBlobStore::ZipBuilder* createZipBuilder() const;
 
+
 		Arena arena_;
+		ChunkState chunk_state_;
 		const TerarkZipTableOptions& table_options_;
 		// start TableBuilderOptions
 		const rocksdb::ColumnFamilyOptions& ioptions_; // replace ImmutableCFOptions with CFOptions

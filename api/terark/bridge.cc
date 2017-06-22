@@ -1,13 +1,18 @@
 
 #include <stdio.h>
 #include <iostream>
+#include <memory>
 #include "bridge.h"
 
 #include "wiredtiger.h"
 #include "wiredtiger_ext.h"
 
+#include "file_reader_writer.h"
+#include "rocksdb/env.h"
+
 #include "terark_zip_internal.h"
 #include "terark_zip_table.h"
+#include "terark_zip_table_builder.h"
 
 /*#if defined(__cplusplus)
 extern "C" {
@@ -30,16 +35,20 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	const rocksdb::Comparator* comparator = rocksdb::BytewiseComparator();
 	rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
 
-	unique_ptr<WritableFile> file;
+	std::unique_ptr<rocksdb::WritableFile> file;
 	// TBD(kg): need more settings on env
 	rocksdb::EnvOptions env_options;
 	env_options.use_mmap_reads = env_options.use_mmap_writes = true;
-	rocksdb::Status s = options.env->NewWritableFile(*uri, &file, env_options);
+	std::string fname(uri);
+	rocksdb::Status s = options.env->NewWritableFile(fname, &file, env_options);
 	assert(s.ok());
 	//file->SetPreallocationBlockSize(immutable_db_options_.manifest_preallocation_size);
-	unique_ptr<WritableFileWriter> file_writer(new WritableFileWriter(std::move(file), env_options));
-		
-	manager->NewTableBuilder(builder_options, 0, file_writer.get());
+	std::unique_ptr<rocksdb::WritableFileWriter> 
+		file_writer(new rocksdb::WritableFileWriter(std::move(file), env_options));
+	// TBD(kg): file_writer.get()...	
+	rocksdb::TerarkChunk* chunk = manager->NewTableBuilder(builder_options, 0, file_writer.get());
+	manager->AddChunk(uri, chunk);
+
 	return (0);
 }
 
@@ -51,13 +60,46 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	(void)config;
 	(void)new_cursor;
 
+	// 
+
 	return (0);
 }
 
-int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *source, WT_CURSOR *dest) {
+static int trk_open_chunk(const char* uri, rocksdb::TerarkChunk* chunk) {
+	(void)uri;
+	(void)chunk;
+
+	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
+	chunk = manager->GetChunk(uri);
+	if (!chunk) {
+		
+	}
+
+	return 0;
+}
+
+int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *src_cursor, WT_CURSOR *dest) {
 	(void)dsrc;
-	(void)source;
+	(void)src_cursor;
 	(void)dest;
+
+	std::string fname(dest->uri);
+	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
+	rocksdb::TerarkChunk* chunk = manager->GetChunk(fname);
+	if (chunk->GetState() != rocksdb::TerarkChunk::kJustCreated) {
+		printf("trk_pre_merge: Invalid State\n");
+		return -1;
+	}
+	
+	chunk->SetState(rocksdb::TerarkChunk::kFirstPass);
+	int ret = 0;
+	const char *key, *value;
+	while ((ret = src_cursor->next(src_cursor)) == 0) {
+		ret = src_cursor->get_key(src_cursor, &key);
+		ret = src_cursor->get_value(src_cursor, &value);
+		chunk->Add(key, value);
+	}
+	chunk->SetState(rocksdb::TerarkChunk::kSecondPass);
 
 	return (0);
 }

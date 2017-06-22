@@ -13,6 +13,7 @@
 // project headers
 #include "terark_zip_common.h"
 #include "terark_zip_table.h"
+#include "terark_zip_table_builder.h"
 // std headers
 #include <mutex>
 // rocksdb headers
@@ -113,10 +114,11 @@ struct ZipValueMultiValue {
 };
 
 
- class TerarkChunk {
- };
+//class TerarkChunk {
+//};
 
  class TerarkZipTableBuilder;
+ using TerarkChunk = TerarkZipTableBuilder;
  class TerarkChunkManager : boost::noncopyable {
  private:
 	 static TerarkChunkManager* _instance;
@@ -155,8 +157,8 @@ struct ZipValueMultiValue {
 	 const char* Name() const { return "TerarkChunkManager"; }
 
  public:
-	 void AddChunk(TerarkChunk*);
-	 TerarkChunk* GetChunk(const char*);
+	 void AddChunk(const std::string&, TerarkChunk*);
+	 TerarkChunk* GetChunk(const std::string&);
 
  public:
 	 Status
@@ -189,7 +191,8 @@ struct ZipValueMultiValue {
 	 mutable size_t nth_new_fallback_table_ = 0;
  
 private:
-	 std::vector<TerarkChunk*> _chunks;
+	 // should replace name of TerarkZipTableBuilder with TerarkChunk
+	 std::map<std::string, TerarkChunk*> _chunk_dict;
  };
 
 

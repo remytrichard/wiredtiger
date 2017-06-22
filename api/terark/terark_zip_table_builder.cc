@@ -80,7 +80,8 @@ namespace rocksdb {
 		: table_options_(tzto)
 		, ioptions_(tbo.ioptions)
 		, range_del_block_(1)
-		, key_prefixLen_(key_prefixLen) {
+		, key_prefixLen_(key_prefixLen)
+		, chunk_state_(kJustCreated) {
 		properties_.fixed_key_len = 0;
 		properties_.num_data_blocks = 1;
 		properties_.column_family_id = column_family_id;
@@ -196,7 +197,7 @@ namespace rocksdb {
 		uint64_t offset = uint64_t((properties_.raw_key_size + properties_.raw_value_size)
 								   * table_options_.estimateCompressionRatio);
 		if (IsValueType(value_type)) {
-			assert(key.size() >= 8);
+			//assert(key.size() >= 8);
 			fstring userKey(key.data(), key.size() - 8);
 			assert(userKey.size() >= key_prefixLen_);
 #if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
