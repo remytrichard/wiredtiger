@@ -82,8 +82,8 @@ main(void)
 		  c->set_key(c, key);
 		  c->set_value(c, value);
 		  c->insert(c);
-		  }
-		  ret = session->compact(session, "table:bucket", NULL);
+		}
+		ret = session->compact(session, "table:bucket", NULL);
 		/*{
 			c->set_key(c, "key_test");
 			c->set_value(c, "val1");

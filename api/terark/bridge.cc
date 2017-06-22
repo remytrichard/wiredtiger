@@ -14,15 +14,8 @@
 #include "terark_zip_table.h"
 #include "terark_zip_table_builder.h"
 
-/*#if defined(__cplusplus)
-extern "C" {
-	#include "wt_internal.h"
-	#include "extern.h"
-}
-#endif
-*/
 
-
+// TBD(kg): parse config as well
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
 	(void)dsrc;
@@ -65,19 +58,6 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	return (0);
 }
 
-static int trk_open_chunk(const char* uri, rocksdb::TerarkChunk* chunk) {
-	(void)uri;
-	(void)chunk;
-
-	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
-	chunk = manager->GetChunk(uri);
-	if (!chunk) {
-		
-	}
-
-	return 0;
-}
-
 int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *src_cursor, WT_CURSOR *dest) {
 	(void)dsrc;
 	(void)src_cursor;
@@ -97,12 +77,51 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *src_cursor, WT_CURSOR *dest) 
 	while ((ret = src_cursor->next(src_cursor)) == 0) {
 		ret = src_cursor->get_key(src_cursor, &key);
 		ret = src_cursor->get_value(src_cursor, &value);
-		chunk->Add(key, value);
+		chunk->Add(key, value, &src_cursor->value);
 	}
 	chunk->SetState(rocksdb::TerarkChunk::kSecondPass);
 
 	return (0);
 }
+
+
+
+
+
+
+int trk_cursor_next(WT_CURSOR *cursor) {
+	(void)cursor;
+	return (0);
+}
+
+int trk_cursor_prev(WT_CURSOR *cursor) {
+	(void)cursor;
+	return (0);
+}
+
+int trk_cursor_reset(WT_CURSOR *cursor) {
+	(void)cursor;
+	return (0);
+}
+
+int trk_cursor_search(WT_CURSOR *cursor) {
+	(void)cursor;
+	return (0);
+}
+
+int tr_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
+	(void)cursor;
+	(void)exactp;
+
+	return (0);
+}
+
+int trk_cursor_insert(WT_CURSOR *cursor) {
+	(void)cursor;
+	return (0);
+}
+
+
 
 static const char *home;
 int main() {

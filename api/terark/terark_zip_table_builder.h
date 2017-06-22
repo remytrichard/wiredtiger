@@ -18,6 +18,8 @@
 #include "terark_zip_index.h"
 // std headers
 #include <random>
+// wiredtiger headers
+#include "wiredtiger.h"
 // rocksdb headers
 #include <table/table_builder.h>
 #include <table/block_builder.h>
@@ -64,7 +66,7 @@ namespace rocksdb {
 
 		~TerarkZipTableBuilder();
 
-		void Add(const Slice& key, const Slice& value);
+		void Add(const Slice& key, const Slice& value, const WT_ITEM* val_item);
 		Status status() const { return status_; }
 		Status Finish();
 		void Abandon();
@@ -149,7 +151,6 @@ namespace rocksdb {
 		Status status_;
 		TableProperties properties_;
 		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
-		BlockBuilder range_del_block_;
 		terark::fstrvec valueBuf_; // collect multiple values for one key
 		bool closed_ = false;  // Either Finish() or Abandon() has been called.
 		bool isReverseBytewiseOrder_;

@@ -14,6 +14,7 @@
 #include "terark_zip_common.h"
 #include "terark_zip_table.h"
 #include "terark_zip_table_builder.h"
+#include "terark_zip_table_reader.h"
 // std headers
 #include <mutex>
 // rocksdb headers
@@ -165,7 +166,7 @@ struct ZipValueMultiValue {
 		 NewTableReader(const TableReaderOptions& table_reader_options,
 						unique_ptr<RandomAccessFileReader>&& file,
 						uint64_t file_size,
-						unique_ptr<TableReader>* table,
+						unique_ptr<TerarkTableReader>* table,
 						bool prefetch_index_and_filter_in_cache) const;
 
 	 TerarkZipTableBuilder*

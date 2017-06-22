@@ -84,9 +84,8 @@ namespace rocksdb {
 	TerarkChunkManager::NewTableReader(
 									   const TableReaderOptions& table_reader_options,
 									   unique_ptr<RandomAccessFileReader>&& file,
-									   uint64_t file_size, unique_ptr<TableReader>* table,
-									   bool prefetch_index_and_filter_in_cache)
-		const {
+									   uint64_t file_size, unique_ptr<TerarkTableReader>* table,
+									   bool prefetch_index_and_filter_in_cache) const {
 		const rocksdb::Comparator* userCmp = &table_reader_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",
@@ -98,17 +97,6 @@ namespace rocksdb {
 			return s;
 		}
 		if (footer.table_magic_number() != kTerarkZipTableMagicNumber) {
-			if (adaptive_factory_) {
-				// just for open table
-				return adaptive_factory_->NewTableReader(table_reader_options,
-														 std::move(file), file_size, table,
-														 prefetch_index_and_filter_in_cache);
-			}
-			if (fallback_factory_) {
-				return fallback_factory_->NewTableReader(table_reader_options,
-														 std::move(file), file_size, table,
-														 prefetch_index_and_filter_in_cache);
-			}
 			return Status::InvalidArgument(
 										   "TerarkChunkManager::NewTableReader()",
 										   "fallback_factory is null and magic_number is not kTerarkZipTable"
