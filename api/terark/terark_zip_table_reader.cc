@@ -4,61 +4,17 @@
 // boost headers
 #include <boost/scope_exit.hpp>
 // rocksdb headers
-#include <table/internal_iterator.h>
-#include <table/sst_file_writer_collectors.h>
-#include <table/meta_blocks.h>
-#include <table/get_context.h>
+//#include <table/internal_iterator.h>
+//#include <table/sst_file_writer_collectors.h>
+//#include <table/meta_blocks.h>
+//#include <table/get_context.h>
+#include "rocksdb/iterator.h"
 // terark headers
 #include <terark/util/crc.hpp>
 
 
 namespace {
 	using namespace rocksdb;
-
-	// copy & modify from block_based_table_reader.cc
-	SequenceNumber GetGlobalSequenceNumber(const TableProperties& table_properties,
-										   Logger* info_log) {
-		auto& props = table_properties.user_collected_properties;
-
-		auto version_pos = props.find(ExternalSstFilePropertyNames::kVersion);
-		auto seqno_pos = props.find(ExternalSstFilePropertyNames::kGlobalSeqno);
-
-		if (version_pos == props.end()) {
-			if (seqno_pos != props.end()) {
-				// This is not an external sst file, global_seqno is not supported.
-				assert(false);
-				fprintf(stderr,
-						"A non-external sst file have global seqno property with value %s\n",
-						seqno_pos->second.c_str());
-			}
-			return kDisableGlobalSequenceNumber;
-		}
-
-		uint32_t version = DecodeFixed32(version_pos->second.c_str());
-		if (version < 2) {
-			if (seqno_pos != props.end() || version != 1) {
-				// This is a v1 external sst file, global_seqno is not supported.
-				assert(false);
-				fprintf(stderr,
-						"An external sst file with version %u have global seqno property "
-						"with value %s\n",
-						version, seqno_pos->second.c_str());
-			}
-			return kDisableGlobalSequenceNumber;
-		}
-
-		SequenceNumber global_seqno = DecodeFixed64(seqno_pos->second.c_str());
-
-		if (global_seqno > kMaxSequenceNumber) {
-			assert(false);
-			fprintf(stderr,
-					"An external sst file with version %u have global seqno property "
-					"with value %llu, which is greater than kMaxSequenceNumber\n",
-					version, (long long)global_seqno);
-		}
-
-		return global_seqno;
-	}
 
 	void SharedBlockCleanupFunction(void* arg1, void* arg2) {
 		delete reinterpret_cast<shared_ptr<Block>*>(arg1);
@@ -87,8 +43,6 @@ namespace {
 	static void MmapWarmUp(const Vec& uv) {
 		MmapWarmUpBytes(uv.data(), uv.mem_size());
 	}
-
-
 }
 
 
@@ -99,12 +53,11 @@ namespace rocksdb {
 	using terark::BlobStore;
 
 	template<bool reverse>
-	class TerarkZipTableIterator : public InternalIterator, boost::noncopyable {
+	class TerarkZipTableIterator : public Iterator, boost::noncopyable {
 	protected:
-		const TableReaderOptions* table_reader_options_;
+		const TerarkTableReaderOptions* table_reader_options_;
 		const TerarkZipSubReader* subReader_;
 		unique_ptr<TerarkIndex::Iterator> iter_;
-		SequenceNumber          global_seqno_;
 		ParsedInternalKey       pInterKey_;
 		std::string             interKeyBuf_;
 		valvec<byte_t>          interKeyBuf_xx_;
@@ -114,34 +67,21 @@ namespace rocksdb {
 		size_t                  valnum_;
 		size_t                  validx_;
 		Status                  status_;
-		PinnedIteratorsManager* pinned_iters_mgr_;
-		valvec<valvec<byte_t>>  pinned_buffer_;
 
 	public:
 		TerarkZipTableIterator(const TableReaderOptions& tro
-							   , const TerarkZipSubReader *subReader
-							   , SequenceNumber global_seqno)
+							   , const TerarkZipSubReader *subReader)
 			: table_reader_options_(&tro)
-			, subReader_(subReader)
-			, global_seqno_(global_seqno) {
+			, subReader_(subReader) {
 			if (subReader_ != nullptr) {
 				iter_.reset(subReader_->index_->NewIterator());
 				iter_->SetInvalid();
 			}
-			pinned_iters_mgr_ = NULL;
-			TryPinBuffer(interKeyBuf_xx_);
 			validx_ = 0;
 			valnum_ = 0;
 			pInterKey_.user_key = Slice();
 			pInterKey_.sequence = uint64_t(-1);
 			pInterKey_.type = kMaxValue;
-		}
-
-		void SetPinnedItersMgr(PinnedIteratorsManager* pinned_iters_mgr) {
-			if (pinned_iters_mgr_ && pinned_iters_mgr_ != pinned_iters_mgr) {
-				pinned_buffer_.clear();
-			}
-			pinned_iters_mgr_ = pinned_iters_mgr;
 		}
 
 		bool Valid() const override {
@@ -290,16 +230,9 @@ namespace rocksdb {
 			return status_;
 		}
 
-		bool IsKeyPinned() const {
-			return pinned_iters_mgr_ && pinned_iters_mgr_->PinningEnabled();
-		}
-		bool IsValuePinned() const {
-			return pinned_iters_mgr_ && pinned_iters_mgr_->PinningEnabled();
-		}
-
 	protected:
 		virtual void SetIterInvalid() {
-			TryPinBuffer(interKeyBuf_xx_);
+			//TryPinBuffer(interKeyBuf_xx_);
 			iter_->SetInvalid();
 			validx_ = 0;
 			valnum_ = 0;
@@ -307,125 +240,97 @@ namespace rocksdb {
 			pInterKey_.sequence = uint64_t(-1);
 			pInterKey_.type = kMaxValue;
 		}
+
 		virtual bool IndexIterSeekToFirst() {
-			TryPinBuffer(interKeyBuf_xx_);
-			if (reverse)
+			//TryPinBuffer(interKeyBuf_xx_);
+			if (reverse) {
 				return iter_->SeekToLast();
-			else
+			} else {
 				return iter_->SeekToFirst();
+			}
 		}
+
 		virtual bool IndexIterSeekToLast() {
-			TryPinBuffer(interKeyBuf_xx_);
-			if (reverse)
+			//TryPinBuffer(interKeyBuf_xx_);
+			if (reverse) {
 				return iter_->SeekToFirst();
-			else
+			} else {
 				return iter_->SeekToLast();
+			}
 		}
+
 		virtual bool IndexIterPrev() {
-			TryPinBuffer(interKeyBuf_xx_);
-			if (reverse)
+			//TryPinBuffer(interKeyBuf_xx_);
+			if (reverse) {
 				return iter_->Next();
-			else
+			} else {
 				return iter_->Prev();
+			}
 		}
+
 		virtual bool IndexIterNext() {
-			TryPinBuffer(interKeyBuf_xx_);
-			if (reverse)
+			//TryPinBuffer(interKeyBuf_xx_);
+			if (reverse) {
 				return iter_->Prev();
-			else
+			} else {
 				return iter_->Next();
+			}
 		}
+
 		virtual void DecodeCurrKeyValue() {
 			DecodeCurrKeyValueInternal();
 			interKeyBuf_.assign(subReader_->commonPrefix_.data(), subReader_->commonPrefix_.size());
 			AppendInternalKey(&interKeyBuf_, pInterKey_);
 			interKeyBuf_xx_.assign((byte_t*)interKeyBuf_.data(), interKeyBuf_.size());
 		}
-		void TryPinBuffer(valvec<byte_t>& buf) {
-			if (pinned_iters_mgr_ && pinned_iters_mgr_->PinningEnabled()) {
-				pinned_buffer_.push_back();
-				pinned_buffer_.back().swap(buf);
-			}
-		}
+
 		bool UnzipIterRecord(bool hasRecord) {
 			if (hasRecord) {
 				size_t recId = iter_->id();
-				zValtype_ = subReader_->type_.size()
-					? ZipValueType(subReader_->type_[recId])
-					: ZipValueType::kZeroSeq;
+				zValtype_ = ZipValueType(subReader_->type_[recId]);
 				try {
-					TryPinBuffer(valueBuf_);
-					if (ZipValueType::kMulti == zValtype_) {
-						valueBuf_.resize_no_init(sizeof(uint32_t)); // for offsets[valnum_]
-					}
-					else {
-						valueBuf_.erase_all();
-					}
+					valueBuf_.erase_all();
 					subReader_->store_->get_record_append(recId, &valueBuf_);
-				}
-				catch (const BadCrc32cException& ex) { // crc checksum error
+				} catch (const BadCrc32cException& ex) { // crc checksum error
 					SetIterInvalid();
-					status_ = Status::Corruption(
-												 "TerarkZipTableIterator::UnzipIterRecord()", ex.what());
+					status_ = Status::Corruption("TerarkZipTableIterator::UnzipIterRecord()", ex.what());
 					return false;
 				}
-				if (ZipValueType::kMulti == zValtype_) {
-					ZipValueMultiValue::decode(valueBuf_, &valnum_);
-				}
-				else {
-					valnum_ = 1;
-				}
+				valnum_ = 1;
 				validx_ = 0;
 				pInterKey_.user_key = SliceOf(iter_->key());
 				return true;
-			}
-			else {
+			} else {
 				SetIterInvalid();
 				return false;
 			}
 		}
+		
+		// TBD(kg): Pinn removed, where to store the actual data?
 		void DecodeCurrKeyValueInternal() {
 			assert(status_.ok());
 			assert(iter_->id() < subReader_->index_->NumKeys());
 			switch (zValtype_) {
-			default:
+			case ZipValueType::kValue: {
+				assert(0 == validx_);
+				assert(1 == valnum_);
+				pInterKey_.type = kTypeValue;
+				userValue_ = SliceOf(fstring(valueBuf_));
+				break;
+			}
+			case ZipValueType::kDelete: {
+				assert(0 == validx_);
+				assert(1 == valnum_);
+				pInterKey_.type = kTypeDeletion;
+				// TBD(kg): use Tombstome instead?
+				userValue_ = Slice();
+				break;
+			}
+			default: {
 				status_ = Status::Aborted("TerarkZipTableIterator::DecodeCurrKeyValue()",
 										  "Bad ZipValueType");
 				abort(); // must not goes here, if it does, it should be a bug!!
 				break;
-			case ZipValueType::kZeroSeq:
-				assert(0 == validx_);
-				assert(1 == valnum_);
-				pInterKey_.sequence = global_seqno_;
-				pInterKey_.type = kTypeValue;
-				userValue_ = SliceOf(valueBuf_);
-				break;
-			case ZipValueType::kValue: // should be a kTypeValue, the normal case
-				assert(0 == validx_);
-				assert(1 == valnum_);
-				// little endian uint64_t
-				pInterKey_.sequence = *(uint64_t*)valueBuf_.data() & kMaxSequenceNumber;
-				pInterKey_.type = kTypeValue;
-				userValue_ = SliceOf(fstring(valueBuf_).substr(7));
-				break;
-			case ZipValueType::kDelete:
-				assert(0 == validx_);
-				assert(1 == valnum_);
-				// little endian uint64_t
-				pInterKey_.sequence = *(uint64_t*)valueBuf_.data() & kMaxSequenceNumber;
-				pInterKey_.type = kTypeDeletion;
-				userValue_ = Slice();
-				break;
-			case ZipValueType::kMulti: { // more than one value
-				auto zmValue = (const ZipValueMultiValue*)(valueBuf_.data());
-				assert(0 != valnum_);
-				assert(validx_ < valnum_);
-				Slice d = zmValue->getValueData(validx_, valnum_);
-				auto snt = unaligned_load<SequenceNumber>(d.data());
-				UnPackSequenceAndType(snt, &pInterKey_.sequence, &pInterKey_.type);
-				d.remove_prefix(sizeof(SequenceNumber));
-				userValue_ = d;
-				break; }
 			}
 		}
 	};
@@ -435,9 +340,8 @@ namespace rocksdb {
 	class TerarkZipTableUint64Iterator : public TerarkZipTableIterator<false> {
 	public:
 		TerarkZipTableUint64Iterator(const TableReaderOptions& tro
-									 , const TerarkZipSubReader *subReader
-									 , SequenceNumber global_seqno)
-			: TerarkZipTableIterator<false>(tro, subReader, global_seqno) {
+									 , const TerarkZipSubReader *subReader)
+			: TerarkZipTableIterator<false>(tro, subReader) {
 		}
 	protected:
 		typedef TerarkZipTableIterator<false> base_t;
@@ -477,7 +381,7 @@ namespace rocksdb {
 	};
 #endif
 
-	Status TerarkZipSubReader::Get(SequenceNumber global_seqno, const ReadOptions& ro, const Slice& ikey,
+	Status TerarkZipSubReader::Get(const ReadOptions& ro, const Slice& ikey,
 								   GetContext* get_context, int flag) const {
 		(void)flag;
 		MY_THREAD_LOCAL(valvec<byte_t>, g_tbuf);
@@ -556,8 +460,7 @@ namespace rocksdb {
 				if (sn <= pikey.sequence) {
 					val.remove_prefix(sizeof(SequenceNumber));
 					// only kTypeMerge will return true
-					bool hasMoreValue = get_context->SaveValue(
-															   ParsedInternalKey(pikey.user_key, sn, valtype), val);
+					bool hasMoreValue = get_context->SaveValue(ParsedInternalKey(pikey.user_key, sn, valtype), val);
 					if (!hasMoreValue) {
 						break;
 					}
@@ -599,10 +502,6 @@ namespace rocksdb {
 		}
 		file_data_ = file_data;
 		table_properties_.reset(uniqueProps.release());
-		global_seqno_ = GetGlobalSequenceNumber(*table_properties_, ioptions.info_log);
-		if (global_seqno_ == kDisableGlobalSequenceNumber) {
-			global_seqno_ = 0;
-		}
 		INFO(ioptions.info_log
 			 , "TerarkZipTableReader::Open(): fsize = %zd, entries = %zd keys = 0 indexSize = 0 valueSize = 0, warm up time =      0.000'sec, build cache time =      0.000'sec\n"
 			 , size_t(file_size), size_t(table_properties_->num_entries)
@@ -625,12 +524,11 @@ namespace rocksdb {
 		unique_ptr<TableProperties> uniqueProps(props);
 		Slice file_data;
 		s = file->Read(0, file_size, &file_data, nullptr);
-		if (!s.ok())
+		if (!s.ok()) {
 			return s;
 		}
 		file_data_ = file_data;
 		table_properties_.reset(uniqueProps.release());
-		global_seqno_ = GetGlobalSequenceNumber(*table_properties_, ioptions.info_log);
 		isReverseBytewiseOrder_ =
 			fstring(ioptions.user_comparator->Name()).startsWith("rev:");
 #if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
@@ -644,9 +542,6 @@ namespace rocksdb {
 						  kTerarkZipTableIndexBlock, &indexBlock);
 		if (!s.ok()) {
 			return s;
-		}
-		if (global_seqno_ == kDisableGlobalSequenceNumber) {
-			global_seqno_ = 0;
 		}
 		s = ReadMetaBlock(file, file_size, kTerarkZipTableMagicNumber, ioptions,
 						  kTerarkZipTableCommonPrefixBlock, &commonPrefixBlock);
@@ -706,22 +601,19 @@ namespace rocksdb {
 	}
 
 
-
 	Status TerarkZipTableReader::LoadIndex(Slice mem) {
 		auto func = "TerarkZipTableReader::LoadIndex()";
 		try {
 			subReader_.index_ = TerarkIndex::LoadMemory(fstringOf(mem));
-		}
-		catch (const BadCrc32cException& ex) {
+		} catch (const BadCrc32cException& ex) {
 			return Status::Corruption(func, ex.what());
-		}
-		catch (const std::exception& ex) {
+		} catch (const std::exception& ex) {
 			return Status::InvalidArgument(func, ex.what());
 		}
 		return Status::OK();
 	}
 
-	InternalIterator*
+	Iterator*
 	TerarkZipTableReader::
 	NewIterator(const ReadOptions& ro, Arena* arena, bool skip_filters) {
 		(void)skip_filters; // unused
@@ -729,25 +621,25 @@ namespace rocksdb {
 		if (isUint64Comparator_) {
 			if (arena) {
 				return new(arena->AllocateAligned(sizeof(TerarkZipTableUint64Iterator)))
-					TerarkZipTableUint64Iterator(table_reader_options_, &subReader_, global_seqno_);
+					TerarkZipTableUint64Iterator(table_reader_options_, &subReader__);
 			} else {
-				return new TerarkZipTableUint64Iterator(table_reader_options_, &subReader_, global_seqno_);
+				return new TerarkZipTableUint64Iterator(table_reader_options_, &subReader_);
 			}
 		}
 #endif
 		if (isReverseBytewiseOrder_) {
 			if (arena) {
 				return new(arena->AllocateAligned(sizeof(TerarkZipTableIterator<true>)))
-					TerarkZipTableIterator<true>(table_reader_options_, &subReader_, global_seqno_);
+					TerarkZipTableIterator<true>(table_reader_options_, &subReader_);
 			} else {
-				return new TerarkZipTableIterator<true>(table_reader_options_, &subReader_, global_seqno_);
+				return new TerarkZipTableIterator<true>(table_reader_options_, &subReader_);
 			}
 		} else {
 			if (arena) {
 				return new(arena->AllocateAligned(sizeof(TerarkZipTableIterator<false>)))
-					TerarkZipTableIterator<false>(table_reader_options_, &subReader_, global_seqno_);
+					TerarkZipTableIterator<false>(table_reader_options_, &subReader_);
 			} else {
-				return new TerarkZipTableIterator<false>(table_reader_options_, &subReader_, global_seqno_);
+				return new TerarkZipTableIterator<false>(table_reader_options_, &subReader_);
 			}
 		}
 	}
@@ -765,8 +657,7 @@ namespace rocksdb {
 		return subReader_.Get(global_seqno_, ro, ikey, get_context, flag);
 	}
 
-	TerarkZipTableReader::~TerarkZipTableReader() {
-	}
+	TerarkZipTableReader::~TerarkZipTableReader() {}
 
 	TerarkZipTableReader::TerarkZipTableReader(const TableReaderOptions& tro,
 											   const TerarkZipTableOptions& tzto)
@@ -775,6 +666,4 @@ namespace rocksdb {
 		, tzto_(tzto) {
 		isReverseBytewiseOrder_ = false;
 	}
-
-
 }

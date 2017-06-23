@@ -72,16 +72,18 @@ main(void)
     /* Do some work... */
     {
 		WT_CURSOR *c;
-		session->create(session, "table:bucket", "type=lsm,key_format=S,value_format=S");
+		session->create(session, "table:bucket", "type=lsm,key_format=S,value_format=S,lsm=(merge_min=2)");
 		session->open_cursor(session, "table:bucket", NULL, NULL, &c);
-		for (int i = 0; i < 1000000; i++) {
-		  char key[20] = { 0 };
-		  char value[40] = { 0 };
-		  snprintf(key, 20, "key%05d", i);
-		  snprintf(value, 40, "value%010d", i);
-		  c->set_key(c, key);
-		  c->set_value(c, value);
-		  c->insert(c);
+		for (int j = 0; j < 100; j++) {
+			for (int i = 0; i < 10 * 1000; i++) {
+				char key[20] = { 0 };
+				char value[40] = { 0 };
+				snprintf(key, 20, "key%05d", i);
+				snprintf(value, 40, "value%010d", i);
+				c->set_key(c, key);
+				c->set_value(c, value);
+				c->insert(c);
+			}
 		}
 		ret = session->compact(session, "table:bucket", NULL);
 		/*{

@@ -115,7 +115,7 @@ lsm_config = [
                subconfig=[
                    Config('prefix', '', r'''
                        custom data source prefix instead of \c "file"'''),
-                   Config('start_generation', '1', r'''
+                   Config('start_generation', '0', r'''
                        merge generation at which the custom data source is used
                        (zero indicates no custom data source)''',
                           min='0', max='10'),

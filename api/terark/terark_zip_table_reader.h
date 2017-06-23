@@ -15,14 +15,18 @@
 #include "terark_zip_table.h"
 #include "terark_zip_internal.h"
 #include "terark_zip_index.h"
+#include "block_builder.h"
+#include "format.h"
+
+//#include <table/block.h"
 // boost headers
 #include <boost/noncopyable.hpp>
 // rocksdb headers
 #include <rocksdb/options.h>
+#include "rocksdb/iterator.h"
 #include <util/arena.h>
-#include <table/table_reader.h>
-#include <table/table_builder.h>
-#include <table/block.h>
+//#include <table/table_reader.h>
+
 // terark headers
 #include <terark/util/throw.hpp>
 #include <terark/bitfield_array.hpp>
@@ -33,11 +37,10 @@ namespace rocksdb {
 	class TerarkTableReader {};
 
 	class TerarkEmptyTableReader : public TerarkTableReader, boost::noncopyable {
-		class Iter : boost::noncopyable {
+class Iter : public Iterator, boost::noncopyable {
 		public:
 			Iter() {}
 			~Iter() {}
-			void SetPinnedItersMgr(PinnedIteratorsManager*) {}
 			bool Valid() const { return false; }
 			void SeekToFirst() {}
 			void SeekToLast() {}
@@ -48,10 +51,8 @@ namespace rocksdb {
 			Slice key() const { THROW_STD(invalid_argument, "Invalid call"); }
 			Slice value() const { THROW_STD(invalid_argument, "Invalid call"); }
 			Status status() const { return Status::OK(); }
-			bool IsKeyPinned() const { return false; }
-			bool IsValuePinned() const { return false; }
 		};
-		const TableReaderOptions table_reader_options_;
+		const TerarkTableReaderOptions table_reader_options_;
 		std::shared_ptr<const TableProperties> table_properties_;
 		SequenceNumber global_seqno_;
 		Slice  file_data_;
@@ -67,7 +68,7 @@ namespace rocksdb {
 		std::shared_ptr<const TableProperties>
 			GetTableProperties() const  { return table_properties_; }
 		virtual ~TerarkEmptyTableReader() {}
-	TerarkEmptyTableReader(const TableReaderOptions& o)
+	TerarkEmptyTableReader(const TerarkTableReaderOptions& o)
 		: table_reader_options_(o)
 			, global_seqno_(kDisableGlobalSequenceNumber) {
 		}
@@ -110,7 +111,7 @@ namespace rocksdb {
 	 */
 	class TerarkZipTableReader : public TerarkTableReader, boost::noncopyable {
 	public:
-		InternalIterator*
+		Iterator*
 			NewIterator(const ReadOptions&, Arena*, bool skip_filters);
 
 		Status Get(const ReadOptions&, const Slice& key, GetContext*,
@@ -127,7 +128,7 @@ namespace rocksdb {
 		SequenceNumber GetSequenceNumber() const  {
 			return global_seqno_;
 		}
-		const TableReaderOptions& GetTableReaderOptions() const  {
+		const TerarkTableReaderOptions& GetTableReaderOptions() const  {
 			return table_reader_options_;
 		}
 
@@ -135,7 +136,7 @@ namespace rocksdb {
 		static const size_t kNumInternalBytes = 8;
 		Slice  file_data_;
 		unique_ptr<RandomAccessFileReader> file_;
-		const TableReaderOptions table_reader_options_;
+		const TerarkTableReaderOptions table_reader_options_;
 		std::shared_ptr<const TableProperties> table_properties_;
 		SequenceNumber global_seqno_;
 		const TerarkZipTableOptions& tzto_;

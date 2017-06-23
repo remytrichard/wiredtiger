@@ -190,11 +190,9 @@ namespace rocksdb {
 			fprintf(tmpDumpFile_.fp(), "DEBUG: 1st pass => %s / %s \n", ikey.DebugString(true).c_str(), value.ToString(true).c_str());
 		}
 		DEBUG_PRINT_1ST_PASS_KEY(key);
-		//ValueType value_type = ExtractValueType(key);
 		uint64_t offset = uint64_t((properties_.raw_key_size + properties_.raw_value_size)
 								   * table_options_.estimateCompressionRatio);
 		//if (!IsDeleted(item)) {
-		//assert(key.size() >= 8);
 		fstring userKey(key.data(), key.size());
 		assert(userKey.size() >= key_prefixLen_);
 #if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
@@ -689,20 +687,24 @@ namespace rocksdb {
 		if (!s.ok()) {
 			return s;
 		}
+
 		std::string commonPrefix;
 		commonPrefix.reserve(key_prefixLen_ + keyStat.commonPrefixLen);
 		commonPrefix.append(kvs.prefix.data(), kvs.prefix.size());
 		commonPrefix.append((const char*)prevUserKey_.data(), keyStat.commonPrefixLen);
 		WriteBlock(commonPrefix, file_, &offset_, &commonPrefixBlock);
 		properties_.data_size = dataBlock.size();
+
 		s = WriteBlock(dictMem, file_, &offset_, &dictBlock);
 		if (!s.ok()) {
 			return s;
 		}
+
 		s = WriteBlock(index->Memory(), file_, &offset_, &indexBlock);
 		if (!s.ok()) {
 			return s;
 		}
+
 		if (zeroSeqCount_ != bzvType.size()) {
 			assert(zeroSeqCount_ < bzvType.size());
 			fstring zvTypeMem(bzvType.data(), bzvType.mem_size());
@@ -712,21 +714,15 @@ namespace rocksdb {
 			}
 		}
 		index.reset();
-		if (!range_del_block_.empty()) {
-			s = WriteBlock(range_del_block_.Finish(), file_, &offset_, &tombstoneBlock);
-			if (!s.ok()) {
-				return s;
-			}
-		}
-		range_del_block_.Reset();
 		properties_.index_size = indexBlock.size();
+
 		WriteMetaData({
 				{ dictMem.size() ? &kTerarkZipTableValueDictBlock : NULL       , dictBlock         },
 				{ &kTerarkZipTableIndexBlock                                   , indexBlock        },
 				{ !zvTypeBlock.IsNull() ? &kTerarkZipTableValueTypeBlock : NULL, zvTypeBlock       },
 				{ &kTerarkZipTableCommonPrefixBlock                            , commonPrefixBlock },
-				{ !tombstoneBlock.IsNull() ? &kRangeDelBlock : NULL            , tombstoneBlock    },
 			});
+
 		long long t8 = g_pf.now();
 		{
 			std::unique_lock<std::mutex> lock(g_sumMutex);

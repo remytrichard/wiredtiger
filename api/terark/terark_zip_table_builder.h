@@ -16,14 +16,16 @@
 #include "terark_zip_internal.h"
 #include "terark_zip_common.h"
 #include "terark_zip_index.h"
+#include "block_builder.h"
+#include "format.h"
 // std headers
 #include <random>
 // wiredtiger headers
 #include "wiredtiger.h"
 // rocksdb headers
-#include <table/table_builder.h>
-#include <table/block_builder.h>
-#include <table/format.h>
+//#include <table/table_builder.h>
+//#include <table/block_builder.h>
+//#include <table/format.h>
 #include <util/arena.h>
 // terark headers
 #include <terark/fstring.hpp>
@@ -72,11 +74,6 @@ namespace rocksdb {
 		void Abandon();
 		uint64_t NumEntries() const { return properties_.num_entries; }
 		uint64_t FileSize() const;
-		void SetSecondPassIterator(InternalIterator* reader) {
-			if (!table_options_.disableSecondPassIter) {
-				second_pass_iter_ = reader;
-			}
-		}
 		
 		enum ChunkState {
 			kJustCreated = 0,
@@ -86,7 +83,6 @@ namespace rocksdb {
 		};
 		ChunkState GetState() { return chunk_state_; }
 		void SetState(ChunkState state) { chunk_state_ = state; }
-		
 
 	private:
 
@@ -132,7 +128,6 @@ namespace rocksdb {
 		const rocksdb::ColumnFamilyOptions& ioptions_; // replace ImmutableCFOptions with CFOptions
 		//std::vector<std::unique_ptr<IntTblPropCollector>> collectors_;
 		// end TableBuilderOptions
-		InternalIterator* second_pass_iter_ = nullptr;
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem ??
 		valvec<byte_t> prevUserKey_; // key after keyPrefix & seq_type striped
 		terark::febitvec valueBits_;
@@ -150,7 +145,7 @@ namespace rocksdb {
 		uint64_t zeroSeqCount_ = 0;
 		Status status_;
 		TableProperties properties_;
-		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
+		//std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 		terark::fstrvec valueBuf_; // collect multiple values for one key
 		bool closed_ = false;  // Either Finish() or Abandon() has been called.
 		bool isReverseBytewiseOrder_;

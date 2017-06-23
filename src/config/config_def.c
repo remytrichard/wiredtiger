@@ -1256,7 +1256,7 @@ static const WT_CONFIG_ENTRY config_entries[] = {
 	  "lsm=(auto_throttle=true,bloom=true,bloom_bit_count=16,"
 	  "bloom_config=,bloom_hash_count=8,bloom_oldest=false,"
 	  "chunk_count_limit=0,chunk_max=5GB,chunk_size=10MB,"
-	  "merge_custom=(prefix=,start_generation=1,suffix=),merge_max=15,"
+	  "merge_custom=(prefix=,start_generation=0,suffix=),merge_max=15,"
 	  "merge_min=0),memory_page_max=5MB,old_chunks=,"
 	  "os_cache_dirty_max=0,os_cache_max=0,prefix_compression=false,"
 	  "prefix_compression_min=4,split_deepen_min_child=0,"
