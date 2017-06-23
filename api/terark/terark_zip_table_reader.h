@@ -37,7 +37,7 @@ namespace rocksdb {
 	class TerarkTableReader {};
 
 	class TerarkEmptyTableReader : public TerarkTableReader, boost::noncopyable {
-class Iter : public Iterator, boost::noncopyable {
+		class Iter : public Iterator, boost::noncopyable {
 		public:
 			Iter() {}
 			~Iter() {}
@@ -54,30 +54,28 @@ class Iter : public Iterator, boost::noncopyable {
 		};
 		const TerarkTableReaderOptions table_reader_options_;
 		std::shared_ptr<const TableProperties> table_properties_;
-		SequenceNumber global_seqno_;
 		Slice  file_data_;
 		unique_ptr<RandomAccessFileReader> file_;
+
 	public:
-		Iter* NewIterator(const ReadOptions&, Arena* a, bool) {
+		Iterator* NewIterator(const ReadOptions&, Arena* a, bool) {
 			return a ? new(a->AllocateAligned(sizeof(Iter)))Iter() : new Iter();
 		}
+
 		void Prepare(const Slice&)  {}
-		Status Get(const ReadOptions&, const Slice&, GetContext*, bool) {
-			return Status::OK();
-		}
+
 		std::shared_ptr<const TableProperties>
 			GetTableProperties() const  { return table_properties_; }
+
 		virtual ~TerarkEmptyTableReader() {}
+
 	TerarkEmptyTableReader(const TerarkTableReaderOptions& o)
-		: table_reader_options_(o)
-			, global_seqno_(kDisableGlobalSequenceNumber) {
-		}
+		: table_reader_options_(o) {}
+
 		Status Open(RandomAccessFileReader* file, uint64_t file_size);
+
 	private:
-		SequenceNumber GetSequenceNumber() const  {
-			return global_seqno_;
-		}
-		const TableReaderOptions& GetTableReaderOptions() const  {
+		const TerarkTableReaderOptions& GetTableReaderOptions() const  {
 			return table_reader_options_;
 		}
 	};
@@ -98,9 +96,6 @@ class Iter : public Iterator, boost::noncopyable {
 #endif
 		};
 
-		Status Get(SequenceNumber, const ReadOptions&, const Slice& key,
-				   GetContext*, int flag) const;
-
 		~TerarkZipSubReader();
 	};
 
@@ -114,8 +109,6 @@ class Iter : public Iterator, boost::noncopyable {
 		Iterator*
 			NewIterator(const ReadOptions&, Arena*, bool skip_filters);
 
-		Status Get(const ReadOptions&, const Slice& key, GetContext*,
-				   bool skip_filters);
 
 		std::shared_ptr<const TableProperties>
 			GetTableProperties() const  { return table_properties_; }
@@ -125,9 +118,6 @@ class Iter : public Iterator, boost::noncopyable {
 		Status Open(RandomAccessFileReader* file, uint64_t file_size);
 
 	private:
-		SequenceNumber GetSequenceNumber() const  {
-			return global_seqno_;
-		}
 		const TerarkTableReaderOptions& GetTableReaderOptions() const  {
 			return table_reader_options_;
 		}
@@ -138,7 +128,6 @@ class Iter : public Iterator, boost::noncopyable {
 		unique_ptr<RandomAccessFileReader> file_;
 		const TerarkTableReaderOptions table_reader_options_;
 		std::shared_ptr<const TableProperties> table_properties_;
-		SequenceNumber global_seqno_;
 		const TerarkZipTableOptions& tzto_;
 		bool isReverseBytewiseOrder_;
 #if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE

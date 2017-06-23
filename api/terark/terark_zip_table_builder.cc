@@ -171,12 +171,10 @@ namespace rocksdb {
 			size_t peakMemSize = std::max(dictZipMemSize, nltTrieMemSize);
 			if (peakMemSize < table_options_.softZipWorkingMemLimit) {
 				return fsize;
-			}
-			else {
+			} else {
 				return fsize * 5; // notify rocksdb to `Finish()` this table asap.
 			}
-		}
-		else {
+		} else {
 			return offset_;
 		}
 	}
@@ -193,6 +191,7 @@ namespace rocksdb {
 		uint64_t offset = uint64_t((properties_.raw_key_size + properties_.raw_value_size)
 								   * table_options_.estimateCompressionRatio);
 		//if (!IsDeleted(item)) {
+		//assert(key.size() >= 8);
 		fstring userKey(key.data(), key.size());
 		assert(userKey.size() >= key_prefixLen_);
 #if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
@@ -662,7 +661,7 @@ namespace rocksdb {
 		unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile));
 		assert(index->NumKeys() == keyStat.numKeys);
 		Status s;
-		BlockHandle dataBlock, dictBlock, indexBlock, zvTypeBlock(0, 0), tombstoneBlock(0, 0);
+		BlockHandle dataBlock, dictBlock, indexBlock, zvTypeBlock(0, 0);
 		BlockHandle commonPrefixBlock;
 		{
 			size_t real_size = index->Memory().size() + zstore->mem_size() + bzvType.mem_size();
