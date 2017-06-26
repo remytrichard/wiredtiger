@@ -11,13 +11,6 @@
 #ifndef TERARK_ZIP_TABLE_BUILDER_H_
 #define TERARK_ZIP_TABLE_BUILDER_H_
 
-// project headers
-#include "terark_zip_table.h"
-#include "terark_zip_internal.h"
-#include "terark_zip_common.h"
-#include "terark_zip_index.h"
-#include "block_builder.h"
-#include "format.h"
 // std headers
 #include <random>
 // wiredtiger headers
@@ -37,6 +30,13 @@
 #include <terark/zbs/dict_zip_blob_store.hpp>
 #include <terark/bitfield_array.hpp>
 #include <terark/util/fstrvec.hpp>
+// project headers
+#include "terark_zip_table.h"
+#include "terark_zip_internal.h"
+#include "terark_zip_common.h"
+#include "terark_zip_index.h"
+#include "trk_block_builder.h"
+#include "trk_format.h"
 
 namespace rocksdb {
 
@@ -111,13 +111,13 @@ namespace rocksdb {
 								, KeyValueStatus& kvs, std::function<void(fstring val)> write);
 		Status WriteStore(TerarkIndex* index, BlobStore* store
 						  , KeyValueStatus& kvs, std::function<void(const void*, size_t)> write
-						  , BlockHandle& dataBlock
+						  , TerarkBlockHandle& dataBlock
 						  , long long& t5, long long& t6, long long& t7);
 		Status WriteSSTFile(long long t3, long long t4
 							, fstring tmpIndexFile, terark::BlobStore* zstore
 							, fstring dictMem
 							, const DictZipBlobStore::ZipStat& dzstat);
-		Status WriteMetaData(std::initializer_list<std::pair<const std::string*, BlockHandle> > blocks);
+		Status WriteMetaData(std::initializer_list<std::pair<const std::string*, TerarkBlockHandle> > blocks);
 		DictZipBlobStore::ZipBuilder* createZipBuilder() const;
 
 

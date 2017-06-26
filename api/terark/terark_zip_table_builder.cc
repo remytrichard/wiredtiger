@@ -1,6 +1,5 @@
 
-// project headers
-#include "terark_zip_table_builder.h"
+
 // std headers
 #include <future>
 #include <cfloat>
@@ -9,11 +8,12 @@
 // rocksdb headers
 #include <rocksdb/merge_operator.h>
 #include <table/meta_blocks.h>
+// wiredtiger headers
+#include "wiredtiger.h"
 // terark headers
 #include <terark/util/sortable_strvec.hpp>
-
-#include "wiredtiger.h"
-
+// project headers
+#include "terark_zip_table_builder.h"
 
 namespace rocksdb {
 
@@ -57,7 +57,7 @@ namespace rocksdb {
 	template<class ByteArray>
 	static
 	Status WriteBlock(const ByteArray& blockData, WritableFileWriter* file,
-					  uint64_t* offset, BlockHandle* block_handle) {
+					  uint64_t* offset, TerarkBlockHandle* block_handle) {
 		block_handle->set_offset(*offset);
 		block_handle->set_size(blockData.size());
 		Status s = file->Append(SliceOf(blockData));
@@ -256,21 +256,13 @@ namespace rocksdb {
 		INFO(ioptions_.info_log
 			 , "TerarkZipTableBuilder::EmptyFinish():this=%p\n", this);
 		offset_ = 0;
-		BlockHandle emptyTableBH, tombstoneBH(0, 0);
+		TerarkBlockHandle emptyTableBH;
 		Status s = WriteBlock(Slice("Empty"), file_, &offset_, &emptyTableBH);
 		if (!s.ok()) {
 			return s;
 		}
-		if (!range_del_block_.empty()) {
-			s = WriteBlock(range_del_block_.Finish(), file_, &offset_, &tombstoneBH);
-			if (!s.ok()) {
-				return s;
-			}
-		}
-		range_del_block_.Reset();
 		return WriteMetaData({
 				{ &kTerarkEmptyTableKey                         , emptyTableBH  },
-				{ !tombstoneBH.IsNull() ? &kRangeDelBlock : NULL, tombstoneBH   },
 			   });
 	}
 
@@ -580,7 +572,7 @@ namespace rocksdb {
 
 	Status TerarkZipTableBuilder::WriteStore(TerarkIndex* index, terark::BlobStore* store
 											 , KeyValueStatus& kvs, std::function<void(const void*, size_t)> writeAppend
-											 , BlockHandle& dataBlock
+											 , TerarkBlockHandle& dataBlock
 											 , long long& t5, long long& t6, long long& t7) {
 		auto& keyStat = kvs.stat;
 		auto& bzvType = kvs.type;
@@ -661,8 +653,8 @@ namespace rocksdb {
 		unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile));
 		assert(index->NumKeys() == keyStat.numKeys);
 		Status s;
-		BlockHandle dataBlock, dictBlock, indexBlock, zvTypeBlock(0, 0);
-		BlockHandle commonPrefixBlock;
+		TerarkBlockHandle dataBlock, dictBlock, indexBlock, zvTypeBlock(0, 0);
+		TerarkBlockHandle commonPrefixBlock;
 		{
 			size_t real_size = index->Memory().size() + zstore->mem_size() + bzvType.mem_size();
 			size_t block_size, last_allocated_block;
@@ -805,24 +797,24 @@ namespace rocksdb {
 	}
 
 
-	Status TerarkZipTableBuilder::WriteMetaData(std::initializer_list<std::pair<const std::string*, BlockHandle> > blocks) {
+	Status TerarkZipTableBuilder::WriteMetaData(std::initializer_list<std::pair<const std::string*, TerarkBlockHandle> > blocks) {
 		MetaIndexBuilder metaindexBuiler;
 		for (const auto& block : blocks) {
 			if (block.first) {
 				metaindexBuiler.Add(*block.first, block.second);
 			}
 		}
-		PropertyBlockBuilder propBlockBuilder;
-		propBlockBuilder.AddTableProperty(properties_);
-		NotifyCollectTableCollectorsOnFinish(collectors_,
-											 ioptions_.info_log,
-											 &propBlockBuilder);
-		BlockHandle propBlock, metaindexBlock;
-		Status s = WriteBlock(propBlockBuilder.Finish(), file_, &offset_, &propBlock);
-		if (!s.ok()) {
-			return s;
+		{
+			PropertyBlockBuilder propBlockBuilder;
+			propBlockBuilder.AddTableProperty(properties_);
+			TerarkBlockHandle propBlock;
+			Status s = WriteBlock(propBlockBuilder.Finish(), file_, &offset_, &propBlock);
+			if (!s.ok()) {
+				return s;
+			}
+			metaindexBuiler.Add(kPropertiesBlock, propBlock);
 		}
-		metaindexBuiler.Add(kPropertiesBlock, propBlock);
+		TerarkBlockHandle metaindexBlock;
 		s = WriteBlock(metaindexBuiler.Finish(), file_, &offset_, &metaindexBlock);
 		if (!s.ok()) {
 			return s;
@@ -864,10 +856,8 @@ namespace rocksdb {
 	}
 
 	void TerarkZipTableBuilder::UpdateValueLenHistogram() {
-		size_t vNum = valueBuf_.size();
-		size_t valueLen = (vNum == 1) ? valueBuf_.strpool.size() - 1 :
-			valueBuf_.strpool.size() + sizeof(uint32_t)*vNum;
 		// update the frequency of 'valueLen'
+		size_t valueLen = valueBuf_.strpool.size() - 1;
 		histogram_.back().value[valueLen]++;
 	}
 

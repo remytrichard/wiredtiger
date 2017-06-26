@@ -21,7 +21,7 @@
 namespace rocksdb {
 
 	class TerarkBlockBuilder;
-	class BlockHandle;
+	class TerarkBlockHandle;
 	class Env;
 	class Footer;
 	class Logger;
@@ -35,7 +35,7 @@ namespace rocksdb {
 		MetaIndexBuilder& operator=(const MetaIndexBuilder&) = delete;
 
 		MetaIndexBuilder();
-		void Add(const std::string& key, const BlockHandle& handle);
+		void Add(const std::string& key, const TerarkBlockHandle& handle);
 
 		// Write all the added key/value pairs to the block and return the contents
 		// of the block.

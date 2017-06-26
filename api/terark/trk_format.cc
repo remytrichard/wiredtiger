@@ -108,7 +108,7 @@ namespace rocksdb {
 	//    <padding> to make the total size 2 * BlockHandle::kMaxEncodedLength + 1
 	//    footer version (4 bytes)
 	//    table_magic_number (8 bytes)
-	void Footer::EncodeTo(std::string* dst) const {
+	void TerarkFooter::EncodeTo(std::string* dst) const {
 		assert(HasInitializedTableMagicNumber());
 		if (IsLegacyFooterFormat(table_magic_number())) {
 			// has to be default checksum with legacy footer
@@ -116,7 +116,7 @@ namespace rocksdb {
 			const size_t original_size = dst->size();
 			metaindex_handle_.EncodeTo(dst);
 			index_handle_.EncodeTo(dst);
-			dst->resize(original_size + 2 * BlockHandle::kMaxEncodedLength);  // Padding
+			dst->resize(original_size + 2 * TerarkBlockHandle::kMaxEncodedLength);  // Padding
 			PutFixed32(dst, static_cast<uint32_t>(table_magic_number() & 0xffffffffu));
 			PutFixed32(dst, static_cast<uint32_t>(table_magic_number() >> 32));
 			assert(dst->size() == original_size + kVersion0EncodedLength);
@@ -133,7 +133,7 @@ namespace rocksdb {
 		}
 	}
 
-	Footer::Footer(uint64_t _table_magic_number, uint32_t _version)
+	TerarkFooter::TerarkFooter(uint64_t _table_magic_number, uint32_t _version)
 		: version_(_version),
 		  checksum_(kCRC32c),
 		  table_magic_number_(_table_magic_number) {
@@ -141,7 +141,7 @@ namespace rocksdb {
 		assert(!IsLegacyFooterFormat(_table_magic_number) || version_ == 0);
 	}
 
-	Status Footer::DecodeFrom(Slice* input) {
+	Status TerarkFooter::DecodeFrom(Slice* input) {
 		assert(!HasInitializedTableMagicNumber());
 		assert(input != nullptr);
 		assert(input->size() >= kMinEncodedLength);
@@ -193,7 +193,7 @@ namespace rocksdb {
 		return result;
 	}
 
-	std::string Footer::ToString() const {
+	std::string TerarkFooter::ToString() const {
 		std::string result, handle_;
 		result.reserve(1024);
 
@@ -215,24 +215,24 @@ namespace rocksdb {
 	}
 
 	Status ReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
-							  Footer* footer, uint64_t enforce_table_magic_number) {
-		if (file_size < Footer::kMinEncodedLength) {
+							  TerarkFooter* footer, uint64_t enforce_table_magic_number) {
+		if (file_size < TerarkFooter::kMinEncodedLength) {
 			return Status::Corruption("file is too short to be an sstable");
 		}
 
-		char footer_space[Footer::kMaxEncodedLength];
+		char footer_space[TerarkFooter::kMaxEncodedLength];
 		Slice footer_input;
 		size_t read_offset =
-			(file_size > Footer::kMaxEncodedLength)
-			? static_cast<size_t>(file_size - Footer::kMaxEncodedLength)
+			(file_size > TerarkFooter::kMaxEncodedLength)
+			? static_cast<size_t>(file_size - TerarkFooter::kMaxEncodedLength)
 			: 0;
-		Status s = file->Read(read_offset, Footer::kMaxEncodedLength, &footer_input,
+		Status s = file->Read(read_offset, TerarkFooter::kMaxEncodedLength, &footer_input,
 							  footer_space);
 		if (!s.ok()) return s;
 
 		// Check that we actually read the whole footer from the file. It may be
 		// that size isn't correct.
-		if (footer_input.size() < Footer::kMinEncodedLength) {
+		if (footer_input.size() < TerarkFooter::kMinEncodedLength) {
 			return Status::Corruption("file is too short to be an sstable");
 		}
 
@@ -253,8 +253,8 @@ namespace rocksdb {
 		// Read a block and check its CRC
 		// contents is the result of reading.
 		// According to the implementation of file->Read, contents may not point to buf
-		Status ReadBlock(RandomAccessFileReader* file, const Footer& footer,
-						 const ReadOptions& options, const BlockHandle& handle,
+		Status ReadBlock(RandomAccessFileReader* file, const TerarkFooter& footer,
+						 const ReadOptions& options, const TerarkBlockHandle& handle,
 						 Slice* contents, /* result of reading */ char* buf) {
 			size_t n = static_cast<size_t>(handle.size());
 			Status s;
@@ -303,87 +303,26 @@ namespace rocksdb {
 
 	}  // namespace
 
-	Status ReadBlockContents(RandomAccessFileReader* file, const Footer& footer,
+	Status ReadBlockContents(RandomAccessFileReader* file, const TerarkFooter& footer,
 							 const ReadOptions& read_options,
-							 const BlockHandle& handle, BlockContents* contents,
+							 const TerarkBlockHandle& handle, TerarkBlockContents* contents,
 							 const ImmutableCFOptions &ioptions,
-							 bool decompression_requested,
-							 const Slice& compression_dict,
-							 const PersistentCacheOptions& cache_options) {
+							 bool decompression_requested) {
 		Status status;
 		Slice slice;
 		size_t n = static_cast<size_t>(handle.size());
 		std::unique_ptr<char[]> heap_buf;
-		char stack_buf[DefaultStackBufferSize];
 		char* used_buf = nullptr;
 		rocksdb::CompressionType compression_type;
 
-		if (cache_options.persistent_cache &&
-			!cache_options.persistent_cache->IsCompressed()) {
-			status = PersistentCacheHelper::LookupUncompressedPage(cache_options,
-																   handle, contents);
-			if (status.ok()) {
-				// uncompressed page is found for the block handle
-				return status;
-			} else {
-				// uncompressed page is not found
-				if (ioptions.info_log && !status.IsNotFound()) {
-					assert(!status.ok());
-					Log(InfoLogLevel::INFO_LEVEL, ioptions.info_log,
-						"Error reading from persistent cache. %s",
-						status.ToString().c_str());
-				}
-			}
-		}
-
-		if (cache_options.persistent_cache &&
-			cache_options.persistent_cache->IsCompressed()) {
-			// lookup uncompressed cache mode p-cache
-			status = PersistentCacheHelper::LookupRawPage(
-														  cache_options, handle, &heap_buf, n + kBlockTrailerSize);
-		} else {
-			status = Status::NotFound();
-		}
-
-		if (status.ok()) {
-			// cache hit
-			used_buf = heap_buf.get();
-			slice = Slice(heap_buf.get(), n);
-		} else {
-			if (ioptions.info_log && !status.IsNotFound()) {
-				assert(!status.ok());
-				Log(InfoLogLevel::INFO_LEVEL, ioptions.info_log,
-					"Error reading from persistent cache. %s", status.ToString().c_str());
-			}
-			// cache miss read from device
-			if (decompression_requested &&
-				n + kBlockTrailerSize < DefaultStackBufferSize) {
-				// If we've got a small enough hunk of data, read it in to the
-				// trivially allocated stack buffer instead of needing a full malloc()
-				used_buf = &stack_buf[0];
-			} else {
-				heap_buf = std::unique_ptr<char[]>(new char[n + kBlockTrailerSize]);
-				used_buf = heap_buf.get();
-			}
-
-			status = ReadBlock(file, footer, read_options, handle, &slice, used_buf);
-			if (status.ok() && read_options.fill_cache &&
-				cache_options.persistent_cache &&
-				cache_options.persistent_cache->IsCompressed()) {
-				// insert to raw cache
-				PersistentCacheHelper::InsertRawPage(cache_options, handle, used_buf,
-													 n + kBlockTrailerSize);
-			}
-		}
-
+		heap_buf = std::unique_ptr<char[]>(new char[n + kBlockTrailerSize]);
+		used_buf = heap_buf.get();
+		status = ReadBlock(file, footer, read_options, handle, &slice, used_buf);
 		if (!status.ok()) {
 			return status;
 		}
 
-		PERF_TIMER_GUARD(block_decompress_time);
-
 		compression_type = static_cast<rocksdb::CompressionType>(slice.data()[n]);
-
 		if (decompression_requested && compression_type != kNoCompression) {
 			// compressed page, uncompress, update cache
 			status = UncompressBlockContents(slice.data(), n, contents,
@@ -391,29 +330,16 @@ namespace rocksdb {
 											 ioptions);
 		} else if (slice.data() != used_buf) {
 			// the slice content is not the buffer provided
-			*contents = BlockContents(Slice(slice.data(), n), false, compression_type);
+			*contents = TerarkBlockContents(Slice(slice.data(), n), false, compression_type);
 		} else {
 			// page is uncompressed, the buffer either stack or heap provided
-			if (used_buf == &stack_buf[0]) {
-				heap_buf = std::unique_ptr<char[]>(new char[n]);
-				memcpy(heap_buf.get(), stack_buf, n);
-			}
-			*contents = BlockContents(std::move(heap_buf), n, true, compression_type);
+			*contents = TerarkBlockContents(std::move(heap_buf), n, true, compression_type);
 		}
-
-		if (status.ok() && read_options.fill_cache &&
-			cache_options.persistent_cache &&
-			!cache_options.persistent_cache->IsCompressed()) {
-			// insert to uncompressed cache
-			PersistentCacheHelper::InsertUncompressedPage(cache_options, handle,
-														  *contents);
-		}
-
 		return status;
 	}
 
 	Status UncompressBlockContentsForCompressionType(
-													 const char* data, size_t n, BlockContents* contents,
+													 const char* data, size_t n, TerarkBlockContents* contents,
 													 uint32_t format_version, const Slice& compression_dict,
 													 CompressionType compression_type, const ImmutableCFOptions &ioptions) {
 		std::unique_ptr<char[]> ubuf;
@@ -435,7 +361,7 @@ namespace rocksdb {
 			if (!Snappy_Uncompress(data, n, ubuf.get())) {
 				return Status::Corruption(snappy_corrupt_msg);
 			}
-			*contents = BlockContents(std::move(ubuf), ulength, true, kNoCompression);
+			*contents = TerarkBlockContents(std::move(ubuf), ulength, true, kNoCompression);
 			break;
 		}
 		case kZlibCompression:
@@ -449,7 +375,7 @@ namespace rocksdb {
 				return Status::Corruption(zlib_corrupt_msg);
 			}
 			*contents =
-				BlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
+				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
 			break;
 		case kBZip2Compression:
 			ubuf.reset(BZip2_Uncompress(
@@ -461,7 +387,7 @@ namespace rocksdb {
 				return Status::Corruption(bzip2_corrupt_msg);
 			}
 			*contents =
-				BlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
+				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
 			break;
 		case kLZ4Compression:
 			ubuf.reset(LZ4_Uncompress(
@@ -474,7 +400,7 @@ namespace rocksdb {
 				return Status::Corruption(lz4_corrupt_msg);
 			}
 			*contents =
-				BlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
+				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
 			break;
 		case kLZ4HCCompression:
 			ubuf.reset(LZ4_Uncompress(
@@ -487,7 +413,7 @@ namespace rocksdb {
 				return Status::Corruption(lz4hc_corrupt_msg);
 			}
 			*contents =
-				BlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
+				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
 			break;
 		case kXpressCompression:
 			ubuf.reset(XPRESS_Uncompress(data, n, &decompress_size));
@@ -497,7 +423,7 @@ namespace rocksdb {
 				return Status::Corruption(xpress_corrupt_msg);
 			}
 			*contents =
-				BlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
+				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
 			break;
 		case kZSTD:
 		case kZSTDNotFinalCompression:
@@ -508,7 +434,7 @@ namespace rocksdb {
 				return Status::Corruption(zstd_corrupt_msg);
 			}
 			*contents =
-				BlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
+				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
 			break;
 		default:
 			return Status::Corruption("bad block type");
@@ -532,7 +458,7 @@ namespace rocksdb {
 	// free this buffer.
 	// format_version is the block format as defined in include/rocksdb/table.h
 	Status UncompressBlockContents(const char* data, size_t n,
-								   BlockContents* contents, uint32_t format_version,
+								   TerarkBlockContents* contents, uint32_t format_version,
 								   const Slice& compression_dict,
 								   const ImmutableCFOptions &ioptions) {
 		assert(data[n] != kNoCompression);

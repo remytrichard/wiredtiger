@@ -89,18 +89,18 @@ namespace rocksdb {
 
 	// Footer encapsulates the fixed information stored at the tail
 	// end of every table file.
-	class Footer {
+	class TerarkFooter {
 	public:
 		// Constructs a footer without specifying its table magic number.
 		// In such case, the table magic number of such footer should be
 		// initialized via @ReadFooterFromFile().
 		// Use this when you plan to load Footer with DecodeFrom(). Never use this
 		// when you plan to EncodeTo.
-	Footer() : Footer(kInvalidTableMagicNumber, 0) {}
+	TerarkFooter() : TerarkFooter(kInvalidTableMagicNumber, 0) {}
 
 		// Use this constructor when you plan to write out the footer using
 		// EncodeTo(). Never use this constructor with DecodeFrom().
-		Footer(uint64_t table_magic_number, uint32_t version);
+		TerarkFooter(uint64_t table_magic_number, uint32_t version);
 
 		// The version of the footer in this file
 		uint32_t version() const { return version_; }
@@ -136,11 +136,11 @@ namespace rocksdb {
 		enum {
 			// Footer version 0 (legacy) will always occupy exactly this many bytes.
 			// It consists of two block handles, padding, and a magic number.
-			kVersion0EncodedLength = 2 * BlockHandle::kMaxEncodedLength + 8,
+			kVersion0EncodedLength = 2 * TerarkBlockHandle::kMaxEncodedLength + 8,
 			// Footer of versions 1 and higher will always occupy exactly this many
 			// bytes. It consists of the checksum type, two block handles, padding,
 			// a version number (bigger than 1), and a magic number
-			kNewVersionsEncodedLength = 1 + 2 * BlockHandle::kMaxEncodedLength + 4 + 8,
+			kNewVersionsEncodedLength = 1 + 2 * TerarkBlockHandle::kMaxEncodedLength + 4 + 8,
 			kMinEncodedLength = kVersion0EncodedLength,
 			kMaxEncodedLength = kNewVersionsEncodedLength,
 		};
@@ -174,34 +174,34 @@ namespace rocksdb {
 	// If enforce_table_magic_number != 0, ReadFooterFromFile() will return
 	// corruption if table_magic number is not equal to enforce_table_magic_number
 	Status ReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
-							  Footer* footer,
+							  TerarkFooter* footer,
 							  uint64_t enforce_table_magic_number = 0);
 
 	// 1-byte type + 32-bit crc
 	static const size_t kBlockTrailerSize = 5;
 
-	struct BlockContents {
+	struct TerarkBlockContents {
 		Slice data;           // Actual contents of data
 		bool cachable;        // True iff data can be cached
 		CompressionType compression_type;
 		std::unique_ptr<char[]> allocation;
 
-	BlockContents() : cachable(false), compression_type(kNoCompression) {}
+	TerarkBlockContents() : cachable(false), compression_type(kNoCompression) {}
 
-	BlockContents(const Slice& _data, bool _cachable,
+	TerarkBlockContents(const Slice& _data, bool _cachable,
 				  CompressionType _compression_type)
 	: data(_data), cachable(_cachable), compression_type(_compression_type) {}
 
-	BlockContents(std::unique_ptr<char[]>&& _data, size_t _size, bool _cachable,
+	TerarkBlockContents(std::unique_ptr<char[]>&& _data, size_t _size, bool _cachable,
 				  CompressionType _compression_type)
 	: data(_data.get(), _size),
 			cachable(_cachable),
 			compression_type(_compression_type),
 			allocation(std::move(_data)) {}
 
-		BlockContents(BlockContents&& other) ROCKSDB_NOEXCEPT { *this = std::move(other); }
+		TerarkBlockContents(TerarkBlockContents&& other) ROCKSDB_NOEXCEPT { *this = std::move(other); }
 
-		BlockContents& operator=(BlockContents&& other) {
+		TerarkBlockContents& operator=(TerarkBlockContents&& other) {
 			data = std::move(other.data);
 			cachable = other.cachable;
 			compression_type = other.compression_type;
@@ -213,9 +213,9 @@ namespace rocksdb {
 	// Read the block identified by "handle" from "file".  On failure
 	// return non-OK.  On success fill *result and return OK.
 	extern Status ReadBlockContents(
-									RandomAccessFileReader* file, const Footer& footer,
-									const ReadOptions& options, const BlockHandle& handle,
-									BlockContents* contents, const ImmutableCFOptions &ioptions,
+									RandomAccessFileReader* file, const TerarkFooter& footer,
+									const ReadOptions& options, const TerarkBlockHandle& handle,
+									TerarkBlockContents* contents, const ImmutableCFOptions &ioptions,
 									bool do_uncompress = true, const Slice& compression_dict = Slice(),
 									const PersistentCacheOptions& cache_options = PersistentCacheOptions());
 
@@ -227,7 +227,7 @@ namespace rocksdb {
 	// For description of compress_format_version and possible values, see
 	// util/compression.h
 	extern Status UncompressBlockContents(const char* data, size_t n,
-										  BlockContents* contents,
+										  TerarkBlockContents* contents,
 										  uint32_t compress_format_version,
 										  const Slice& compression_dict,
 										  const ImmutableCFOptions &ioptions);
@@ -236,21 +236,21 @@ namespace rocksdb {
 	// a specific compression type. This is used by un-wrapped blocks
 	// with no compression header.
 	extern Status UncompressBlockContentsForCompressionType(
-															const char* data, size_t n, BlockContents* contents,
+															const char* data, size_t n, TerarkBlockContents* contents,
 															uint32_t compress_format_version, const Slice& compression_dict,
 															CompressionType compression_type, const ImmutableCFOptions &ioptions);
 
 	// Implementation details follow.  Clients should ignore,
 
 	// TODO(andrewkr): we should prefer one way of representing a null/uninitialized
-	// BlockHandle. Currently we use zeros for null and use negation-of-zeros for
+	// TerarkBlockHandle. Currently we use zeros for null and use negation-of-zeros for
 	// uninitialized.
-	inline BlockHandle::BlockHandle()
-		: BlockHandle(~static_cast<uint64_t>(0),
+	inline TerarkBlockHandle::TerarkBlockHandle()
+		: TerarkBlockHandle(~static_cast<uint64_t>(0),
 					  ~static_cast<uint64_t>(0)) {
 	}
 
-	inline BlockHandle::BlockHandle(uint64_t _offset, uint64_t _size)
+	inline TerarkBlockHandle::TerarkBlockHandle(uint64_t _offset, uint64_t _size)
 		: offset_(_offset), size_(_size) {}
 
 }  // namespace rocksdb

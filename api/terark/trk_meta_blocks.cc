@@ -17,7 +17,6 @@
 #include "util/coding.h"
 
 #include "trk_meta_blocks.h"
-#include "trk_format.h"
 
 namespace rocksdb {
 
@@ -25,7 +24,7 @@ namespace rocksdb {
 		: meta_index_block_(new TerarkBlockBuilder(1 /* restart interval */)) {}
 
 	void MetaIndexBuilder::Add(const std::string& key,
-							   const BlockHandle& handle) {
+							   const TerarkBlockHandle& handle) {
 		std::string handle_encoding;
 		handle.EncodeTo(&handle_encoding);
 		meta_block_handles_.insert({key, handle_encoding});
@@ -110,17 +109,17 @@ namespace rocksdb {
 	}
 
 	Status ReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
-						  const Footer& footer, const ImmutableCFOptions& ioptions,
+						  const TerarkFooter& footer, const ImmutableCFOptions& ioptions,
 						  TableProperties** table_properties) {
 		assert(table_properties);
 
 		Slice v = handle_value;
-		BlockHandle handle;
+		TerarkBlockHandle handle;
 		if (!handle.DecodeFrom(&v).ok()) {
 			return Status::InvalidArgument("Failed to decode properties block handle");
 		}
 
-		BlockContents block_contents;
+		TerarkBlockContents block_contents;
 		ReadOptions read_options;
 		read_options.verify_checksums = false;
 		Status s;
@@ -131,9 +130,9 @@ namespace rocksdb {
 			return s;
 		}
 
-		Block properties_block(std::move(block_contents),
+		TerarkBlock properties_block(std::move(block_contents),
 							   kDisableGlobalSequenceNumber);
-		BlockIter iter;
+		TerarkBlockIter iter;
 		properties_block.NewIterator(BytewiseComparator(), &iter);
 
 		auto new_table_properties = new TableProperties();
@@ -222,14 +221,14 @@ namespace rocksdb {
 							   const ImmutableCFOptions &ioptions,
 							   TableProperties** properties) {
 		// -- Read metaindex block
-		Footer footer;
+		TerarkFooter footer;
 		auto s = ReadFooterFromFile(file, file_size, &footer, table_magic_number);
 		if (!s.ok()) {
 			return s;
 		}
 
 		auto metaindex_handle = footer.metaindex_handle();
-		BlockContents metaindex_contents;
+		TerarkBlockContents metaindex_contents;
 		ReadOptions read_options;
 		read_options.verify_checksums = false;
 		s = ReadBlockContents(file, footer, read_options, metaindex_handle,
@@ -237,9 +236,9 @@ namespace rocksdb {
 		if (!s.ok()) {
 			return s;
 		}
-		Block metaindex_block(std::move(metaindex_contents),
-							  kDisableGlobalSequenceNumber);
-		std::unique_ptr<InternalIterator> meta_iter(metaindex_block.NewIterator(BytewiseComparator()));
+		TerarkBlock metaindex_block(std::move(metaindex_contents),
+									kDisableGlobalSequenceNumber);
+		std::unique_ptr<Iterator> meta_iter(metaindex_block.NewIterator(BytewiseComparator()));
 
 		// -- Read property block
 		bool found_properties_block = true;
@@ -262,9 +261,9 @@ namespace rocksdb {
 						 uint64_t table_magic_number,
 						 const ImmutableCFOptions &ioptions,
 						 const std::string& meta_block_name,
-						 BlockContents* contents) {
+						 TerarkBlockContents* contents) {
 		Status status;
-		Footer footer;
+		TerarkFooter footer;
 		status = ReadFooterFromFile(file, file_size, &footer, table_magic_number);
 		if (!status.ok()) {
 			return status;
@@ -272,7 +271,7 @@ namespace rocksdb {
 
 		// Reading metaindex block
 		auto metaindex_handle = footer.metaindex_handle();
-		BlockContents metaindex_contents;
+		TerarkBlockContents metaindex_contents;
 		ReadOptions read_options;
 		read_options.verify_checksums = false;
 		status = ReadBlockContents(file, footer, read_options, metaindex_handle,
@@ -283,13 +282,13 @@ namespace rocksdb {
 		}
 
 		// Finding metablock
-		Block metaindex_block(std::move(metaindex_contents),
+		TerarkBlock metaindex_block(std::move(metaindex_contents),
 							  kDisableGlobalSequenceNumber);
 
 		std::unique_ptr<InternalIterator> meta_iter;
 		meta_iter.reset(metaindex_block.NewIterator(BytewiseComparator()));
 
-		BlockHandle block_handle;
+		TerarkBlockHandle block_handle;
 		status = FindMetaBlock(meta_iter.get(), meta_block_name, &block_handle);
 
 		if (!status.ok()) {
