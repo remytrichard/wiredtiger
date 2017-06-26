@@ -14,6 +14,8 @@
 #include <terark/util/sortable_strvec.hpp>
 // project headers
 #include "terark_zip_table_builder.h"
+#include "trk_format.h"
+#include "trk_meta_blocks.h"
 
 namespace rocksdb {
 
@@ -87,20 +89,18 @@ namespace rocksdb {
 												 WritableFileWriter* file,
 												 size_t key_prefixLen)
 		: table_options_(tzto)
-		, ioptions_(tbo.ioptions)
+		, ioptions_(tbo)
 		, key_prefixLen_(key_prefixLen)
 		, chunk_state_(kJustCreated) {
 		properties_.fixed_key_len = 0;
 		properties_.num_data_blocks = 1;
 		properties_.column_family_id = column_family_id;
-		properties_.column_family_name = tbo.column_family_name;
-		properties_.comparator_name = ioptions_.user_comparator ?
-			ioptions_.user_comparator->Name() : "nullptr";
-		properties_.merge_operator_name = ioptions_.merge_operator ?
-			ioptions_.merge_operator->Name() : "nullptr";
+		properties_.column_family_name = ioptions_.column_family_name;
+		properties_.comparator_name = ioptions_.internal_comparator ?
+			tbo.internal_comparator-Name() : "nullptr";
+		properties_.merge_operator_name = "nullptr";
 		properties_.compression_name = CompressionTypeToString(tbo.compression_type);
-		properties_.prefix_extractor_name = ioptions_.prefix_extractor ?
-			ioptions_.prefix_extractor->Name() : "nullptr";
+		properties_.prefix_extractor_name = "nullptr";
 
 		isReverseBytewiseOrder_ =
 			fstring(properties_.comparator_name).startsWith("rev:");
@@ -247,8 +247,6 @@ namespace rocksdb {
 		properties_.num_entries++;
 		properties_.raw_key_size += key.size();
 		properties_.raw_value_size += value.size();
-		//NotifyCollectTableCollectorsOnAdd(key, value, offset,
-		//								  collectors_, ioptions_.info_log);
 	}
 
 
@@ -798,7 +796,7 @@ namespace rocksdb {
 
 
 	Status TerarkZipTableBuilder::WriteMetaData(std::initializer_list<std::pair<const std::string*, TerarkBlockHandle> > blocks) {
-		MetaIndexBuilder metaindexBuiler;
+		TerarkMetaIndexBuilder metaindexBuiler;
 		for (const auto& block : blocks) {
 			if (block.first) {
 				metaindexBuiler.Add(*block.first, block.second);
@@ -815,13 +813,13 @@ namespace rocksdb {
 			metaindexBuiler.Add(kPropertiesBlock, propBlock);
 		}
 		TerarkBlockHandle metaindexBlock;
-		s = WriteBlock(metaindexBuiler.Finish(), file_, &offset_, &metaindexBlock);
+		Status s = WriteBlock(metaindexBuiler.Finish(), file_, &offset_, &metaindexBlock);
 		if (!s.ok()) {
 			return s;
 		}
-		Footer footer(kTerarkZipTableMagicNumber, 0);
+		TerarkFooter footer(kTerarkZipTableMagicNumber, 0);
 		footer.set_metaindex_handle(metaindexBlock);
-		footer.set_index_handle(BlockHandle::NullBlockHandle());
+		footer.set_index_handle(TerarkBlockHandle::NullBlockHandle());
 		std::string footer_encoding;
 		footer.EncodeTo(&footer_encoding);
 		s = file_->Append(footer_encoding);
@@ -836,7 +834,6 @@ namespace rocksdb {
 		tmpKeyFile_.complete_write();
 		tmpValueFile_.complete_write();
 		tmpSampleFile_.complete_write();
-		zbuilder_.reset();
 		tmpZipDictFile_.Delete();
 		tmpZipValueFile_.Delete();
 	}

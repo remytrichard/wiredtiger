@@ -20,17 +20,17 @@
 
 namespace rocksdb {
 
-	MetaIndexBuilder::MetaIndexBuilder()
+	TerarkMetaIndexBuilder::TerarkMetaIndexBuilder()
 		: meta_index_block_(new TerarkBlockBuilder(1 /* restart interval */)) {}
 
-	void MetaIndexBuilder::Add(const std::string& key,
+	void TerarkMetaIndexBuilder::Add(const std::string& key,
 							   const TerarkBlockHandle& handle) {
 		std::string handle_encoding;
 		handle.EncodeTo(&handle_encoding);
 		meta_block_handles_.insert({key, handle_encoding});
 	}
 
-	Slice MetaIndexBuilder::Finish() {
+	Slice TerarkMetaIndexBuilder::Finish() {
 		for (const auto& metablock : meta_block_handles_) {
 			meta_index_block_->Add(metablock.first, metablock.second);
 		}
@@ -109,7 +109,7 @@ namespace rocksdb {
 	}
 
 	Status ReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
-						  const TerarkFooter& footer, const ImmutableCFOptions& ioptions,
+						  const TerarkFooter& footer, const Options& ioptions,
 						  TableProperties** table_properties) {
 		assert(table_properties);
 
@@ -123,8 +123,8 @@ namespace rocksdb {
 		ReadOptions read_options;
 		read_options.verify_checksums = false;
 		Status s;
-		s = ReadBlockContents(file, footer, read_options, handle, &block_contents,
-							  ioptions, false /* decompress */);
+		s = ReadBlockContents(file, footer, read_options, handle, &block_contents, ioptions);
+							  //ioptions, false /* decompress */);
 
 		if (!s.ok()) {
 			return s;
@@ -218,7 +218,7 @@ namespace rocksdb {
 
 	Status ReadTableProperties(RandomAccessFileReader* file, uint64_t file_size,
 							   uint64_t table_magic_number,
-							   const ImmutableCFOptions &ioptions,
+							   const Options &ioptions,
 							   TableProperties** properties) {
 		// -- Read metaindex block
 		TerarkFooter footer;
@@ -232,7 +232,7 @@ namespace rocksdb {
 		ReadOptions read_options;
 		read_options.verify_checksums = false;
 		s = ReadBlockContents(file, footer, read_options, metaindex_handle,
-							  &metaindex_contents, ioptions, false /* decompress */);
+							  &metaindex_contents, ioptions); //, false /* decompress */);
 		if (!s.ok()) {
 			return s;
 		}
@@ -259,7 +259,7 @@ namespace rocksdb {
 
 	Status ReadMetaBlock(RandomAccessFileReader* file, uint64_t file_size,
 						 uint64_t table_magic_number,
-						 const ImmutableCFOptions &ioptions,
+						 const Options &ioptions,
 						 const std::string& meta_block_name,
 						 TerarkBlockContents* contents) {
 		Status status;
@@ -275,8 +275,7 @@ namespace rocksdb {
 		ReadOptions read_options;
 		read_options.verify_checksums = false;
 		status = ReadBlockContents(file, footer, read_options, metaindex_handle,
-								   &metaindex_contents, ioptions,
-								   false /* decompress */);
+								   &metaindex_contents, ioptions);
 		if (!status.ok()) {
 			return status;
 		}
@@ -297,7 +296,7 @@ namespace rocksdb {
 
 		// Reading metablock
 		return ReadBlockContents(file, footer, read_options, block_handle, contents,
-								 ioptions, false /* decompress */);
+								 ioptions);
 	}
 
 }  // namespace rocksdb

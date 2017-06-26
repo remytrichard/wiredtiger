@@ -20,10 +20,12 @@
 #endif
 #endif
 
-#include "trk_format.h"
 #include "rocksdb/iterator.h"
 #include "rocksdb/options.h"
 #include "rocksdb/statistics.h"
+
+#include "trk_format.h"
+#include "trk_iter_key.h"
 
 namespace rocksdb {
 
@@ -33,6 +35,7 @@ namespace rocksdb {
 
 	class TerarkBlock {
 	public:
+
 		// Initialize the block with the specified contents.
 		explicit TerarkBlock(TerarkBlockContents&& contents,
 							 Statistics* statistics = nullptr);
@@ -172,7 +175,7 @@ namespace rocksdb {
 		// current_ is offset in data_ of current entry.  >= restarts_ if !Valid
 		uint32_t current_;
 		uint32_t restart_index_;  // Index of restart block in which current_ falls
-		IterKey key_;
+		TerarkIterKey key_;
 		Slice value_;
 		Status status_;
 		bool key_pinned_;

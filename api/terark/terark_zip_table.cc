@@ -31,7 +31,8 @@
 #include <boost/predef/other/endian.h>
 
 // rocksdb headers
-#include <table/meta_blocks.h>
+#include "trk_format.h"
+#include "trk_meta_blocks.h"
 
 // terark headers
 #include <terark/lcast.hpp>
@@ -82,7 +83,7 @@ namespace rocksdb {
 
 	Status
 	TerarkChunkManager::NewTableReader(
-									   const TableReaderOptions& table_reader_options,
+									   const TerarkTableReaderOptions& table_reader_options,
 									   unique_ptr<RandomAccessFileReader>&& file,
 									   uint64_t file_size, unique_ptr<TerarkTableReader>* table,
 									   bool prefetch_index_and_filter_in_cache) const {
@@ -91,7 +92,7 @@ namespace rocksdb {
 			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",
 										   "user comparator must be 'leveldb.BytewiseComparator'");
 		}
-		Footer footer;
+		TerarkFooter footer;
 		Status s = ReadFooterFromFile(file.get(), file_size, &footer);
 		if (!s.ok()) {
 			return s;
@@ -110,7 +111,7 @@ namespace rocksdb {
 				 "all index and data will be loaded in memory\n");
 		}
 #endif
-		BlockContents emptyTableBC;
+		TerarkBlockContents emptyTableBC;
 		s = ReadMetaBlock(file.get(), file_size, kTerarkZipTableMagicNumber
 						  , table_reader_options.ioptions, kTerarkEmptyTableKey, &emptyTableBC);
 		if (s.ok()) {

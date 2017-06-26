@@ -21,14 +21,14 @@
 
 namespace rocksdb {
 
-	class Block;
+	class TerarkBlock;
 	class RandomAccessFile;
 	struct ReadOptions;
 
 	extern bool ShouldReportDetailedTime(Env* env, Statistics* stats);
 
 	// the length of the magic number in bytes.
-	const int kMagicNumberLengthByte = 8;
+	const int kRocksdbMagicNumberLengthByte = 8;
 
 	// BlockHandle is a pointer to the extent of a file that stores a data
 	// block or a meta block.
@@ -70,22 +70,6 @@ namespace rocksdb {
 
 		static const TerarkBlockHandle kNullBlockHandle;
 	};
-
-	inline uint32_t GetCompressFormatForVersion(CompressionType compression_type,
-												uint32_t version) {
-		// snappy is not versioned
-		assert(compression_type != kSnappyCompression &&
-			   compression_type != kXpressCompression &&
-			   compression_type != kNoCompression);
-		// As of version 2, we encode compressed block with
-		// compress_format_version == 2. Before that, the version is 1.
-		// DO NOT CHANGE THIS FUNCTION, it affects disk format
-		return version >= 2 ? 2 : 1;
-	}
-
-	inline bool BlockBasedTableSupportedVersion(uint32_t version) {
-		return version <= 2;
-	}
 
 	// Footer encapsulates the fixed information stored at the tail
 	// end of every table file.
@@ -178,7 +162,7 @@ namespace rocksdb {
 							  uint64_t enforce_table_magic_number = 0);
 
 	// 1-byte type + 32-bit crc
-	static const size_t kBlockTrailerSize = 5;
+	static const size_t kRocksdbBlockTrailerSize = 5;
 
 	struct TerarkBlockContents {
 		Slice data;           // Actual contents of data
@@ -235,8 +219,7 @@ namespace rocksdb {
 	// This is an extension to UncompressBlockContents that accepts
 	// a specific compression type. This is used by un-wrapped blocks
 	// with no compression header.
-	extern Status UncompressBlockContentsForCompressionType(
-															const char* data, size_t n, TerarkBlockContents* contents,
+	extern Status UncompressBlockContentsForCompressionType(const char* data, size_t n, TerarkBlockContents* contents,
 															uint32_t compress_format_version, const Slice& compression_dict,
 															CompressionType compression_type, const ImmutableCFOptions &ioptions);
 

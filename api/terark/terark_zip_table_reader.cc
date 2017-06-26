@@ -1,6 +1,8 @@
 // project headers
 #include "terark_zip_table_reader.h"
 #include "terark_zip_common.h"
+#include "trk_format.h"
+#include "trk_meta_blocks.h"
 // boost headers
 #include <boost/scope_exit.hpp>
 // rocksdb headers
@@ -17,7 +19,7 @@ namespace {
 	using namespace rocksdb;
 
 	void SharedBlockCleanupFunction(void* arg1, void* arg2) {
-		delete reinterpret_cast<shared_ptr<Block>*>(arg1);
+		delete reinterpret_cast<shared_ptr<TerarkBlock>*>(arg1);
 	}
 
 
@@ -67,7 +69,7 @@ namespace rocksdb {
 		Status                  status_;
 
 	public:
-		TerarkZipTableIterator(const TableReaderOptions& tro
+		TerarkZipTableIterator(const TerarkTableReaderOptions& tro
 							   , const TerarkZipSubReader *subReader)
 			: table_reader_options_(&tro)
 			, subReader_(subReader) {
@@ -97,7 +99,14 @@ namespace rocksdb {
 		}
 
 		void SeekForPrev(const Slice& target) override {
-			SeekForPrevImpl(target, &table_reader_options_->internal_comparator);
+			Seek(target);
+			if (!Valid()) {
+				SeekToLast();
+			}
+			while (Valid() && target.compare(key()) < 0) {
+				Prev();
+			}
+			//SeekForPrevImpl(target, &table_reader_options_->internal_comparator);
 		}
 
 		void Seek(const Slice& target) override {
@@ -159,14 +168,10 @@ namespace rocksdb {
 				}
 				if (UnzipIterRecord(ok)) {
 					if (0 == cmp) {
-						validx_ = size_t(-1);
-						do {
-							validx_++;
-							DecodeCurrKeyValue();
-							if (pInterKey_.sequence <= pikey.sequence) {
-								return; // done
-							}
-						} while (validx_ + 1 < valnum_);
+						DecodeCurrKeyValue();
+						if (pInterKey_.sequence <= pikey.sequence) {
+							return; // done
+						}
 						// no visible version/sequence for target, use Next();
 						// if using Next(), version check is not needed
 						Next();
@@ -282,18 +287,16 @@ namespace rocksdb {
 			assert(status_.ok());
 			assert(iter_->id() < subReader_->index_->NumKeys());
 			switch (zValtype_) {
-			case ZipValueType::kValue: {
+			case ZipValueType::kValue:
 				pInterKey_.type = kTypeValue;
 				userValue_ = SliceOf(fstring(valueBuf_));
 				break;
-			}
-			case ZipValueType::kDelete: {
+			case ZipValueType::kDelete:
 				pInterKey_.type = kTypeDeletion;
 				// TBD(kg): use Tombstome instead?
 				userValue_ = Slice();
 				break;
-			}
-			default: {
+			default:
 				status_ = Status::Aborted("TerarkZipTableIterator::DecodeCurrKeyValue()",
 										  "Bad ZipValueType");
 				abort(); // must not goes here, if it does, it should be a bug!!
@@ -399,12 +402,12 @@ namespace rocksdb {
 		file_data_ = file_data;
 		table_properties_.reset(uniqueProps.release());
 		isReverseBytewiseOrder_ =
-			fstring(ioptions.user_comparator->Name()).startsWith("rev:");
+			fstring(table_reader_options_.internal_comparator.Name()).startsWith("rev:");
 #if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
 		isUint64Comparator_ =
-			fstring(ioptions.user_comparator->Name()) == "rocksdb.Uint64Comparator";
+			fstring(table_reader_options_.internal_comparator.Name()) == "rocksdb.Uint64Comparator";
 #endif
-		BlockContents valueDictBlock, indexBlock, zValueTypeBlock, commonPrefixBlock;
+		TerarkBlockContents valueDictBlock, indexBlock, zValueTypeBlock, commonPrefixBlock;
 		s = ReadMetaBlock(file, file_size, kTerarkZipTableMagicNumber, ioptions,
 						  kTerarkZipTableValueDictBlock, &valueDictBlock);
 		s = ReadMetaBlock(file, file_size, kTerarkZipTableMagicNumber, ioptions,
@@ -516,10 +519,9 @@ namespace rocksdb {
 
 	TerarkZipTableReader::~TerarkZipTableReader() {}
 
-	TerarkZipTableReader::TerarkZipTableReader(const TableReaderOptions& tro,
+	TerarkZipTableReader::TerarkZipTableReader(const TerarkTableReaderOptions& tro,
 											   const TerarkZipTableOptions& tzto)
 		: table_reader_options_(tro)
-		, global_seqno_(kDisableGlobalSequenceNumber)
 		, tzto_(tzto) {
 		isReverseBytewiseOrder_ = false;
 	}

@@ -15,17 +15,18 @@
 #include "terark_zip_table.h"
 #include "terark_zip_internal.h"
 #include "terark_zip_index.h"
-#include "block_builder.h"
-#include "format.h"
+#include "trk_block_builder.h"
+#include "trk_format.h"
 
-//#include <table/block.h"
+// std headers
+#include <memory>
 // boost headers
 #include <boost/noncopyable.hpp>
 // rocksdb headers
-#include <rocksdb/options.h>
+#include "rocksdb/options.h"
 #include "rocksdb/iterator.h"
-#include <util/arena.h>
-//#include <table/table_reader.h>
+#include "util/arena.h"
+#include "util/file_reader_writer.h"
 
 // terark headers
 #include <terark/util/throw.hpp>
@@ -55,7 +56,7 @@ namespace rocksdb {
 		const TerarkTableReaderOptions table_reader_options_;
 		std::shared_ptr<const TableProperties> table_properties_;
 		Slice  file_data_;
-		unique_ptr<RandomAccessFileReader> file_;
+		std::unique_ptr<RandomAccessFileReader> file_;
 
 	public:
 		Iterator* NewIterator(const ReadOptions&, Arena* a, bool) {
@@ -83,8 +84,8 @@ namespace rocksdb {
 	struct TerarkZipSubReader {
 		size_t subIndex_;
 		std::string prefix_;
-		unique_ptr<TerarkIndex> index_;
-		unique_ptr<terark::BlobStore> store_;
+		std::unique_ptr<TerarkIndex> index_;
+		std::unique_ptr<terark::BlobStore> store_;
 		bitfield_array<2> type_;
 		std::string commonPrefix_;
 
@@ -114,7 +115,7 @@ namespace rocksdb {
 			GetTableProperties() const  { return table_properties_; }
 
 		virtual ~TerarkZipTableReader();
-		TerarkZipTableReader(const TableReaderOptions&, const TerarkZipTableOptions&);
+		TerarkZipTableReader(const TerarkTableReaderOptions&, const TerarkZipTableOptions&);
 		Status Open(RandomAccessFileReader* file, uint64_t file_size);
 
 	private:
@@ -125,7 +126,7 @@ namespace rocksdb {
 		TerarkZipSubReader subReader_;
 		static const size_t kNumInternalBytes = 8;
 		Slice  file_data_;
-		unique_ptr<RandomAccessFileReader> file_;
+		std::unique_ptr<RandomAccessFileReader> file_;
 		const TerarkTableReaderOptions table_reader_options_;
 		std::shared_ptr<const TableProperties> table_properties_;
 		const TerarkZipTableOptions& tzto_;

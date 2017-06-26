@@ -125,7 +125,7 @@ namespace rocksdb {
 		ChunkState chunk_state_;
 		const TerarkZipTableOptions& table_options_;
 		// start TableBuilderOptions
-		const rocksdb::ColumnFamilyOptions& ioptions_; // replace ImmutableCFOptions with CFOptions
+		const TerarkTableBuilderOptions& ioptions_; // replace ImmutableCFOptions with TerarkTBOptions
 		//std::vector<std::unique_ptr<IntTblPropCollector>> collectors_;
 		// end TableBuilderOptions
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem ??

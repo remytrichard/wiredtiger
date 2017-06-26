@@ -23,18 +23,17 @@ namespace rocksdb {
 	class TerarkBlockBuilder;
 	class TerarkBlockHandle;
 	class Env;
-	class Footer;
+	class TerarkFooter;
 	class Logger;
 	class RandomAccessFile;
 	struct TableProperties;
-	class InternalIterator;
 
-	class MetaIndexBuilder {
+	class TerarkMetaIndexBuilder {
 	public:
-		MetaIndexBuilder(const MetaIndexBuilder&) = delete;
-		MetaIndexBuilder& operator=(const MetaIndexBuilder&) = delete;
+		TerarkMetaIndexBuilder(const TerarkMetaIndexBuilder&) = delete;
+		TerarkMetaIndexBuilder& operator=(const TerarkMetaIndexBuilder&) = delete;
 
-		MetaIndexBuilder();
+		TerarkMetaIndexBuilder();
 		void Add(const std::string& key, const TerarkBlockHandle& handle);
 
 		// Write all the added key/value pairs to the block and return the contents
@@ -73,7 +72,7 @@ namespace rocksdb {
 	//          *table_properties will point to a heap-allocated TableProperties
 	//          object, otherwise value of `table_properties` will not be modified.
 	Status ReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
-						  const Footer& footer, const ImmutableCFOptions &ioptions,
+						  const TerarkFooter& footer, const Options &ioptions,
 						  TableProperties** table_properties);
 
 	// Directly read the properties from the properties block of a plain table.
@@ -82,7 +81,7 @@ namespace rocksdb {
 	//          object, otherwise value of `table_properties` will not be modified.
 	Status ReadTableProperties(RandomAccessFileReader* file, uint64_t file_size,
 							   uint64_t table_magic_number,
-							   const ImmutableCFOptions &ioptions,
+							   const Options &ioptions,
 							   TableProperties** properties);
 
 	// Read the specified meta block with name meta_block_name
@@ -90,8 +89,8 @@ namespace rocksdb {
 	// Return Status::OK in case of success.
 	Status ReadMetaBlock(RandomAccessFileReader* file, uint64_t file_size,
 						 uint64_t table_magic_number,
-						 const ImmutableCFOptions &ioptions,
+						 const Options &ioptions,
 						 const std::string& meta_block_name,
-						 BlockContents* contents);
+						 TerarkBlockContents* contents);
 
 }  // namespace rocksdb

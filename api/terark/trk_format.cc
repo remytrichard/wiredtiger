@@ -13,9 +13,6 @@
 #include <inttypes.h>
 
 #include "rocksdb/env.h"
-//#include "table/block.h"
-//#include "table/block_based_table_reader.h"
-//#include "table/persistent_cache_helper.h"
 #include "util/coding.h"
 #include "util/compression.h"
 #include "util/crc32c.h"
@@ -26,6 +23,7 @@
 #include "util/statistics.h"
 #include "util/stop_watch.h"
 
+#include "trk_format.h"
 
 namespace rocksdb {
 
@@ -147,12 +145,13 @@ namespace rocksdb {
 		assert(input->size() >= kMinEncodedLength);
 
 		const char *magic_ptr =
-			input->data() + input->size() - kMagicNumberLengthByte;
+			input->data() + input->size() - kRocksdbMagicNumberLengthByte;
 		const uint32_t magic_lo = DecodeFixed32(magic_ptr);
 		const uint32_t magic_hi = DecodeFixed32(magic_ptr + 4);
 		uint64_t magic = ((static_cast<uint64_t>(magic_hi) << 32) |
 						  (static_cast<uint64_t>(magic_lo)));
 
+		bool legacy = IsLegacyFooterFormat(magic);
 		if (legacy) {
 			magic = UpconvertLegacyFooterFormat(magic);
 		}
@@ -187,7 +186,7 @@ namespace rocksdb {
 		}
 		if (result.ok()) {
 			// We skip over any leftover data (just padding for now) in "input"
-			const char* end = magic_ptr + kMagicNumberLengthByte;
+			const char* end = magic_ptr + kRocksdbMagicNumberLengthByte;
 			*input = Slice(end, input->data() + input->size() - end);
 		}
 		return result;
@@ -261,16 +260,16 @@ namespace rocksdb {
 
 			{
 				PERF_TIMER_GUARD(block_read_time);
-				s = file->Read(handle.offset(), n + kBlockTrailerSize, contents, buf);
+				s = file->Read(handle.offset(), n + kRocksdbBlockTrailerSize, contents, buf);
 			}
 
 			PERF_COUNTER_ADD(block_read_count, 1);
-			PERF_COUNTER_ADD(block_read_byte, n + kBlockTrailerSize);
+			PERF_COUNTER_ADD(block_read_byte, n + kRocksdbBlockTrailerSize);
 
 			if (!s.ok()) {
 				return s;
 			}
-			if (contents->size() != n + kBlockTrailerSize) {
+			if (contents->size() != n + kRocksdbBlockTrailerSize) {
 				return Status::Corruption("truncated block read");
 			}
 
@@ -306,8 +305,7 @@ namespace rocksdb {
 	Status ReadBlockContents(RandomAccessFileReader* file, const TerarkFooter& footer,
 							 const ReadOptions& read_options,
 							 const TerarkBlockHandle& handle, TerarkBlockContents* contents,
-							 const ImmutableCFOptions &ioptions,
-							 bool decompression_requested) {
+							 const Options &ioptions) {
 		Status status;
 		Slice slice;
 		size_t n = static_cast<size_t>(handle.size());
@@ -315,7 +313,7 @@ namespace rocksdb {
 		char* used_buf = nullptr;
 		rocksdb::CompressionType compression_type;
 
-		heap_buf = std::unique_ptr<char[]>(new char[n + kBlockTrailerSize]);
+		heap_buf = std::unique_ptr<char[]>(new char[n + kRocksdbBlockTrailerSize]);
 		used_buf = heap_buf.get();
 		status = ReadBlock(file, footer, read_options, handle, &slice, used_buf);
 		if (!status.ok()) {
@@ -323,12 +321,7 @@ namespace rocksdb {
 		}
 
 		compression_type = static_cast<rocksdb::CompressionType>(slice.data()[n]);
-		if (decompression_requested && compression_type != kNoCompression) {
-			// compressed page, uncompress, update cache
-			status = UncompressBlockContents(slice.data(), n, contents,
-											 footer.version(), compression_dict,
-											 ioptions);
-		} else if (slice.data() != used_buf) {
+		if (slice.data() != used_buf) {
 			// the slice content is not the buffer provided
 			*contents = TerarkBlockContents(Slice(slice.data(), n), false, compression_type);
 		} else {
@@ -336,135 +329,6 @@ namespace rocksdb {
 			*contents = TerarkBlockContents(std::move(heap_buf), n, true, compression_type);
 		}
 		return status;
-	}
-
-	Status UncompressBlockContentsForCompressionType(
-													 const char* data, size_t n, TerarkBlockContents* contents,
-													 uint32_t format_version, const Slice& compression_dict,
-													 CompressionType compression_type, const ImmutableCFOptions &ioptions) {
-		std::unique_ptr<char[]> ubuf;
-
-		assert(compression_type != kNoCompression && "Invalid compression type");
-
-		StopWatchNano timer(ioptions.env,
-							ShouldReportDetailedTime(ioptions.env, ioptions.statistics));
-		int decompress_size = 0;
-		switch (compression_type) {
-		case kSnappyCompression: {
-			size_t ulength = 0;
-			static char snappy_corrupt_msg[] =
-				"Snappy not supported or corrupted Snappy compressed block contents";
-			if (!Snappy_GetUncompressedLength(data, n, &ulength)) {
-				return Status::Corruption(snappy_corrupt_msg);
-			}
-			ubuf.reset(new char[ulength]);
-			if (!Snappy_Uncompress(data, n, ubuf.get())) {
-				return Status::Corruption(snappy_corrupt_msg);
-			}
-			*contents = TerarkBlockContents(std::move(ubuf), ulength, true, kNoCompression);
-			break;
-		}
-		case kZlibCompression:
-			ubuf.reset(Zlib_Uncompress(
-									   data, n, &decompress_size,
-									   GetCompressFormatForVersion(kZlibCompression, format_version),
-									   compression_dict));
-			if (!ubuf) {
-				static char zlib_corrupt_msg[] =
-					"Zlib not supported or corrupted Zlib compressed block contents";
-				return Status::Corruption(zlib_corrupt_msg);
-			}
-			*contents =
-				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
-			break;
-		case kBZip2Compression:
-			ubuf.reset(BZip2_Uncompress(
-										data, n, &decompress_size,
-										GetCompressFormatForVersion(kBZip2Compression, format_version)));
-			if (!ubuf) {
-				static char bzip2_corrupt_msg[] =
-					"Bzip2 not supported or corrupted Bzip2 compressed block contents";
-				return Status::Corruption(bzip2_corrupt_msg);
-			}
-			*contents =
-				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
-			break;
-		case kLZ4Compression:
-			ubuf.reset(LZ4_Uncompress(
-									  data, n, &decompress_size,
-									  GetCompressFormatForVersion(kLZ4Compression, format_version),
-									  compression_dict));
-			if (!ubuf) {
-				static char lz4_corrupt_msg[] =
-					"LZ4 not supported or corrupted LZ4 compressed block contents";
-				return Status::Corruption(lz4_corrupt_msg);
-			}
-			*contents =
-				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
-			break;
-		case kLZ4HCCompression:
-			ubuf.reset(LZ4_Uncompress(
-									  data, n, &decompress_size,
-									  GetCompressFormatForVersion(kLZ4HCCompression, format_version),
-									  compression_dict));
-			if (!ubuf) {
-				static char lz4hc_corrupt_msg[] =
-					"LZ4HC not supported or corrupted LZ4HC compressed block contents";
-				return Status::Corruption(lz4hc_corrupt_msg);
-			}
-			*contents =
-				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
-			break;
-		case kXpressCompression:
-			ubuf.reset(XPRESS_Uncompress(data, n, &decompress_size));
-			if (!ubuf) {
-				static char xpress_corrupt_msg[] =
-					"XPRESS not supported or corrupted XPRESS compressed block contents";
-				return Status::Corruption(xpress_corrupt_msg);
-			}
-			*contents =
-				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
-			break;
-		case kZSTD:
-		case kZSTDNotFinalCompression:
-			ubuf.reset(ZSTD_Uncompress(data, n, &decompress_size, compression_dict));
-			if (!ubuf) {
-				static char zstd_corrupt_msg[] =
-					"ZSTD not supported or corrupted ZSTD compressed block contents";
-				return Status::Corruption(zstd_corrupt_msg);
-			}
-			*contents =
-				TerarkBlockContents(std::move(ubuf), decompress_size, true, kNoCompression);
-			break;
-		default:
-			return Status::Corruption("bad block type");
-		}
-
-		if(ShouldReportDetailedTime(ioptions.env, ioptions.statistics)){
-			MeasureTime(ioptions.statistics, DECOMPRESSION_TIMES_NANOS,
-						timer.ElapsedNanos());
-			MeasureTime(ioptions.statistics, BYTES_DECOMPRESSED, contents->data.size());
-			RecordTick(ioptions.statistics, NUMBER_BLOCK_DECOMPRESSED);
-		}
-
-		return Status::OK();
-	}
-
-	//
-	// The 'data' points to the raw block contents that was read in from file.
-	// This method allocates a new heap buffer and the raw block
-	// contents are uncompresed into this buffer. This
-	// buffer is returned via 'result' and it is upto the caller to
-	// free this buffer.
-	// format_version is the block format as defined in include/rocksdb/table.h
-	Status UncompressBlockContents(const char* data, size_t n,
-								   TerarkBlockContents* contents, uint32_t format_version,
-								   const Slice& compression_dict,
-								   const ImmutableCFOptions &ioptions) {
-		assert(data[n] != kNoCompression);
-		return UncompressBlockContentsForCompressionType(
-														 data, n, contents, format_version, compression_dict,
-														 (CompressionType)data[n], ioptions);
 	}
 
 }  // namespace rocksdb
