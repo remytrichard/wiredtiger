@@ -7,7 +7,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 //
-// TerarkBlockBuiler generates blocks where keys are prefix-compressed:
+// TerarkBlockBuilder generates blocks where keys are prefix-compressed:
 //
 // When we store a key, we drop the prefix shared with the previous
 // string.  This helps reduce the space requirement significantly.
@@ -43,7 +43,7 @@
 
 namespace rocksdb {
 
-	TerarkBlockBuiler::TerarkBlockBuiler(int block_restart_interval, bool use_delta_encoding)
+	TerarkBlockBuilder::TerarkBlockBuilder(int block_restart_interval, bool use_delta_encoding)
 		: block_restart_interval_(block_restart_interval),
 		  use_delta_encoding_(use_delta_encoding),
 		  restarts_(),
@@ -54,7 +54,7 @@ namespace rocksdb {
 		estimate_ = sizeof(uint32_t) + sizeof(uint32_t);
 	}
 
-	void TerarkBlockBuiler::Reset() {
+	void TerarkBlockBuilder::Reset() {
 		buffer_.clear();
 		restarts_.clear();
 		restarts_.push_back(0);       // First restart point is at offset 0
@@ -64,7 +64,7 @@ namespace rocksdb {
 		last_key_.clear();
 	}
 
-	size_t TerarkBlockBuiler::EstimateSizeAfterKV(const Slice& key, const Slice& value)
+	size_t TerarkBlockBuilder::EstimateSizeAfterKV(const Slice& key, const Slice& value)
 		const {
 		size_t estimate = CurrentSizeEstimate();
 		estimate += key.size() + value.size();
@@ -79,7 +79,7 @@ namespace rocksdb {
 		return estimate;
 	}
 
-	Slice TerarkBlockBuiler::Finish() {
+	Slice TerarkBlockBuilder::Finish() {
 		// Append restart array
 		for (size_t i = 0; i < restarts_.size(); i++) {
 			PutFixed32(&buffer_, restarts_[i]);
@@ -89,7 +89,7 @@ namespace rocksdb {
 		return Slice(buffer_);
 	}
 
-	void TerarkBlockBuiler::Add(const Slice& key, const Slice& value) {
+	void TerarkBlockBuilder::Add(const Slice& key, const Slice& value) {
 		assert(!finished_);
 		assert(counter_ <= block_restart_interval_);
 		size_t shared = 0;  // number of bytes shared with prev key

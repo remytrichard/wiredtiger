@@ -78,47 +78,6 @@ namespace rocksdb {
 			};
 	//const size_t kZipValueTypeBits = 2;
 
-	struct ZipValueMultiValue {
-		// TODO: use offset[0] as num, and do not store offsets[num]
-		// when unzip, reserve num+1 cells, set offsets[0] to 0,
-		// and set offsets[num] to length of value pack
-		//	uint32_t num;
-		uint32_t offsets[1];
-
-		///@size size include the extra uint32, == encoded_size + 4
-		static
-		const ZipValueMultiValue* decode(void* data, size_t size, size_t* pNum) {
-			// data + 4 is the encoded data
-			auto me = (ZipValueMultiValue*)(data);
-			size_t num = me->offsets[1];
-			assert(num > 0);
-			memmove(me->offsets + 1, me->offsets + 2, sizeof(uint32_t)*(num - 1));
-			me->offsets[0] = 0;
-			me->offsets[num] = size - sizeof(uint32_t)*(num + 1);
-			*pNum = num;
-			return me;
-		}
-		static
-		const ZipValueMultiValue* decode(valvec<byte_t>& buf, size_t* pNum) {
-			return decode(buf.data(), buf.size(), pNum);
-		}
-		Slice getValueData(size_t nth, size_t num) const {
-			assert(nth < num);
-			size_t offset0 = offsets[nth + 0];
-			size_t offset1 = offsets[nth + 1];
-			size_t dlength = offset1 - offset0;
-			const char* base = (const char*)(offsets + num + 1);
-			return Slice(base + offset0, dlength);
-		}
-		static size_t calcHeaderSize(size_t n) {
-			return sizeof(uint32_t) * (n);
-		}
-	};
-
-
-	//class TerarkChunk {
-	//};
-
 	class TerarkZipTableBuilder;
 	class TerarkTableReader;
 	using TerarkChunk = TerarkZipTableBuilder;
@@ -183,8 +142,6 @@ namespace rocksdb {
 							   const ColumnFamilyOptions& cf_opts) const;
 
 		void* GetOptions() { return &table_options_; }
-
-		bool IsDeleteRangeSupported() const { return true; }
 
 	private:
 		TerarkZipTableOptions table_options_;

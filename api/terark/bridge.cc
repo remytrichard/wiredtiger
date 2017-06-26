@@ -45,6 +45,7 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	return (0);
 }
 
+// can we open multi times on one data-source ? how many diff cursors can we get ?
 int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 					const char *uri, WT_CONFIG_ARG *config, WT_CURSOR **new_cursor) {
 	(void)dsrc;

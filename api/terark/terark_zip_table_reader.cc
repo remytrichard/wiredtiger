@@ -18,11 +18,6 @@
 namespace {
 	using namespace rocksdb;
 
-	void SharedBlockCleanupFunction(void* arg1, void* arg2) {
-		delete reinterpret_cast<shared_ptr<TerarkBlock>*>(arg1);
-	}
-
-
 	static void MmapWarmUpBytes(const void* addr, size_t len) {
 		auto base = (const byte_t*)(uintptr_t(addr) & uintptr_t(~4095));
 		auto size = terark::align_up((size_t(addr) & 4095) + len, 4096);
@@ -393,7 +388,7 @@ namespace rocksdb {
 			return s;
 		}
 		assert(nullptr != props);
-		unique_ptr<TableProperties> uniqueProps(props);
+		std::unique_ptr<TableProperties> uniqueProps(props);
 		Slice file_data;
 		s = file->Read(0, file_size, &file_data, nullptr);
 		if (!s.ok()) {
@@ -410,6 +405,9 @@ namespace rocksdb {
 		TerarkBlockContents valueDictBlock, indexBlock, zValueTypeBlock, commonPrefixBlock;
 		s = ReadMetaBlock(file, file_size, kTerarkZipTableMagicNumber, ioptions,
 						  kTerarkZipTableValueDictBlock, &valueDictBlock);
+		if (!s.ok()) {
+			return s;
+		}
 		s = ReadMetaBlock(file, file_size, kTerarkZipTableMagicNumber, ioptions,
 						  kTerarkZipTableIndexBlock, &indexBlock);
 		if (!s.ok()) {
@@ -460,7 +458,7 @@ namespace rocksdb {
 		long long t1 = g_pf.now();
 		subReader_.index_->BuildCache(tzto_.indexCacheRatio);
 		long long t2 = g_pf.now();
-		INFO(ioptions.info_log
+		/*INFO(ioptions.info_log
 			 , "TerarkZipTableReader::Open(): fsize = %zd, entries = %zd keys = %zd indexSize = %zd valueSize=%zd, warm up time = %6.3f'sec, build cache time = %6.3f'sec\n"
 			 , size_t(file_size), size_t(table_properties_->num_entries)
 			 , subReader_.index_->NumKeys()
@@ -468,10 +466,9 @@ namespace rocksdb {
 			 , size_t(table_properties_->data_size)
 			 , g_pf.sf(t0, t1)
 			 , g_pf.sf(t1, t2)
-			 );
+			 );*/
 		return Status::OK();
 	}
-
 
 	Status TerarkZipTableReader::LoadIndex(Slice mem) {
 		auto func = "TerarkZipTableReader::LoadIndex()";

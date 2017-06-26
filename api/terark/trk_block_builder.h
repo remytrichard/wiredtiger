@@ -15,15 +15,15 @@
 
 namespace rocksdb {
 
-	class TerarkBlockBuiler {
+	class TerarkBlockBuilder {
 	public:
-		TerarkBlockBuiler(const TerarkBlockBuiler&) = delete;
-		void operator=(const TerarkBlockBuiler&) = delete;
+		TerarkBlockBuilder(const TerarkBlockBuilder&) = delete;
+		void operator=(const TerarkBlockBuilder&) = delete;
 
-		explicit TerarkBlockBuiler(int block_restart_interval,
+		explicit TerarkBlockBuilder(int block_restart_interval,
 								   bool use_delta_encoding = true);
 
-		// Reset the contents as if the TerarkBlockBuiler was just constructed.
+		// Reset the contents as if the BlockBuilder was just constructed.
 		void Reset();
 
 		// REQUIRES: Finish() has not been called since the last call to Reset().

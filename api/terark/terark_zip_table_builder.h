@@ -85,7 +85,6 @@ namespace rocksdb {
 		void SetState(ChunkState state) { chunk_state_ = state; }
 
 	private:
-
 		struct KeyValueStatus {
 			TerarkIndex::KeyStat stat;
 			valvec<char> prefix;
@@ -129,8 +128,8 @@ namespace rocksdb {
 		//std::vector<std::unique_ptr<IntTblPropCollector>> collectors_;
 		// end TableBuilderOptions
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem ??
-		valvec<byte_t> prevUserKey_; // key after keyPrefix & seq_type striped
-		terark::febitvec valueBits_;
+		valvec<byte_t> prevUserKey_;
+		//valvec<byte_b> value_;
 		TempFileDeleteOnClose tmpKeyFile_;
 		TempFileDeleteOnClose tmpValueFile_;
 		TempFileDeleteOnClose tmpSampleFile_;
