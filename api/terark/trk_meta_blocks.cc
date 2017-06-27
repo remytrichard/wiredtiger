@@ -17,7 +17,7 @@
 namespace rocksdb {
 
 	TerarkMetaIndexBuilder::TerarkMetaIndexBuilder()
-		: meta_index_block_(new TerarkBlockBuilder(1 /* restart interval */)) {}
+		: meta_index_block_(new TerarkBlockBuilder(1)) {}
 
 	void TerarkMetaIndexBuilder::Add(const std::string& key,
 							   const TerarkBlockHandle& handle) {
@@ -34,7 +34,7 @@ namespace rocksdb {
 	}
 
 	TerarkPropertyBlockBuilder::TerarkPropertyBlockBuilder()
-		: properties_block_(new TerarkBlockBuilder(1 /* restart interval */)) {}
+		: properties_block_(new TerarkBlockBuilder(1)) {}
 
 	void TerarkPropertyBlockBuilder::Add(const std::string& name,
 								   const std::string& val) {
@@ -50,8 +50,7 @@ namespace rocksdb {
 		Add(name, dst);
 	}
 
-	void TerarkPropertyBlockBuilder::Add(
-								   const UserCollectedProperties& user_collected_properties) {
+	void TerarkPropertyBlockBuilder::Add(const UserCollectedProperties& user_collected_properties) {
 		for (const auto& prop : user_collected_properties) {
 			Add(prop.first, prop.second);
 		}
@@ -104,6 +103,7 @@ namespace rocksdb {
 		return properties_block_->Finish();
 	}
 
+
 	Status TerarkReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
 								const TerarkFooter& footer, const Options& ioptions,
 								TerarkTableProperties** table_properties) {
@@ -116,9 +116,7 @@ namespace rocksdb {
 		}
 
 		TerarkBlockContents block_contents;
-		TerarkReadOptions read_options;
-		read_options.verify_checksums = false;
-		Status s = TerarkReadBlockContents(file, footer, read_options, handle, &block_contents, ioptions);
+		Status s = TerarkReadBlockContents(file, footer, handle, &block_contents, ioptions);
 		if (!s.ok()) {
 			return s;
 		}
@@ -208,6 +206,19 @@ namespace rocksdb {
 		return s;
 	}
 
+	Status TerarkFindMetaBlock(Iterator* meta_index_iter,
+							   const std::string& meta_block_name,
+							   TerarkBlockHandle* block_handle) {
+		meta_index_iter->Seek(meta_block_name);
+		if (meta_index_iter->status().ok() && meta_index_iter->Valid() &&
+			meta_index_iter->key() == meta_block_name) {
+			Slice v = meta_index_iter->value();
+			return block_handle->DecodeFrom(&v);
+		} else {
+			return Status::Corruption("Cannot find the meta block", meta_block_name);
+		}
+	}
+
 	Status TerarkReadTableProperties(RandomAccessFileReader* file, uint64_t file_size,
 							   uint64_t table_magic_number,
 							   const Options &ioptions,
@@ -223,42 +234,28 @@ namespace rocksdb {
 		TerarkBlockContents metaindex_contents;
 		TerarkReadOptions read_options;
 		read_options.verify_checksums = false;
-		s = TerarkReadBlockContents(file, footer, read_options, metaindex_handle,
-							  &metaindex_contents, ioptions); //, false /* decompress */);
+		s = TerarkReadBlockContents(file, footer, metaindex_handle,
+							  &metaindex_contents, ioptions);
 		if (!s.ok()) {
 			return s;
 		}
 		TerarkBlock metaindex_block(std::move(metaindex_contents));
 		std::unique_ptr<Iterator> meta_iter(metaindex_block.NewIterator(BytewiseComparator()));
+		if (meta_iter.get() == nullptr) {
+			return Status::Corruption("bad block handle");
+		}
 
 		// -- Read property block
-		bool found_properties_block = true;
-		s = SeekToPropertiesBlock(meta_iter.get(), &found_properties_block);
+		TerarkBlockHandle block_handle;
+		s = TerarkFindMetaBlock(meta_iter.get(), kPropertiesBlock, &block_handle);
+		//s = SeekToPropertiesBlock(meta_iter.get(), &found_properties_block);
 		if (!s.ok()) {
 			return s;
 		}
 
 		TerarkTableProperties table_properties;
-		if (found_properties_block == true) {
-			s = TerarkReadProperties(meta_iter->value(), file, footer, ioptions, properties);
-		} else {
-			s = Status::NotFound();
-		}
-
+		s = TerarkReadProperties(meta_iter->value(), file, footer, ioptions, properties);
 		return s;
-	}
-
-	Status TerarkFindMetaBlock(Iterator* meta_index_iter,
-							   const std::string& meta_block_name,
-							   TerarkBlockHandle* block_handle) {
-		meta_index_iter->Seek(meta_block_name);
-		if (meta_index_iter->status().ok() && meta_index_iter->Valid() &&
-			meta_index_iter->key() == meta_block_name) {
-			Slice v = meta_index_iter->value();
-			return block_handle->DecodeFrom(&v);
-		} else {
-			return Status::Corruption("Cannot find the meta block", meta_block_name);
-		}
 	}
 
 	Status TerarkReadMetaBlock(RandomAccessFileReader* file, uint64_t file_size,
@@ -278,7 +275,7 @@ namespace rocksdb {
 		TerarkBlockContents metaindex_contents;
 		TerarkReadOptions read_options;
 		read_options.verify_checksums = false;
-		status = TerarkReadBlockContents(file, footer, read_options, metaindex_handle,
+		status = TerarkReadBlockContents(file, footer, metaindex_handle,
 			&metaindex_contents, ioptions);
 		if (!status.ok()) {
 			return status;
@@ -299,8 +296,7 @@ namespace rocksdb {
 
 		// Reading metablock
 		return TerarkReadBlockContents(file, footer, 
-			read_options, block_handle, 
-			contents, ioptions);
+			block_handle, contents, ioptions);
 	}
 
-}  // namespace rocksdb
+}

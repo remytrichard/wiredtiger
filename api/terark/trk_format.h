@@ -196,7 +196,7 @@ namespace rocksdb {
 	// Read the block identified by "handle" from "file".  On failure
 	// return non-OK.  On success fill *result and return OK.
 	extern Status TerarkReadBlockContents(RandomAccessFileReader* file, const TerarkFooter& footer,
-										  const TerarkReadOptions& options, const TerarkBlockHandle& handle,
+										  const TerarkBlockHandle& handle,
 										  TerarkBlockContents* contents, const Options &ioptions);
 
 	// Implementation details follow.  Clients should ignore,

@@ -251,7 +251,7 @@ namespace rocksdb {
 		// contents is the result of reading.
 		// According to the implementation of file->Read, contents may not point to buf
 		Status TerarkReadBlock(RandomAccessFileReader* file, const TerarkFooter& footer,
-							   const TerarkReadOptions& options, const TerarkBlockHandle& handle,
+							   const TerarkBlockHandle& handle,
 							   Slice* contents, /* result of reading */ char* buf) {
 			size_t n = static_cast<size_t>(handle.size());
 			Status s;
@@ -273,7 +273,8 @@ namespace rocksdb {
 
 			// Check the crc of the type and the block contents
 			const char* data = contents->data();  // Pointer to where Read put the data
-			if (options.verify_checksums) {
+			//if (options.verify_checksums) {
+			if (true) {
 				PERF_TIMER_GUARD(block_checksum_time);
 				uint32_t value = DecodeFixed32(data + n + 1);
 				uint32_t actual = 0;
@@ -302,7 +303,6 @@ namespace rocksdb {
 
 	Status TerarkReadBlockContents(RandomAccessFileReader* file, 
 		const TerarkFooter& footer,
-		const TerarkReadOptions& read_options,
 		const TerarkBlockHandle& handle, 
 		TerarkBlockContents* contents,
 		const Options &ioptions) {
@@ -315,7 +315,7 @@ namespace rocksdb {
 
 		heap_buf = std::unique_ptr<char[]>(new char[n + kRocksdbBlockTrailerSize]);
 		used_buf = heap_buf.get();
-		status = TerarkReadBlock(file, footer, read_options, handle, &slice, used_buf);
+		status = TerarkReadBlock(file, footer, handle, &slice, used_buf);
 		if (!status.ok()) {
 			return status;
 		}

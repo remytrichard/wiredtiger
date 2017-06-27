@@ -37,6 +37,7 @@
 #include "terark_zip_index.h"
 #include "trk_block_builder.h"
 #include "trk_format.h"
+#include "trk_table_properties.h"
 
 namespace rocksdb {
 
@@ -142,7 +143,7 @@ namespace rocksdb {
 		uint64_t offset_ = 0;
 		uint64_t zeroSeqCount_ = 0;
 		Status status_;
-		TableProperties properties_;
+		TerarkTableProperties properties_;
 		//std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 		terark::fstrvec valueBuf_; // collect multiple values for one key
 		bool closed_ = false;  // Either Finish() or Abandon() has been called.

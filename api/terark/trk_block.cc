@@ -21,6 +21,8 @@
 #include "util/logging.h"
 #include "util/perf_context_imp.h"
 
+#include "trk_block.h"
+
 namespace rocksdb {
 
 	// Helper routine: decode the next block entry starting at "p",
@@ -375,7 +377,8 @@ namespace rocksdb {
 				iter->SetStatus(Status::Corruption("bad block contents"));
 				return iter;
 			} else {
-				return NewErrorInternalIterator(Status::Corruption("bad block contents"));
+				//return NewErrorInternalIterator(Status::Corruption("bad block contents"));
+				return nullptr;
 			}
 		}
 		const uint32_t num_restarts = NumRestarts();
@@ -384,7 +387,8 @@ namespace rocksdb {
 				iter->SetStatus(Status::OK());
 				return iter;
 			} else {
-				return NewEmptyInternalIterator();
+				//return NewEmptyInternalIterator();
+				return nullptr;
 			}
 		} else {
 			iter = new TerarkBlockIter(cmp, data_, restart_offset_, num_restarts);
