@@ -7,8 +7,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
-#include "table/format.h"
-
 #include <string>
 #include <inttypes.h>
 
@@ -213,7 +211,7 @@ namespace rocksdb {
 		return result;
 	}
 
-	Status ReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
+	Status TerarkReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
 							  TerarkFooter* footer, uint64_t enforce_table_magic_number) {
 		if (file_size < TerarkFooter::kMinEncodedLength) {
 			return Status::Corruption("file is too short to be an sstable");
@@ -252,9 +250,9 @@ namespace rocksdb {
 		// Read a block and check its CRC
 		// contents is the result of reading.
 		// According to the implementation of file->Read, contents may not point to buf
-		Status ReadBlock(RandomAccessFileReader* file, const TerarkFooter& footer,
-						 const ReadOptions& options, const TerarkBlockHandle& handle,
-						 Slice* contents, /* result of reading */ char* buf) {
+		Status TerarkReadBlock(RandomAccessFileReader* file, const TerarkFooter& footer,
+							   const TerarkReadOptions& options, const TerarkBlockHandle& handle,
+							   Slice* contents, /* result of reading */ char* buf) {
 			size_t n = static_cast<size_t>(handle.size());
 			Status s;
 
@@ -302,10 +300,12 @@ namespace rocksdb {
 
 	}  // namespace
 
-	Status ReadBlockContents(RandomAccessFileReader* file, const TerarkFooter& footer,
-							 const ReadOptions& read_options,
-							 const TerarkBlockHandle& handle, TerarkBlockContents* contents,
-							 const Options &ioptions) {
+	Status TerarkReadBlockContents(RandomAccessFileReader* file, 
+		const TerarkFooter& footer,
+		const TerarkReadOptions& read_options,
+		const TerarkBlockHandle& handle, 
+		TerarkBlockContents* contents,
+		const Options &ioptions) {
 		Status status;
 		Slice slice;
 		size_t n = static_cast<size_t>(handle.size());
@@ -315,7 +315,7 @@ namespace rocksdb {
 
 		heap_buf = std::unique_ptr<char[]>(new char[n + kRocksdbBlockTrailerSize]);
 		used_buf = heap_buf.get();
-		status = ReadBlock(file, footer, read_options, handle, &slice, used_buf);
+		status = TerarkReadBlock(file, footer, read_options, handle, &slice, used_buf);
 		if (!status.ok()) {
 			return status;
 		}

@@ -3,6 +3,7 @@
 #include "terark_zip_common.h"
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
+
 // boost headers
 #include <boost/scope_exit.hpp>
 // rocksdb headers
@@ -65,7 +66,7 @@ namespace rocksdb {
 
 	public:
 		TerarkZipTableIterator(const TerarkTableReaderOptions& tro
-							   , const TerarkZipSubReader *subReader)
+			, const TerarkZipSubReader *subReader)
 			: table_reader_options_(&tro)
 			, subReader_(subReader) {
 			if (subReader_ != nullptr) {
@@ -305,7 +306,7 @@ namespace rocksdb {
 	class TerarkZipTableUint64Iterator : public TerarkZipTableIterator<false> {
 	public:
 		TerarkZipTableUint64Iterator(const TableReaderOptions& tro
-									 , const TerarkZipSubReader *subReader)
+			, const TerarkZipSubReader *subReader)
 			: TerarkZipTableIterator<false>(tro, subReader) {
 		}
 	protected:
@@ -355,7 +356,7 @@ namespace rocksdb {
 		file_.reset(file); // take ownership
 		const auto& ioptions = table_reader_options_.ioptions;
 		TableProperties* props = nullptr;
-		Status s = ReadTableProperties(file, file_size,
+		Status s = TerarkReadTableProperties(file, file_size,
 									   kTerarkZipTableMagicNumber, ioptions, &props);
 		if (!s.ok()) {
 			return s;
@@ -382,7 +383,7 @@ namespace rocksdb {
 		file_.reset(file); // take ownership
 		const auto& ioptions = table_reader_options_.ioptions;
 		TableProperties* props = nullptr;
-		Status s = ReadTableProperties(file, file_size,
+		Status s = TerarkReadTableProperties(file, file_size,
 									   kTerarkZipTableMagicNumber, ioptions, &props);
 		if (!s.ok()) {
 			return s;
@@ -517,7 +518,7 @@ namespace rocksdb {
 	TerarkZipTableReader::~TerarkZipTableReader() {}
 
 	TerarkZipTableReader::TerarkZipTableReader(const TerarkTableReaderOptions& tro,
-											   const TerarkZipTableOptions& tzto)
+		const TerarkZipTableOptions& tzto)
 		: table_reader_options_(tro)
 		, tzto_(tzto) {
 		isReverseBytewiseOrder_ = false;

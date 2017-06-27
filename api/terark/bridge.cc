@@ -11,6 +11,7 @@
 #include "rocksdb/env.h"
 
 #include "terark_zip_internal.h"
+#include "terark_chunk_manager.h"
 #include "terark_zip_table.h"
 #include "terark_zip_table_builder.h"
 
@@ -125,7 +126,7 @@ int trk_cursor_insert(WT_CURSOR *cursor) {
 
 
 static const char *home;
-int main() {
+int test_main() {
 	WT_CONNECTION *conn;
 	WT_SESSION *session;
 	int ret;

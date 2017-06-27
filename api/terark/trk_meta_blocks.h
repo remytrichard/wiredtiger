@@ -15,19 +15,16 @@
 #include "rocksdb/comparator.h"
 #include "rocksdb/options.h"
 #include "rocksdb/slice.h"
+
 #include "trk_block_builder.h"
 #include "trk_format.h"
 
 namespace rocksdb {
 
-	class TerarkBlockBuilder;
-	class TerarkBlockHandle;
 	class Env;
-	class TerarkFooter;
 	class Logger;
 	class RandomAccessFile;
-	struct TableProperties;
-
+	struct TerarkTableProperties;
 	class TerarkMetaIndexBuilder {
 	public:
 		TerarkMetaIndexBuilder(const TerarkMetaIndexBuilder&) = delete;
@@ -46,14 +43,14 @@ namespace rocksdb {
 		std::unique_ptr<TerarkBlockBuilder> meta_index_block_;
 	};
 
-	class PropertyTerarkBlockBuilder {
+	class TerarkPropertyBlockBuilder {
 	public:
-		PropertyTerarkBlockBuilder(const PropertyTerarkBlockBuilder&) = delete;
-		PropertyTerarkBlockBuilder& operator=(const PropertyTerarkBlockBuilder&) = delete;
+		TerarkPropertyBlockBuilder(const TerarkPropertyBlockBuilder&) = delete;
+		TerarkPropertyBlockBuilder& operator=(const TerarkPropertyBlockBuilder&) = delete;
 
-		PropertyTerarkBlockBuilder();
+		TerarkPropertyBlockBuilder();
 
-		void AddTableProperty(const TableProperties& props);
+		void AddTableProperty(const TerarkTableProperties& props);
 		void Add(const std::string& key, uint64_t value);
 		void Add(const std::string& key, const std::string& value);
 		void Add(const UserCollectedProperties& user_collected_properties);
@@ -71,23 +68,23 @@ namespace rocksdb {
 	// @returns a status to indicate if the operation succeeded. On success,
 	//          *table_properties will point to a heap-allocated TableProperties
 	//          object, otherwise value of `table_properties` will not be modified.
-	Status ReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
-						  const TerarkFooter& footer, const Options &ioptions,
-						  TableProperties** table_properties);
+	Status TerarkReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
+								const TerarkFooter& footer, const Options &ioptions,
+								TerarkTableProperties** table_properties);
 
 	// Directly read the properties from the properties block of a plain table.
 	// @returns a status to indicate if the operation succeeded. On success,
 	//          *table_properties will point to a heap-allocated TableProperties
 	//          object, otherwise value of `table_properties` will not be modified.
-	Status ReadTableProperties(RandomAccessFileReader* file, uint64_t file_size,
+	Status TerarkReadTableProperties(RandomAccessFileReader* file, uint64_t file_size,
 							   uint64_t table_magic_number,
 							   const Options &ioptions,
-							   TableProperties** properties);
+									 TerarkTableProperties** properties);
 
 	// Read the specified meta block with name meta_block_name
 	// from `file` and initialize `contents` with contents of this block.
 	// Return Status::OK in case of success.
-	Status ReadMetaBlock(RandomAccessFileReader* file, uint64_t file_size,
+	Status TerarkReadMetaBlock(RandomAccessFileReader* file, uint64_t file_size,
 						 uint64_t table_magic_number,
 						 const Options &ioptions,
 						 const std::string& meta_block_name,

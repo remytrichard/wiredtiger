@@ -16,6 +16,7 @@
 #include "trk_block_builder.h"
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
+#include "trk_table_properties.h"
 
 namespace rocksdb {
 
@@ -79,18 +80,17 @@ namespace rocksdb {
 			return (item->size == kTombstone.size &&
 				memcmp(item->data, kTombstone.data, kTombstone.size) == 0);
 		}
-		bool IsDeleted(Slice* slice) {
-			return (slice->size() == kTombstone.size &&
-					memcmp(slice->data(), kTombstone.data, kTombstone.size) == 0);
+		bool IsDeleted(const Slice& slice) {
+			return (slice.size() == kTombstone.size &&
+					memcmp(slice.data(), kTombstone.data, kTombstone.size) == 0);
 		}
 	}
 
-	TerarkZipTableBuilder::TerarkZipTableBuilder(
-												 const TerarkZipTableOptions& tzto,
-												 const TerarkTableBuilderOptions& tbo,
-												 uint32_t column_family_id,
-												 WritableFileWriter* file,
-												 size_t key_prefixLen)
+	TerarkZipTableBuilder::TerarkZipTableBuilder(const TerarkZipTableOptions& tzto,
+		const TerarkTableBuilderOptions& tbo,
+		uint32_t column_family_id,
+		WritableFileWriter* file,
+		size_t key_prefixLen)
 		: table_options_(tzto)
 		, ioptions_(tbo)
 		, key_prefixLen_(key_prefixLen)
@@ -107,19 +107,15 @@ namespace rocksdb {
 
 		isReverseBytewiseOrder_ =
 			fstring(properties_.comparator_name).startsWith("rev:");
-#if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
-		isUint64Comparator_ =
-			fstring(properties_.comparator_name) == "rocksdb.Uint64Comparator";
-#endif
 
 		/*if (tbo.int_tbl_prop_collector_factories) {
-			const auto& factories = *tbo.int_tbl_prop_collector_factories;
-			collectors_.resize(factories.size());
-			auto cfId = properties_.column_family_id;
-			for (size_t i = 0; i < collectors_.size(); ++i) {
-				collectors_[i].reset(factories[i]->CreateIntTblPropCollector(cfId));
-			}
-			}*/
+		  const auto& factories = *tbo.int_tbl_prop_collector_factories;
+		  collectors_.resize(factories.size());
+		  auto cfId = properties_.column_family_id;
+		  for (size_t i = 0; i < collectors_.size(); ++i) {
+		  collectors_[i].reset(factories[i]->CreateIntTblPropCollector(cfId));
+		  }
+		  }*/
 		properties_.property_collectors_names = "[]";
 
 		file_ = file;
@@ -173,7 +169,6 @@ namespace rocksdb {
 
 
 	void TerarkZipTableBuilder::Add(const Slice& key, const Slice& value, const WT_ITEM* item) {
-
 		if (table_options_.debugLevel == 4) {
 			//rocksdb::ParsedInternalKey ikey;
 			//rocksdb::ParseInternalKey(key, &ikey);
@@ -183,21 +178,8 @@ namespace rocksdb {
 		DEBUG_PRINT_1ST_PASS_KEY(key);
 		uint64_t offset = uint64_t((properties_.raw_key_size + properties_.raw_value_size)
 								   * table_options_.estimateCompressionRatio);
-		//if (!IsDeleted(item)) {
-		//assert(key.size() >= 8);
 		fstring userKey(key.data(), key.size());
-		assert(userKey.size() >= key_prefixLen_);
-#if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
-		uint64_t u64_key;
-		if (isUint64Comparator_) {
-			assert(userKey.size() == 8);
-			u64_key = byte_swap(*reinterpret_cast<const uint64_t*>(userKey.data()));
-			userKey = fstring(reinterpret_cast<const char*>(&u64_key), 8);
-		}
-#endif
-		if (terark_likely(!histogram_.empty() &&
-			  histogram_.back().prefix == userKey.substr(0, key_prefixLen_))) {
-			userKey = userKey.substr(key_prefixLen_);
+		if (terark_likely(!histogram_.empty())) {
 			auto& keyStat = histogram_.back().stat;
 			assert((prevUserKey_ < userKey) ^ isReverseBytewiseOrder_);
 			keyStat.commonPrefixLen = fstring(prevUserKey_.data(), keyStat.commonPrefixLen)
@@ -214,8 +196,8 @@ namespace rocksdb {
 			}
 			histogram_.emplace_back();
 			auto& currentHistogram = histogram_.back();
-			currentHistogram.prefix.assign(userKey.data(), key_prefixLen_);
-			userKey = userKey.substr(key_prefixLen_);
+			//currentHistogram.prefix.assign(userKey.data(), key_prefixLen_);
+			currentHistogram.prefix.emplace_back();
 			currentHistogram.stat.commonPrefixLen = userKey.size();
 			currentHistogram.stat.minKeyLen = userKey.size();
 			currentHistogram.stat.maxKeyLen = userKey.size();
@@ -427,7 +409,7 @@ namespace rocksdb {
 		AutoDeleteFile tmpStoreFile{tmpValueFile_.path + ".zbs"};
 		NativeDataInput<InputBuffer> input(&tmpValueFile_.fp);
 		auto& kvs = histogram_.front();
-		fstring dictMem;
+		terark::BlobStore::Dictionary dict;
 		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder;
 		std::unique_ptr<terark::BlobStore> store;
 		DictZipBlobStore::ZipStat dzstat;
@@ -472,12 +454,12 @@ namespace rocksdb {
 			dzstat = zbuilder->getZipStat();
 
 			t4 = g_pf.now();
-			dictMem = zbuilder->getDictMem();
+			dict = zbuilder->getDictionary();
 		}
 		DebugCleanup();
 		// wait for indexing complete, if indexing is slower than value compressing
 		waitIndex();
-		return WriteSSTFile(t3, t4, tmpIndexFile, store.get(), dictMem, dzstat);
+		return WriteSSTFile(t3, t4, tmpIndexFile, store.get(), dict, dzstat);
 	}
 
 
@@ -493,29 +475,29 @@ namespace rocksdb {
 
 	void
 	TerarkZipTableBuilder::BuilderWriteValues(NativeDataInput<InputBuffer>& input, 
-											  KeyValueStatus& kvs, std::function<void(fstring)> write) {
+		KeyValueStatus& kvs, std::function<void(fstring)> write) {
 		auto& bzvType = kvs.type;
 		bzvType.resize(kvs.stat.numKeys);
 		valvec<byte_t> value;
 		size_t entryId = 0;
 		for (size_t recId = 0; recId < kvs.stat.numKeys; recId++) {
 			/*
-			uint64_t seqType = input.load_as<uint64_t>();
-			uint64_t seqNum;
-			ValueType vType;
-			UnPackSequenceAndType(seqType, &seqNum, &vType);
-			size_t oneSeqLen = 1;
-			assert(oneSeqLen >= 1);
-			if (1 == oneSeqLen && (kTypeDeletion == vType || kTypeValue == vType)) {
-				if (kTypeValue == vType) {
-					bzvType.set0(recId, size_t(ZipValueType::kValue));
-				} else {
-					bzvType.set0(recId, size_t(ZipValueType::kDelete));
-				}
-				value.erase_all();
-				value.append((byte_t*)&seqNum, 7);
-				input.load_add(value);
-				}*/
+			  uint64_t seqType = input.load_as<uint64_t>();
+			  uint64_t seqNum;
+			  ValueType vType;
+			  UnPackSequenceAndType(seqType, &seqNum, &vType);
+			  size_t oneSeqLen = 1;
+			  assert(oneSeqLen >= 1);
+			  if (1 == oneSeqLen && (kTypeDeletion == vType || kTypeValue == vType)) {
+			  if (kTypeValue == vType) {
+			  bzvType.set0(recId, size_t(ZipValueType::kValue));
+			  } else {
+			  bzvType.set0(recId, size_t(ZipValueType::kDelete));
+			  }
+			  value.erase_all();
+			  value.append((byte_t*)&seqNum, 7);
+			  input.load_add(value);
+			  }*/
 			{
 				value.erase_all();
 				input.load_add(value);
@@ -533,10 +515,10 @@ namespace rocksdb {
 		assert(entryId <= properties_.num_entries);
 	}
 
-	Status TerarkZipTableBuilder::WriteStore(TerarkIndex* index, terark::BlobStore* store
-											 , KeyValueStatus& kvs, std::function<void(const void*, size_t)> writeAppend
-											 , TerarkBlockHandle& dataBlock
-											 , long long& t5, long long& t6, long long& t7) {
+	Status TerarkZipTableBuilder::WriteStore(TerarkIndex* index, terark::BlobStore* store,
+		KeyValueStatus& kvs, std::function<void(const void*, size_t)> writeAppend,
+		TerarkBlockHandle& dataBlock,
+		long long& t5, long long& t6, long long& t7) {
 		auto& keyStat = kvs.stat;
 		auto& bzvType = kvs.type;
 		if (index->NeedsReorder()) {
@@ -602,15 +584,15 @@ namespace rocksdb {
 		return Status::OK();
 	}
 
-	Status TerarkZipTableBuilder::WriteSSTFile(long long t3, long long t4
-											   , fstring tmpIndexFile, terark::BlobStore* zstore
-											   , fstring dictMem
-											   , const DictZipBlobStore::ZipStat& dzstat) {
+	Status TerarkZipTableBuilder::WriteSSTFile(long long t3, long long t4,
+		fstring tmpIndexFile, terark::BlobStore* zstore,
+		terark::BlobStore::Dictionary dict,
+		const DictZipBlobStore::ZipStat& dzstat) {
 		assert(histogram_.size() == 1);
 		auto& kvs = histogram_.front();
 		auto& keyStat = kvs.stat;
 		auto& bzvType = kvs.type;
-		const size_t realsampleLenSum = dictMem.size();
+		const size_t realsampleLenSum = dict.memory.size();
 		long long rawBytes = properties_.raw_key_size + properties_.raw_value_size;
 		long long t5 = g_pf.now();
 		unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile));
@@ -649,7 +631,7 @@ namespace rocksdb {
 		WriteBlock(commonPrefix, file_, &offset_, &commonPrefixBlock);
 		properties_.data_size = dataBlock.size();
 
-		s = WriteBlock(dictMem, file_, &offset_, &dictBlock);
+		s = WriteBlock(dict.memory, file_, &offset_, &dictBlock);
 		if (!s.ok()) {
 			return s;
 		}
@@ -671,7 +653,7 @@ namespace rocksdb {
 		properties_.index_size = indexBlock.size();
 
 		WriteMetaData({
-				{ dictMem.size() ? &kTerarkZipTableValueDictBlock : NULL       , dictBlock         },
+				{ dict.memory.size() ? &kTerarkZipTableValueDictBlock : NULL       , dictBlock         },
 				{ &kTerarkZipTableIndexBlock                                   , indexBlock        },
 				{ !zvTypeBlock.IsNull() ? &kTerarkZipTableValueTypeBlock : NULL, zvTypeBlock       },
 				{ &kTerarkZipTableCommonPrefixBlock                            , commonPrefixBlock },
@@ -768,7 +750,7 @@ namespace rocksdb {
 			}
 		}
 		{
-			PropertyBlockBuilder propBlockBuilder;
+			TerarkPropertyBlockBuilder propBlockBuilder;
 			propBlockBuilder.AddTableProperty(properties_);
 			TerarkBlockHandle propBlock;
 			Status s = WriteBlock(propBlockBuilder.Finish(), file_, &offset_, &propBlock);

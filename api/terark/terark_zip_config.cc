@@ -36,12 +36,11 @@ namespace rocksdb {
 	}
 
 	void TerarkZipAutoConfigForBulkLoad(struct TerarkZipTableOptions& tzo,
-										struct DBOptions& dbo,
-										struct ColumnFamilyOptions& cfo,
-										size_t cpuNum,
-										size_t memBytesLimit,
-										size_t diskBytesLimit)
-	{
+		struct DBOptions& dbo,
+		struct ColumnFamilyOptions& cfo,
+		size_t cpuNum,
+		size_t memBytesLimit,
+		size_t diskBytesLimit) {
 		using namespace std; // max, min
 		int iCpuNum = int(cpuNum);
 		if (cpuNum > 0) {
@@ -92,12 +91,11 @@ namespace rocksdb {
 	}
 
 	void TerarkZipAutoConfigForOnlineDB(struct TerarkZipTableOptions& tzo,
-										struct DBOptions& dbo,
-										struct ColumnFamilyOptions& cfo,
-										size_t cpuNum,
-										size_t memBytesLimit,
-										size_t diskBytesLimit)
-	{
+		struct DBOptions& dbo,
+		struct ColumnFamilyOptions& cfo,
+		size_t cpuNum,
+		size_t memBytesLimit,
+		size_t diskBytesLimit) {
 		using namespace std; // max, min
 		int iCpuNum = int(cpuNum);
 		if (cpuNum > 0) {
@@ -278,7 +276,7 @@ namespace rocksdb {
 
 	void
 	TerarkZipMultiCFOptionsFromEnv(const DBOptions& db_options,
-								   const std::vector<ColumnFamilyDescriptor>& cfvec) {
+		const std::vector<ColumnFamilyDescriptor>& cfvec) {
 		size_t numIsBlackList = 0;
 		for (auto& cf : auto_const_cast(cfvec)) {
 			if (TerarkZipIsBlackListCF(cf.name)) {

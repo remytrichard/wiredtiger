@@ -127,6 +127,7 @@ namespace rocksdb {
 	};
 
 
+
 	/// @memBytesLimit total memory can be used for the whole process
 	///   memBytesLimit == 0 indicate all physical memory can be used
 	void TerarkZipAutoConfigForBulkLoad(struct TerarkZipTableOptions&,

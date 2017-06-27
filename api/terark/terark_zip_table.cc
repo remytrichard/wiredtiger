@@ -10,6 +10,7 @@
 #include "terark_zip_index.h"
 #include "terark_zip_common.h"
 #include "terark_zip_internal.h"
+#include "terark_chunk_manager.h"
 #include "terark_zip_table_builder.h"
 #include "terark_zip_table_reader.h"
 
@@ -82,38 +83,36 @@ namespace rocksdb {
 
 
 	Status
-	TerarkChunkManager::NewTableReader(
-									   const TerarkTableReaderOptions& table_reader_options,
-									   unique_ptr<RandomAccessFileReader>&& file,
-									   uint64_t file_size, unique_ptr<TerarkTableReader>* table,
-									   bool prefetch_index_and_filter_in_cache) const {
+	TerarkChunkManager::NewTableReader(const TerarkTableReaderOptions& table_reader_options,
+		unique_ptr<RandomAccessFileReader>&& file,
+		uint64_t file_size, 
+		unique_ptr<TerarkTableReader>* table,
+		bool prefetch_index_and_filter_in_cache) const {
 		const rocksdb::Comparator* userCmp = &table_reader_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",
-										   "user comparator must be 'leveldb.BytewiseComparator'");
+				"user comparator must be 'leveldb.BytewiseComparator'");
 		}
 		TerarkFooter footer;
-		Status s = ReadFooterFromFile(file.get(), file_size, &footer);
+		Status s = TerarkReadFooterFromFile(file.get(), file_size, &footer);
 		if (!s.ok()) {
 			return s;
 		}
 		if (footer.table_magic_number() != kTerarkZipTableMagicNumber) {
-			return Status::InvalidArgument(
-										   "TerarkChunkManager::NewTableReader()",
-										   "fallback_factory is null and magic_number is not kTerarkZipTable"
-										   );
+			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",
+				"fallback_factory is null and magic_number is not kTerarkZipTable");
 		}
 #if 0
 		if (!prefetch_index_and_filter_in_cache) {
 			WARN(table_reader_options.ioptions.info_log
-				 , "TerarkChunkManager::NewTableReader(): "
-				 "prefetch_index_and_filter_in_cache = false is ignored, "
-				 "all index and data will be loaded in memory\n");
+				, "TerarkChunkManager::NewTableReader(): "
+				"prefetch_index_and_filter_in_cache = false is ignored, "
+				"all index and data will be loaded in memory\n");
 		}
 #endif
 		TerarkBlockContents emptyTableBC;
-		s = ReadMetaBlock(file.get(), file_size, kTerarkZipTableMagicNumber
-						  , table_reader_options.ioptions, kTerarkEmptyTableKey, &emptyTableBC);
+		s = TerarkReadMetaBlock(file.get(), file_size, kTerarkZipTableMagicNumber
+			, table_reader_options.ioptions, kTerarkEmptyTableKey, &emptyTableBC);
 		if (s.ok()) {
 			std::unique_ptr<TerarkEmptyTableReader>
 				t(new TerarkEmptyTableReader(table_reader_options));
@@ -135,14 +134,13 @@ namespace rocksdb {
 
 	TerarkZipTableBuilder*
 	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
-										uint32_t column_family_id,
-										WritableFileWriter* file)
-		const {
+		uint32_t column_family_id,
+		WritableFileWriter* file) const {
 		const rocksdb::Comparator* userCmp = &table_builder_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			THROW_STD(invalid_argument,
-					  "TerarkChunkManager::NewTableBuilder(): "
-					  "user comparator must be 'leveldb.BytewiseComparator'");
+				"TerarkChunkManager::NewTableBuilder(): "
+				"user comparator must be 'leveldb.BytewiseComparator'");
 		}
 		int curlevel = table_builder_options.level;
 		int numlevel = table_builder_options.ioptions.num_levels;
@@ -151,16 +149,11 @@ namespace rocksdb {
 			minlevel = numlevel - 1;
 		}
 		size_t keyPrefixLen = 0;
-#if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
-		if (fstring(userCmp->Name()) == "rocksdb.Uint64Comparator") {
-			keyPrefixLen = 0;
-		}
-#endif
 #if 1
-		INFO(table_builder_options.ioptions.info_log
-			 , "nth_newtable{ terark = %3zd fallback = %3zd } curlevel = %d minlevel = %d numlevel = %d fallback = %p\n"
-			 , nth_new_terark_table_, nth_new_fallback_table_, curlevel, minlevel, numlevel, fallback_factory_
-			 );
+		//INFO(table_builder_options.ioptions.info_log
+		//	 , "nth_newtable{ terark = %3zd fallback = %3zd } curlevel = %d minlevel = %d numlevel = %d fallback = %p\n"
+		//	 , nth_new_terark_table_, nth_new_fallback_table_, curlevel, minlevel, numlevel, fallback_factory_
+		//	 );
 #endif
 		if (0 == nth_new_terark_table_) {
 			g_lastTime = g_pf.now();
@@ -177,12 +170,11 @@ namespace rocksdb {
 			}
 			}*/
 		nth_new_terark_table_++;
-		return new TerarkZipTableBuilder(
-										 table_options_,
-										 table_builder_options,
-										 column_family_id,
-										 file,
-										 keyPrefixLen);
+		return new TerarkZipTableBuilder(table_options_,
+			table_builder_options,
+			column_family_id,
+			file,
+			keyPrefixLen);
 	}
 
 	std::string TerarkChunkManager::GetPrintableTableOptions() const {

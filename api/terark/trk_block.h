@@ -20,6 +20,7 @@
 #endif
 #endif
 
+#include "rocksdb/comparator.h"
 #include "rocksdb/iterator.h"
 #include "rocksdb/options.h"
 #include "rocksdb/statistics.h"
@@ -29,13 +30,14 @@
 
 namespace rocksdb {
 
-	struct TerarkBlockContents;
-	class Comparator;
 	class TerarkBlockIter;
+	class TerarkReadOptions {
+	public:
+		bool verify_checksums = false;
+	};
 
 	class TerarkBlock {
 	public:
-
 		// Initialize the block with the specified contents.
 		explicit TerarkBlock(TerarkBlockContents&& contents,
 							 Statistics* statistics = nullptr);
@@ -93,14 +95,12 @@ namespace rocksdb {
 			current_(0),
 			restart_index_(0),
 			status_(Status::OK()),
-			key_pinned_(false),
-			read_amp_bitmap_(nullptr),
-			last_bitmap_offset_(0) {}
+			key_pinned_(false) {}
 
 	TerarkBlockIter(const Comparator* comparator, const char* data, uint32_t restarts,
 					uint32_t num_restarts)
 		: TerarkBlockIter() {
-			Initialize(comparator, data, restarts, num_restarts, prefix_index);
+			Initialize(comparator, data, restarts, num_restarts);
 		}
 
 		void Initialize(const Comparator* comparator, const char* data,
@@ -114,7 +114,6 @@ namespace rocksdb {
 			num_restarts_ = num_restarts;
 			current_ = restarts_;
 			restart_index_ = num_restarts_;
-			last_bitmap_offset_ = current_ + 1;
 		}
 
 		void SetStatus(Status s) {
@@ -129,12 +128,6 @@ namespace rocksdb {
 		}
 		virtual Slice value() const override {
 			assert(Valid());
-			if (read_amp_bitmap_ && current_ < restarts_ &&
-				current_ != last_bitmap_offset_) {
-				read_amp_bitmap_->Mark(current_ /* current entry offset */,
-									   NextEntryOffset() - 1);
-				last_bitmap_offset_ = current_;
-			}
 			return value_;
 		}
 

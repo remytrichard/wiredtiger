@@ -8,6 +8,7 @@
 // found in the LICENSE file. See the AUTHORS file for names of contributors.
 
 #pragma once
+
 #include <string>
 #include <stdint.h>
 #include "rocksdb/slice.h"
@@ -16,14 +17,12 @@
 #include "rocksdb/table.h"
 
 #include "port/port.h"  // noexcept
-#include "table/persistent_cache_options.h"
-#include "cf_options.h"
 
 namespace rocksdb {
 
 	class TerarkBlock;
 	class RandomAccessFile;
-	struct ReadOptions;
+	class TerarkReadOptions;
 
 	extern bool ShouldReportDetailedTime(Env* env, Statistics* stats);
 
@@ -33,7 +32,7 @@ namespace rocksdb {
 	// BlockHandle is a pointer to the extent of a file that stores a data
 	// block or a meta block.
 	class TerarkBlockHandle {
-	public:
+		public:
 		TerarkBlockHandle();
 		TerarkBlockHandle(uint64_t offset, uint64_t size);
 
@@ -64,7 +63,7 @@ namespace rocksdb {
 		// Maximum encoding length of a BlockHandle
 		enum { kMaxEncodedLength = 10 + 10 };
 
-	private:
+		private:
 		uint64_t offset_;
 		uint64_t size_;
 
@@ -80,7 +79,7 @@ namespace rocksdb {
 		// initialized via @ReadFooterFromFile().
 		// Use this when you plan to load Footer with DecodeFrom(). Never use this
 		// when you plan to EncodeTo.
-	TerarkFooter() : TerarkFooter(kInvalidTableMagicNumber, 0) {}
+		TerarkFooter() : TerarkFooter(kInvalidTableMagicNumber, 0) {}
 
 		// Use this constructor when you plan to write out the footer using
 		// EncodeTo(). Never use this constructor with DecodeFrom().
@@ -157,9 +156,9 @@ namespace rocksdb {
 	// Read the footer from file
 	// If enforce_table_magic_number != 0, ReadFooterFromFile() will return
 	// corruption if table_magic number is not equal to enforce_table_magic_number
-	Status ReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
-							  TerarkFooter* footer,
-							  uint64_t enforce_table_magic_number = 0);
+	Status TerarkReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
+									TerarkFooter* footer,
+									uint64_t enforce_table_magic_number = 0);
 
 	// 1-byte type + 32-bit crc
 	static const size_t kRocksdbBlockTrailerSize = 5;
@@ -170,15 +169,15 @@ namespace rocksdb {
 		CompressionType compression_type;
 		std::unique_ptr<char[]> allocation;
 
-	TerarkBlockContents() : cachable(false), compression_type(kNoCompression) {}
+		TerarkBlockContents() : cachable(false), compression_type(kNoCompression) {}
 
-	TerarkBlockContents(const Slice& _data, bool _cachable,
-				  CompressionType _compression_type)
-	: data(_data), cachable(_cachable), compression_type(_compression_type) {}
+		TerarkBlockContents(const Slice& _data, bool _cachable,
+							CompressionType _compression_type)
+		: data(_data), cachable(_cachable), compression_type(_compression_type) {}
 
-	TerarkBlockContents(std::unique_ptr<char[]>&& _data, size_t _size, bool _cachable,
-				  CompressionType _compression_type)
-	: data(_data.get(), _size),
+		TerarkBlockContents(std::unique_ptr<char[]>&& _data, size_t _size, bool _cachable,
+							CompressionType _compression_type)
+		: data(_data.get(), _size),
 			cachable(_cachable),
 			compression_type(_compression_type),
 			allocation(std::move(_data)) {}
@@ -196,32 +195,9 @@ namespace rocksdb {
 
 	// Read the block identified by "handle" from "file".  On failure
 	// return non-OK.  On success fill *result and return OK.
-	extern Status ReadBlockContents(
-									RandomAccessFileReader* file, const TerarkFooter& footer,
-									const ReadOptions& options, const TerarkBlockHandle& handle,
-									TerarkBlockContents* contents, const ImmutableCFOptions &ioptions,
-									bool do_uncompress = true, const Slice& compression_dict = Slice(),
-									const PersistentCacheOptions& cache_options = PersistentCacheOptions());
-
-	// The 'data' points to the raw block contents read in from file.
-	// This method allocates a new heap buffer and the raw block
-	// contents are uncompresed into this buffer. This buffer is
-	// returned via 'result' and it is upto the caller to
-	// free this buffer.
-	// For description of compress_format_version and possible values, see
-	// util/compression.h
-	extern Status UncompressBlockContents(const char* data, size_t n,
-										  TerarkBlockContents* contents,
-										  uint32_t compress_format_version,
-										  const Slice& compression_dict,
-										  const ImmutableCFOptions &ioptions);
-
-	// This is an extension to UncompressBlockContents that accepts
-	// a specific compression type. This is used by un-wrapped blocks
-	// with no compression header.
-	extern Status UncompressBlockContentsForCompressionType(const char* data, size_t n, TerarkBlockContents* contents,
-															uint32_t compress_format_version, const Slice& compression_dict,
-															CompressionType compression_type, const ImmutableCFOptions &ioptions);
+	extern Status TerarkReadBlockContents(RandomAccessFileReader* file, const TerarkFooter& footer,
+										  const TerarkReadOptions& options, const TerarkBlockHandle& handle,
+										  TerarkBlockContents* contents, const Options &ioptions);
 
 	// Implementation details follow.  Clients should ignore,
 
@@ -230,7 +206,7 @@ namespace rocksdb {
 	// uninitialized.
 	inline TerarkBlockHandle::TerarkBlockHandle()
 		: TerarkBlockHandle(~static_cast<uint64_t>(0),
-					  ~static_cast<uint64_t>(0)) {
+							~static_cast<uint64_t>(0)) {
 	}
 
 	inline TerarkBlockHandle::TerarkBlockHandle(uint64_t _offset, uint64_t _size)

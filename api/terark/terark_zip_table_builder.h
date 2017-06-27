@@ -59,12 +59,11 @@ namespace rocksdb {
 
 	class TerarkZipTableBuilder : boost::noncopyable {
 	public:
-		TerarkZipTableBuilder(
-							  const TerarkZipTableOptions&,
-							  const TerarkTableBuilderOptions& tbo,
-							  uint32_t column_family_id,
-							  WritableFileWriter* file,
-							  size_t key_prefixLen);
+		TerarkZipTableBuilder(const TerarkZipTableOptions&,
+			const TerarkTableBuilderOptions& tbo,
+			uint32_t column_family_id,
+			WritableFileWriter* file,
+			size_t key_prefixLen);
 
 		~TerarkZipTableBuilder();
 
@@ -107,15 +106,15 @@ namespace rocksdb {
 		// write values from tmpValueFile into zValueBuiler,
 		// and update kvs.type as well (insert those value/delete/multi)
 		void BuilderWriteValues(NativeDataInput<InputBuffer>& tmpValueFileinput
-								, KeyValueStatus& kvs, std::function<void(fstring val)> write);
-		Status WriteStore(TerarkIndex* index, BlobStore* store
-						  , KeyValueStatus& kvs, std::function<void(const void*, size_t)> write
-						  , TerarkBlockHandle& dataBlock
-						  , long long& t5, long long& t6, long long& t7);
-		Status WriteSSTFile(long long t3, long long t4
-							, fstring tmpIndexFile, terark::BlobStore* zstore
-							, fstring dictMem
-							, const DictZipBlobStore::ZipStat& dzstat);
+			, KeyValueStatus& kvs, std::function<void(fstring val)> write);
+		Status WriteStore(TerarkIndex* index, BlobStore* store,
+						  KeyValueStatus& kvs, std::function<void(const void*, size_t)> write,
+						  TerarkBlockHandle& dataBlock,
+						  long long& t5, long long& t6, long long& t7);
+		Status WriteSSTFile(long long t3, long long t4,
+							fstring tmpIndexFile, terark::BlobStore* zstore,
+							terark::BlobStore::Dictionary dict,
+							const DictZipBlobStore::ZipStat& dzstat);
 		Status WriteMetaData(std::initializer_list<std::pair<const std::string*, TerarkBlockHandle> > blocks);
 		DictZipBlobStore::ZipBuilder* createZipBuilder() const;
 
