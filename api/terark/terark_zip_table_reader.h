@@ -93,9 +93,6 @@ namespace rocksdb {
 		enum {
 			FlagNone = 0,
 			FlagSkipFilter = 1,
-#if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
-			FlagUint64Comparator = 2,
-#endif
 		};
 
 		~TerarkZipSubReader();
@@ -108,9 +105,7 @@ namespace rocksdb {
 	 */
 	class TerarkZipTableReader : public TerarkTableReader, boost::noncopyable {
 	public:
-		Iterator*
-			NewIterator(Arena*, bool skip_filters);
-
+		Iterator* NewIterator(Arena*, bool skip_filters);
 
 		std::shared_ptr<const TerarkTableProperties>
 			GetTableProperties() const  { return table_properties_; }
@@ -132,9 +127,6 @@ namespace rocksdb {
 		std::shared_ptr<const TerarkTableProperties> table_properties_;
 		const TerarkZipTableOptions& tzto_;
 		bool isReverseBytewiseOrder_;
-#if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
-		bool isUint64Comparator_;
-#endif
 		Status LoadIndex(Slice mem);
 	};
 

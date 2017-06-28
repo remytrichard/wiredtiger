@@ -283,10 +283,9 @@ namespace rocksdb {
 
 	Status
 	TerarkChunkManager::NewTableReader(const TerarkTableReaderOptions& table_reader_options,
-									   unique_ptr<RandomAccessFileReader>&& file,
+									   std::unique_ptr<RandomAccessFileReader>&& file,
 									   uint64_t file_size, 
-									   unique_ptr<TerarkTableReader>* table,
-									   bool prefetch_index_and_filter_in_cache) const {
+									   std::unique_ptr<TerarkTableReader>* table) const {
 		const rocksdb::Comparator* userCmp = &table_reader_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",
@@ -301,14 +300,6 @@ namespace rocksdb {
 			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",
 										   "fallback_factory is null and magic_number is not kTerarkZipTable");
 		}
-#if 0
-		if (!prefetch_index_and_filter_in_cache) {
-			WARN(table_reader_options.ioptions.info_log
-				 , "TerarkChunkManager::NewTableReader(): "
-				 "prefetch_index_and_filter_in_cache = false is ignored, "
-				 "all index and data will be loaded in memory\n");
-		}
-#endif
 		TerarkBlockContents emptyTableBC;
 		s = TerarkReadMetaBlock(file.get(), file_size, kTerarkZipTableMagicNumber
 								, table_reader_options.ioptions, kTerarkEmptyTableKey, &emptyTableBC);

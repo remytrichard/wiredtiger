@@ -62,8 +62,7 @@ namespace rocksdb {
 			NewTableReader(const TerarkTableReaderOptions& table_reader_options,
 				std::unique_ptr<RandomAccessFileReader>&& file,
 				uint64_t file_size,
-				std::unique_ptr<TerarkTableReader>* table,
-				bool prefetch_index_and_filter_in_cache) const;
+				std::unique_ptr<TerarkTableReader>* table) const;
 
 		TerarkZipTableBuilder*
 			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,

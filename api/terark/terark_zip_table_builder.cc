@@ -643,19 +643,19 @@ namespace rocksdb {
 			return s;
 		}
 
-		if (zeroSeqCount_ != bzvType.size()) {
+		/*if (zeroSeqCount_ != bzvType.size()) {
 			assert(zeroSeqCount_ < bzvType.size());
 			fstring zvTypeMem(bzvType.data(), bzvType.mem_size());
 			s = WriteBlock(zvTypeMem, file_, &offset_, &zvTypeBlock);
 			if (!s.ok()) {
 				return s;
 			}
-		}
+			}*/
 		index.reset();
 		properties_.index_size = indexBlock.size();
 
 		WriteMetaData({
-				{ dict.memory.size() ? &kTerarkZipTableValueDictBlock : NULL       , dictBlock         },
+				{ dict.memory.size() ? &kTerarkZipTableValueDictBlock : NULL   , dictBlock         },
 				{ &kTerarkZipTableIndexBlock                                   , indexBlock        },
 				{ !zvTypeBlock.IsNull() ? &kTerarkZipTableValueTypeBlock : NULL, zvTypeBlock       },
 				{ &kTerarkZipTableCommonPrefixBlock                            , commonPrefixBlock },
@@ -788,8 +788,11 @@ namespace rocksdb {
 	}
 
 	void TerarkZipTableBuilder::AddPrevUserKey(bool finish) {
-		UpdateValueLenHistogram(); // will use valueBuf_
+		// update histogram
+		size_t valueLen = valueBuf_.strpool.size();
+		histogram_.back().value[valueLen]++;
 		valueBuf_.erase_all();
+
 		auto& currentHistogram = histogram_.back();
 		currentHistogram.key[prevUserKey_.size()]++;
 		tmpKeyFile_.writer << prevUserKey_;
@@ -800,12 +803,5 @@ namespace rocksdb {
 		}
 		printf("AddPrevUserKey: %*s\n", prevUserKey_.size(), prevUserKey_.data());
 	}
-
-	void TerarkZipTableBuilder::UpdateValueLenHistogram() {
-		// update the frequency of 'valueLen'
-		size_t valueLen = valueBuf_.strpool.size() - 1;
-		histogram_.back().value[valueLen]++;
-	}
-
 
 }

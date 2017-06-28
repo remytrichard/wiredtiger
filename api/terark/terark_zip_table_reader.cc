@@ -52,13 +52,11 @@ namespace rocksdb {
 	using terark::byte_swap;
 	using terark::BlobStore;
 
-	template<bool reverse>
 	class TerarkZipTableIterator : public Iterator, boost::noncopyable {
 	protected:
 		const TerarkTableReaderOptions* table_reader_options_;
 		const TerarkZipSubReader* subReader_;
 		unique_ptr<TerarkIndex::Iterator> iter_;
-		//ParsedInternalKey       pInterKey_;
 		std::string             interKeyBuf_;
 		valvec<byte_t>          interKeyBuf_xx_;
 		valvec<byte_t>          valueBuf_;
@@ -82,13 +80,13 @@ namespace rocksdb {
 		}
 
 		void SeekToFirst() override {
-			if (UnzipIterRecord(IndexIterSeekToFirst())) {
+			if (UnzipIterRecord(iter_->SeekToFirst())) {
 				DecodeCurrKeyValue();
 			}
 		}
 
 		void SeekToLast() override {
-			if (UnzipIterRecord(IndexIterSeekToLast())) {
+			if (UnzipIterRecord(iter_->SeekToLast())) {
 				DecodeCurrKeyValue();
 			}
 		}
@@ -107,36 +105,21 @@ namespace rocksdb {
 		// TBD(kg): ...
 		void Seek(const Slice& target) override {
 			//TryPinBuffer(interKeyBuf_xx_);
-			// Damn MySQL-rocksdb may use "rev:" comparator
-			// all prefix-related has been removed
-			int cmp; // compare(iterKey, searchKey)
-			bool ok = iter_->Seek(fstringOf(target));
-			if (reverse) {
-				if (!ok) {
-					// searchKey is reverse_bytewise less than all keys in database
-					iter_->SeekToLast();
-					ok = iter_->Valid();
-				} else {
-					iter_->Prev();
-					ok = iter_->Valid();
-				}
-			} else {
-				if (ok) {
-					DecodeCurrKeyValue();
-				}
+			if (iter_->Seek(fstringOf(target))) {
+				DecodeCurrKeyValue();
 			}
 		}
 
 		void Next() override {
 			assert(iter_->Valid());
-			if (UnzipIterRecord(IndexIterNext())) {
+			if (UnzipIterRecord(iter_->Next())) {
 				DecodeCurrKeyValue();
 			}
 		}
 
 		void Prev() override {
 			assert(iter_->Valid());
-			if (UnzipIterRecord(IndexIterPrev())) {
+			if (UnzipIterRecord(iter_->Prev())) {
 				DecodeCurrKeyValue();
 			}
 		}
@@ -159,45 +142,6 @@ namespace rocksdb {
 		virtual void SetIterInvalid() {
 			//TryPinBuffer(interKeyBuf_xx_);
 			iter_->SetInvalid();
-			//pInterKey_.user_key = Slice();
-			//pInterKey_.sequence = uint64_t(-1);
-			//pInterKey_.type = kMaxValue;
-		}
-
-		virtual bool IndexIterSeekToFirst() {
-			//TryPinBuffer(interKeyBuf_xx_);
-			if (reverse) {
-				return iter_->SeekToLast();
-			} else {
-				return iter_->SeekToFirst();
-			}
-		}
-
-		virtual bool IndexIterSeekToLast() {
-			//TryPinBuffer(interKeyBuf_xx_);
-			if (reverse) {
-				return iter_->SeekToFirst();
-			} else {
-				return iter_->SeekToLast();
-			}
-		}
-
-		virtual bool IndexIterPrev() {
-			//TryPinBuffer(interKeyBuf_xx_);
-			if (reverse) {
-				return iter_->Next();
-			} else {
-				return iter_->Prev();
-			}
-		}
-
-		virtual bool IndexIterNext() {
-			//TryPinBuffer(interKeyBuf_xx_);
-			if (reverse) {
-				return iter_->Prev();
-			} else {
-				return iter_->Next();
-			}
 		}
 
 		virtual void DecodeCurrKeyValue() {
@@ -250,12 +194,12 @@ namespace rocksdb {
 		const auto& ioptions = table_reader_options_.ioptions;
 		TerarkTableProperties* props = nullptr;
 		Status s = TerarkReadTableProperties(file, file_size,
-									   kTerarkZipTableMagicNumber, ioptions, &props);
+											 kTerarkZipTableMagicNumber, ioptions, &props);
 		if (!s.ok()) {
 			return s;
 		}
 		assert(nullptr != props);
-		unique_ptr<TerarkTableProperties> uniqueProps(props);
+		std::unique_ptr<TerarkTableProperties> uniqueProps(props);
 		Slice file_data;
 		s = file->Read(0, file_size, &file_data, nullptr);
 		if (!s.ok()) {
@@ -269,7 +213,6 @@ namespace rocksdb {
 			 );
 		return Status::OK();
 	}
-
 
 	Status
 	TerarkZipTableReader::Open(RandomAccessFileReader* file, uint64_t file_size) {
@@ -290,12 +233,6 @@ namespace rocksdb {
 		}
 		file_data_ = file_data;
 		table_properties_.reset(uniqueProps.release());
-		isReverseBytewiseOrder_ =
-			fstring(table_reader_options_.internal_comparator.Name()).startsWith("rev:");
-#if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
-		isUint64Comparator_ =
-			fstring(table_reader_options_.internal_comparator.Name()) == "rocksdb.Uint64Comparator";
-#endif
 		TerarkBlockContents valueDictBlock, indexBlock, zValueTypeBlock, commonPrefixBlock;
 		s = TerarkReadMetaBlock(file, file_size, kTerarkZipTableMagicNumber, ioptions,
 						  kTerarkZipTableValueDictBlock, &valueDictBlock);
@@ -380,20 +317,11 @@ namespace rocksdb {
 	TerarkZipTableReader::
 	NewIterator(Arena* arena, bool skip_filters) {
 		(void)skip_filters; // unused
-		if (isReverseBytewiseOrder_) {
-			if (arena) {
-				return new(arena->AllocateAligned(sizeof(TerarkZipTableIterator<true>)))
-					TerarkZipTableIterator<true>(table_reader_options_, &subReader_);
-			} else {
-				return new TerarkZipTableIterator<true>(table_reader_options_, &subReader_);
-			}
+		if (arena) {
+			return new(arena->AllocateAligned(sizeof(TerarkZipTableIterator)))
+				TerarkZipTableIterator(table_reader_options_, &subReader_);
 		} else {
-			if (arena) {
-				return new(arena->AllocateAligned(sizeof(TerarkZipTableIterator<false>)))
-					TerarkZipTableIterator<false>(table_reader_options_, &subReader_);
-			} else {
-				return new TerarkZipTableIterator<false>(table_reader_options_, &subReader_);
-			}
+			return new TerarkZipTableIterator(table_reader_options_, &subReader_);
 		}
 	}
 

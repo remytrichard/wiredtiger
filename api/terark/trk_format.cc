@@ -274,7 +274,7 @@ namespace rocksdb {
 			// Check the crc of the type and the block contents
 			const char* data = contents->data();  // Pointer to where Read put the data
 			//if (options.verify_checksums) {
-			if (true) {
+			/*if (true) {
 				PERF_TIMER_GUARD(block_checksum_time);
 				uint32_t value = DecodeFixed32(data + n + 1);
 				uint32_t actual = 0;
@@ -295,7 +295,7 @@ namespace rocksdb {
 				if (!s.ok()) {
 					return s;
 				}
-			}
+				}*/
 			return s;
 		}
 

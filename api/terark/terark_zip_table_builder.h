@@ -96,9 +96,7 @@ namespace rocksdb {
 			size_t valueFileBegin = 0;
 			size_t valueFileEnd = 0;
 		};
-		// Note: all 'Offline' related operations is not active right now
 		void AddPrevUserKey(bool finish = false);
-		void UpdateValueLenHistogram();
 		Status EmptyTableFinish();
 
 		Status ZipValueToFinish(fstring tmpIndexFile, std::function<void()> waitIndex);
