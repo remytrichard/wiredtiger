@@ -40,7 +40,7 @@ namespace rocksdb {
 
 	class TerarkZipTableBuilder;
 	class TerarkTableReader;
-	using TerarkChunk = TerarkZipTableBuilder;
+	typedef TerarkZipTableBuilder TerarkChunk;
 	class TerarkChunkManager : boost::noncopyable {
 	private:
 		static TerarkChunkManager* _instance;
@@ -80,14 +80,14 @@ namespace rocksdb {
 
 	private:
 		TerarkZipTableOptions table_options_;
-		TableFactory* fallback_factory_;
-		TableFactory* adaptive_factory_; // just for open table
+		//TableFactory* fallback_factory_;
+		//TableFactory* adaptive_factory_; // just for open table
 		mutable size_t nth_new_terark_table_ = 0;
 		mutable size_t nth_new_fallback_table_ = 0;
  
 	private:
 		// should replace name of TerarkZipTableBuilder with TerarkChunk
-		std::map<std::string, TerarkChunk*> _chunk_dict;
+		std::map<std::string, TerarkZipTableBuilder*> _chunk_dict;
 	};
 
 

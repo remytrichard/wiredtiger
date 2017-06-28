@@ -35,6 +35,7 @@
 
 namespace rocksdb {
 
+	class TerarkTableProperties;
 	class TerarkTableReader {};
 
 	class TerarkEmptyTableReader : public TerarkTableReader, boost::noncopyable {
@@ -54,7 +55,7 @@ namespace rocksdb {
 			Status status() const { return Status::OK(); }
 		};
 		const TerarkTableReaderOptions table_reader_options_;
-		std::shared_ptr<const TableProperties> table_properties_;
+		std::shared_ptr<const TerarkTableProperties> table_properties_;
 		Slice  file_data_;
 		std::unique_ptr<RandomAccessFileReader> file_;
 
@@ -65,7 +66,7 @@ namespace rocksdb {
 
 		void Prepare(const Slice&)  {}
 
-		std::shared_ptr<const TableProperties>
+		std::shared_ptr<const TerarkTableProperties>
 			GetTableProperties() const  { return table_properties_; }
 
 		virtual ~TerarkEmptyTableReader() {}
@@ -108,10 +109,10 @@ namespace rocksdb {
 	class TerarkZipTableReader : public TerarkTableReader, boost::noncopyable {
 	public:
 		Iterator*
-			NewIterator(const ReadOptions&, Arena*, bool skip_filters);
+			NewIterator(Arena*, bool skip_filters);
 
 
-		std::shared_ptr<const TableProperties>
+		std::shared_ptr<const TerarkTableProperties>
 			GetTableProperties() const  { return table_properties_; }
 
 		virtual ~TerarkZipTableReader();
@@ -128,7 +129,7 @@ namespace rocksdb {
 		Slice  file_data_;
 		std::unique_ptr<RandomAccessFileReader> file_;
 		const TerarkTableReaderOptions table_reader_options_;
-		std::shared_ptr<const TableProperties> table_properties_;
+		std::shared_ptr<const TerarkTableProperties> table_properties_;
 		const TerarkZipTableOptions& tzto_;
 		bool isReverseBytewiseOrder_;
 #if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE

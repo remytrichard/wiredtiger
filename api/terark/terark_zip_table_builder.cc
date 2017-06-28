@@ -168,7 +168,7 @@ namespace rocksdb {
 	}
 
 
-	void TerarkZipTableBuilder::Add(const Slice& key, const Slice& value, const WT_ITEM* item) {
+	void TerarkZipTableBuilder::Add(const Slice& key, const Slice& value) {
 		if (table_options_.debugLevel == 4) {
 			//rocksdb::ParsedInternalKey ikey;
 			//rocksdb::ParseInternalKey(key, &ikey);
@@ -595,7 +595,9 @@ namespace rocksdb {
 		const size_t realsampleLenSum = dict.memory.size();
 		long long rawBytes = properties_.raw_key_size + properties_.raw_value_size;
 		long long t5 = g_pf.now();
-		unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile));
+		std::unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile));
+		printf("index->keys: %d, keyStat->keys: %d\n", index->NumKeys(), keyStat.numKeys);
+		//sleep(1000);
 		assert(index->NumKeys() == keyStat.numKeys);
 		Status s;
 		TerarkBlockHandle dataBlock, dictBlock, indexBlock, zvTypeBlock(0, 0);
@@ -796,6 +798,7 @@ namespace rocksdb {
 		if (finish) {
 			currentHistogram.stat.maxKey.assign(prevUserKey_);
 		}
+		printf("AddPrevUserKey: %*s\n", prevUserKey_.size(), prevUserKey_.data());
 	}
 
 	void TerarkZipTableBuilder::UpdateValueLenHistogram() {

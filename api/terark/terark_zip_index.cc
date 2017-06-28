@@ -37,8 +37,7 @@ namespace rocksdb {
 		uint64_t  reserved_102_24;
 	};
 
-	TerarkIndex::AutoRegisterFactory::AutoRegisterFactory(
-														  std::initializer_list<const char*> names,
+	TerarkIndex::AutoRegisterFactory::AutoRegisterFactory(std::initializer_list<const char*> names,
 														  const char* riit_name,
 														  Factory* factory) {
 		for (const char* name : names) {

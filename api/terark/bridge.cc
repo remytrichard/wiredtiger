@@ -79,7 +79,7 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *src_cursor, WT_CURSOR *dest) 
 	while ((ret = src_cursor->next(src_cursor)) == 0) {
 		ret = src_cursor->get_key(src_cursor, &key);
 		ret = src_cursor->get_value(src_cursor, &value);
-		chunk->Add(key, value, &src_cursor->value);
+		chunk->Add(key, value);
 	}
 	chunk->SetState(rocksdb::TerarkChunk::kSecondPass);
 

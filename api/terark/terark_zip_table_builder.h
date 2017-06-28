@@ -68,7 +68,7 @@ namespace rocksdb {
 
 		~TerarkZipTableBuilder();
 
-		void Add(const Slice& key, const Slice& value, const WT_ITEM* val_item);
+		void Add(const Slice& key, const Slice& value);
 		Status status() const { return status_; }
 		Status Finish();
 		void Abandon();

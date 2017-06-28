@@ -130,30 +130,7 @@ namespace rocksdb {
 
 	/// @memBytesLimit total memory can be used for the whole process
 	///   memBytesLimit == 0 indicate all physical memory can be used
-	void TerarkZipAutoConfigForBulkLoad(struct TerarkZipTableOptions&,
-										struct DBOptions&,
-										struct ColumnFamilyOptions&,
-										size_t cpuNum = 0,
-										size_t memBytesLimit = 0,
-										size_t diskBytesLimit = 0);
-	void TerarkZipAutoConfigForOnlineDB(struct TerarkZipTableOptions&,
-										struct DBOptions&,
-										struct ColumnFamilyOptions&,
-										size_t cpuNum = 0,
-										size_t memBytesLimit = 0,
-										size_t diskBytesLimit = 0);
-
-	bool TerarkZipConfigFromEnv(struct DBOptions&, struct ColumnFamilyOptions&);
-	bool TerarkZipCFOptionsFromEnv(struct ColumnFamilyOptions&);
-	void TerarkZipDBOptionsFromEnv(struct DBOptions&);
-	bool TerarkZipIsBlackListCF(const std::string& cfname);
-
-	/// will check column family black list in env
-	///@param db_options is const but will be modified in this function
-	///@param cfvec      is const but will be modified in this function
-	void
-		TerarkZipMultiCFOptionsFromEnv(const struct DBOptions& db_options,
-									   const std::vector<struct ColumnFamilyDescriptor>& cfvec);
+	bool TerarkZipConfigFromEnv(TerarkZipTableOptions&);
 
 	class TableFactory*
 		NewTerarkZipTableFactory(const TerarkZipTableOptions&,
