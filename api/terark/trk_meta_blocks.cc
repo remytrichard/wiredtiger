@@ -50,12 +50,6 @@ namespace rocksdb {
 		Add(name, dst);
 	}
 
-	void TerarkPropertyBlockBuilder::Add(const UserCollectedProperties& user_collected_properties) {
-		for (const auto& prop : user_collected_properties) {
-			Add(prop.first, prop.second);
-		}
-	}
-
 	void TerarkPropertyBlockBuilder::AddTableProperty(const TerarkTableProperties& props) {
 		Add(TerarkTablePropertiesNames::kRawKeySize, props.raw_key_size);
 		Add(TerarkTablePropertiesNames::kRawValueSize, props.raw_value_size);
@@ -122,8 +116,9 @@ namespace rocksdb {
 		}
 
 		TerarkBlock properties_block(std::move(block_contents));
-		TerarkBlockIter iter;
-		properties_block.NewIterator(BytewiseComparator(), &iter);
+		std::unique_ptr<Iterator> iter(properties_block.NewIterator(BytewiseComparator()));
+		//TerarkBlockIter iter;
+		//properties_block.NewIterator(BytewiseComparator(), &iter);
 
 		auto new_table_properties = new TerarkTableProperties();
 		// All pre-defined properties of type uint64_t
@@ -146,23 +141,23 @@ namespace rocksdb {
 		};
 
 		std::string last_key;
-		for (iter.SeekToFirst(); iter.Valid(); iter.Next()) {
-			s = iter.status();
+		for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
+			s = iter->status();
 			if (!s.ok()) {
 				break;
 			}
 
-			auto key = iter.key().ToString();
+			auto key = iter->key().ToString();
 			// properties block is strictly sorted with no duplicate key.
 			assert(last_key.empty() ||
 				   BytewiseComparator()->Compare(key, last_key) > 0);
 			last_key = key;
 
-			auto raw_val = iter.value();
+			auto raw_val = iter->value();
 			auto pos = predefined_uint64_properties.find(key);
 
-			new_table_properties->properties_offsets.insert(
-															{key, handle.offset() + iter.ValueOffset()});
+			//new_table_properties->properties_offsets.insert(
+			//												{key, handle.offset() + iter->ValueOffset()});
 
 			if (pos != predefined_uint64_properties.end()) {
 				// handle predefined rocksdb properties

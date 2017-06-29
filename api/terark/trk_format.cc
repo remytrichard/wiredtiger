@@ -254,25 +254,17 @@ namespace rocksdb {
 							   const TerarkBlockHandle& handle,
 							   Slice* contents, /* result of reading */ char* buf) {
 			size_t n = static_cast<size_t>(handle.size());
-			Status s;
-
-			{
-				PERF_TIMER_GUARD(block_read_time);
-				s = file->Read(handle.offset(), n + kRocksdbBlockTrailerSize, contents, buf);
-			}
-
-			PERF_COUNTER_ADD(block_read_count, 1);
-			PERF_COUNTER_ADD(block_read_byte, n + kRocksdbBlockTrailerSize);
-
+			Status s = file->Read(handle.offset(), n + kRocksdbBlockTrailerSize, contents, buf);
 			if (!s.ok()) {
 				return s;
 			}
 			if (contents->size() != n + kRocksdbBlockTrailerSize) {
 				return Status::Corruption("truncated block read");
 			}
+			
 
 			// Check the crc of the type and the block contents
-			const char* data = contents->data();  // Pointer to where Read put the data
+			//const char* data = contents->data();  // Pointer to where Read put the data
 			//if (options.verify_checksums) {
 			/*if (true) {
 				PERF_TIMER_GUARD(block_checksum_time);
@@ -321,8 +313,9 @@ namespace rocksdb {
 		}
 
 		compression_type = static_cast<rocksdb::CompressionType>(slice.data()[n]);
+		// page is uncompressed, the buffer either stack or heap provided
 		if (slice.data() != used_buf) {
-			// the slice content is not the buffer provided
+			// the slice content is not the buffer provided(mmap read currently)
 			*contents = TerarkBlockContents(Slice(slice.data(), n), false, compression_type);
 		} else {
 			// page is uncompressed, the buffer either stack or heap provided

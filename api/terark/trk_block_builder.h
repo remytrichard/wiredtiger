@@ -21,7 +21,7 @@ namespace rocksdb {
 		void operator=(const TerarkBlockBuilder&) = delete;
 
 		explicit TerarkBlockBuilder(int block_restart_interval,
-								   bool use_delta_encoding = true);
+								   bool use_delta_encoding = false);
 
 		// Reset the contents as if the BlockBuilder was just constructed.
 		void Reset();

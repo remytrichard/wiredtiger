@@ -53,7 +53,6 @@ namespace rocksdb {
 		void AddTableProperty(const TerarkTableProperties& props);
 		void Add(const std::string& key, uint64_t value);
 		void Add(const std::string& key, const std::string& value);
-		void Add(const UserCollectedProperties& user_collected_properties);
 
 		// Write all the added entries to the block and return the block contents
 		Slice Finish();
