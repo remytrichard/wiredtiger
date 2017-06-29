@@ -806,7 +806,7 @@ namespace rocksdb {
 		if (finish) {
 			currentHistogram.stat.maxKey.assign(prevUserKey_);
 		}
-		printf("AddPrevUserKey: %*s\n", prevUserKey_.size(), prevUserKey_.data());
+		//printf("AddPrevUserKey: %*s\n", prevUserKey_.size(), prevUserKey_.data());
 	}
 
 }

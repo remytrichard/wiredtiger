@@ -1,7 +1,11 @@
 
 #include <stdio.h>
+#include <fstream>
 #include <iostream>
 #include <memory>
+#include <map>
+#include <random>
+#include <string>
 #include "bridge.h"
 
 #include "wiredtiger.h"
@@ -22,12 +26,30 @@
 
 static const char *home;
 static const char* sst_path = "./data/0001.sst";
+static const char* sample_path = "./samples.txt";
+std::map<std::string, std::string> dict;
+
+void InitDict() {
+	std::ifstream fi(sample_path);
+	while (true) {
+		std::string key, val;
+		if (!std::getline(fi, key)) break;
+		if (!std::getline(fi, val)) break;
+		key = key.substr(5);
+		val = val.substr(5);
+		dict[key] = val;
+	}
+}
+
 int main() {
+	InitDict();
+
+	std::string test = "123";
+
 	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
 	rocksdb::Options options;
 	rocksdb::EnvOptions env_options;
 	env_options.use_mmap_reads = env_options.use_mmap_writes = true;
-
 	{
 		const rocksdb::Comparator* comparator = rocksdb::BytewiseComparator();
 		rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
@@ -40,13 +62,8 @@ int main() {
 			file_writer(new rocksdb::WritableFileWriter(std::move(file), env_options));
 
 		rocksdb::TerarkZipTableBuilder* chunk = manager->NewTableBuilder(builder_options, 0, file_writer.get());
-
-		for (int i = 0; i < 100; i++) {
-			char key[50] = { 0 };
-			char val[50] = { 0 };
-			sprintf(key, "key%04d", i);
-			sprintf(val, "value%04d", i);
-			chunk->Add(key, val);
+		for (auto& iter : dict) {
+			chunk->Add(iter.first, iter.second);
 		}
 		s = chunk->Finish();
 		assert(s.ok());
@@ -74,14 +91,24 @@ int main() {
 
 		rocksdb::TerarkZipTableReader* reader = dynamic_cast<rocksdb::TerarkZipTableReader*>(table.get());
 		rocksdb::Iterator* iter = reader->NewIterator();
-		iter->SeekToFirst();
-		while (iter->Valid()) {
-			rocksdb::Slice key = iter->key();
-			rocksdb::Slice val = iter->value();
-			printf("key: %*s\n", key.size(), key.data());
-			printf("val: %*s\n", val.size(), val.data());
-			iter->Next();
+		for (auto& di : dict) {
+			iter->Seek(di.first);
+			if (!iter->Valid()) {
+				printf("Seek failed on key %s\n", di.first.c_str());
+				return 1;
+			}
+			std::string key(iter->key().data(), iter->key().size());
+			std::string val(iter->value().data(), iter->value().size());
+			if (di.first != key) {
+				printf("key expected:%s actual:%s\n", di.first.c_str(), key.c_str());
+				return 1;
+			}
+			if (di.second != val) {
+				printf("val expected %s actual: %s\n", di.second.c_str(), val.c_str());
+				return 1;
+			}
 		}
+		std::cout << "\n\nTest Case Passed!\n\n";
 	}
 
 

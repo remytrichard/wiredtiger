@@ -104,7 +104,7 @@ namespace rocksdb {
 
 		void Seek(const Slice& target) override {
 			//TryPinBuffer(interKeyBuf_xx_);
-			if (iter_->Seek(fstringOf(target))) {
+			if (UnzipIterRecord(iter_->Seek(fstringOf(target)))) {
 				DecodeCurrKeyValue();
 			}
 		}
@@ -165,8 +165,6 @@ namespace rocksdb {
 		bool UnzipIterRecord(bool hasRecord) {
 			if (hasRecord) {
 				size_t recId = iter_->id();
-				printf("iter_->id(): %ld\n", iter_->id());
-				printf("recId: %ld\n", recId);
 				zValtype_ = ZipValueType(subReader_->type_[recId]);
 				try {
 					valueBuf_.erase_all();
