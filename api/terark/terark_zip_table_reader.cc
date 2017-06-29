@@ -61,7 +61,7 @@ namespace rocksdb {
 		valvec<byte_t>          interKeyBuf_xx_;
 		valvec<byte_t>          valueBuf_;
 		Slice                   userValue_;
-		ZipValueType            zValtype_;
+		//ZipValueType            zValtype_;
 		Status                  status_;
 
 	public:
@@ -146,26 +146,13 @@ namespace rocksdb {
 		virtual void DecodeCurrKeyValue() {
 			assert(status_.ok());
 			assert(iter_->id() < subReader_->index_->NumKeys());
-			switch (zValtype_) {
-			case ZipValueType::kValue:
-				userValue_ = SliceOf(fstring(valueBuf_));
-				break;
-			case ZipValueType::kDelete:
-				// TBD(kg): use Tombstome instead?
-				userValue_ = Slice();
-				break;
-			default:
-				status_ = Status::Aborted("TerarkZipTableIterator::DecodeCurrKeyValue()",
-										  "Bad ZipValueType");
-				abort(); // must not goes here, if it does, it should be a bug!!
-				break;
-			}
+			userValue_ = SliceOf(fstring(valueBuf_));
 		}
 
 		bool UnzipIterRecord(bool hasRecord) {
 			if (hasRecord) {
 				size_t recId = iter_->id();
-				zValtype_ = ZipValueType(subReader_->type_[recId]);
+				//zValtype_ = ZipValueType(subReader_->type_[recId]);
 				try {
 					valueBuf_.erase_all();
 					subReader_->store_->get_record_append(recId, &valueBuf_);
@@ -184,7 +171,7 @@ namespace rocksdb {
 	};
 
 	TerarkZipSubReader::~TerarkZipSubReader() {
-		type_.risk_release_ownership();
+		//type_.risk_release_ownership();
 	}
 
 	Status
@@ -232,7 +219,7 @@ namespace rocksdb {
 		}
 		file_data_ = file_data;
 		table_properties_.reset(uniqueProps.release());
-		TerarkBlockContents valueDictBlock, indexBlock, zValueTypeBlock, commonPrefixBlock;
+		TerarkBlockContents valueDictBlock, indexBlock, commonPrefixBlock;
 		s = TerarkReadMetaBlock(file, file_size, kTerarkZipTableMagicNumber, ioptions,
 						  kTerarkZipTableValueDictBlock, &valueDictBlock);
 		if (!s.ok()) {
@@ -267,11 +254,7 @@ namespace rocksdb {
 			return s;
 		}
 		size_t recNum = subReader_.index_->NumKeys();
-		s = TerarkReadMetaBlock(file, file_size, kTerarkZipTableMagicNumber, ioptions,
-						  kTerarkZipTableValueTypeBlock, &zValueTypeBlock);
-		if (s.ok()) {
-			subReader_.type_.risk_set_data((byte_t*)zValueTypeBlock.data.data(), recNum);
-		}
+
 		long long t0 = g_pf.now();
 		if (tzto_.warmUpIndexOnOpen) {
 			MmapWarmUp(fstringOf(indexBlock.data));

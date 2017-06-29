@@ -100,10 +100,6 @@ namespace rocksdb {
 		Status EmptyTableFinish();
 
 		Status ZipValueToFinish(fstring tmpIndexFile, std::function<void()> waitIndex);
-		void DebugPrepare();
-		void DebugCleanup();
-		// write values from tmpValueFile into zValueBuiler,
-		// and update kvs.type as well (insert those value/delete/multi)
 		void BuilderWriteValues(NativeDataInput<InputBuffer>& tmpValueFileinput
 			, KeyValueStatus& kvs, std::function<void(fstring val)> write);
 		Status WriteStore(TerarkIndex* index, BlobStore* store,
@@ -118,14 +114,18 @@ namespace rocksdb {
 		DictZipBlobStore::ZipBuilder* createZipBuilder() const;
 
 
+		// test related
+		void DebugPrepare();
+		void DebugCleanup();
+
+
 		Arena arena_;
 		ChunkState chunk_state_;
 		const TerarkZipTableOptions& table_options_;
 		// start TableBuilderOptions
 		const TerarkTableBuilderOptions& ioptions_; // replace ImmutableCFOptions with TerarkTBOptions
-		//std::vector<std::unique_ptr<IntTblPropCollector>> collectors_;
 		// end TableBuilderOptions
-		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem ??
+		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem
 		valvec<byte_t> prevUserKey_;
 		//valvec<byte_b> value_;
 		TempFileDeleteOnClose tmpKeyFile_;
@@ -139,16 +139,10 @@ namespace rocksdb {
 		size_t sampleLenSum_ = 0;
 		WritableFileWriter* file_;
 		uint64_t offset_ = 0;
-		uint64_t zeroSeqCount_ = 0;
 		Status status_;
 		TerarkTableProperties properties_;
-		//std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 		terark::fstrvec valueBuf_; // collect multiple values for one key
 		bool closed_ = false;  // Either Finish() or Abandon() has been called.
-		bool isReverseBytewiseOrder_;
-#if defined(TERARK_SUPPORT_UINT64_COMPARATOR) && BOOST_ENDIAN_LITTLE_BYTE
-		bool isUint64Comparator_;
-#endif
 
 		long long t0 = 0;
 		size_t key_prefixLen_;

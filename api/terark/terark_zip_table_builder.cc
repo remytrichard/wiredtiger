@@ -104,18 +104,6 @@ namespace rocksdb {
 		properties_.merge_operator_name = "nullptr";
 		properties_.compression_name = "nullptr";
 		properties_.prefix_extractor_name = "nullptr";
-
-		isReverseBytewiseOrder_ =
-			fstring(properties_.comparator_name).startsWith("rev:");
-
-		/*if (tbo.int_tbl_prop_collector_factories) {
-		  const auto& factories = *tbo.int_tbl_prop_collector_factories;
-		  collectors_.resize(factories.size());
-		  auto cfId = properties_.column_family_id;
-		  for (size_t i = 0; i < collectors_.size(); ++i) {
-		  collectors_[i].reset(factories[i]->CreateIntTblPropCollector(cfId));
-		  }
-		  }*/
 		properties_.property_collectors_names = "[]";
 
 		file_ = file;
@@ -181,7 +169,7 @@ namespace rocksdb {
 		fstring userKey(key.data(), key.size());
 		if (terark_likely(!histogram_.empty())) {
 			auto& keyStat = histogram_.back().stat;
-			assert((prevUserKey_ < userKey) ^ isReverseBytewiseOrder_);
+			assert(prevUserKey_ < userKey);
 			keyStat.commonPrefixLen = fstring(prevUserKey_.data(), keyStat.commonPrefixLen)
 				.commonPrefixLen(userKey);
 			keyStat.minKeyLen = std::min(userKey.size(), keyStat.minKeyLen);
@@ -481,32 +469,8 @@ namespace rocksdb {
 		valvec<byte_t> value;
 		size_t entryId = 0;
 		for (size_t recId = 0; recId < kvs.stat.numKeys; recId++) {
-			/*
-			  uint64_t seqType = input.load_as<uint64_t>();
-			  uint64_t seqNum;
-			  ValueType vType;
-			  UnPackSequenceAndType(seqType, &seqNum, &vType);
-			  size_t oneSeqLen = 1;
-			  assert(oneSeqLen >= 1);
-			  if (1 == oneSeqLen && (kTypeDeletion == vType || kTypeValue == vType)) {
-			  if (kTypeValue == vType) {
-			  bzvType.set0(recId, size_t(ZipValueType::kValue));
-			  } else {
-			  bzvType.set0(recId, size_t(ZipValueType::kDelete));
-			  }
-			  value.erase_all();
-			  value.append((byte_t*)&seqNum, 7);
-			  input.load_add(value);
-			  }*/
-			{
-				value.erase_all();
-				input.load_add(value);
-				if (!IsDeleted(SliceOf(value))) {
-					bzvType.set0(recId, size_t(ZipValueType::kValue));
-				} else {
-					bzvType.set0(recId, size_t(ZipValueType::kDelete));
-				}
-			}
+			value.erase_all();
+			input.load_add(value);
 			write(value);
 			entryId += 1;
 		}
@@ -643,26 +607,12 @@ namespace rocksdb {
 			return s;
 		}
 
-		/*if (zeroSeqCount_ != bzvType.size()) {
-			assert(zeroSeqCount_ < bzvType.size());
-			fstring zvTypeMem(bzvType.data(), bzvType.mem_size());
-			s = WriteBlock(zvTypeMem, file_, &offset_, &zvTypeBlock);
-			if (!s.ok()) {
-				return s;
-			}
-			}*/
-		fstring zvTypeMem(bzvType.data(), bzvType.mem_size());
-		s = WriteBlock(zvTypeMem, file_, &offset_, &zvTypeBlock);
-		if (!s.ok()) {
-			return s;
-		}
 		index.reset();
 		properties_.index_size = indexBlock.size();
 
 		WriteMetaData({
 				{ dict.memory.size() ? &kTerarkZipTableValueDictBlock : NULL   , dictBlock         },
 				{ &kTerarkZipTableIndexBlock                                   , indexBlock        },
-				{ !zvTypeBlock.IsNull() ? &kTerarkZipTableValueTypeBlock : NULL, zvTypeBlock       },
 				{ &kTerarkZipTableCommonPrefixBlock                            , commonPrefixBlock },
 			});
 
