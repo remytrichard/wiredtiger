@@ -17,6 +17,7 @@
 #include "terark_chunk_manager.h"
 #include "terark_zip_table.h"
 #include "terark_zip_table_builder.h"
+#include "terark_zip_table_reader.h"
 
 
 static const char *home;
@@ -70,6 +71,17 @@ int main() {
 		s = manager->NewTableReader(reader_options, std::move(file_reader), 
 									file_size, &table);
 		assert(s.ok());
+
+		rocksdb::TerarkZipTableReader* reader = dynamic_cast<rocksdb::TerarkZipTableReader*>(table.get());
+		rocksdb::Iterator* iter = reader->NewIterator();
+		iter->SeekToFirst();
+		while (iter->Valid()) {
+			rocksdb::Slice key = iter->key();
+			rocksdb::Slice val = iter->value();
+			printf("key: %*s\n", key.size(), key.data());
+			printf("val: %*s\n", val.size(), val.data());
+			iter->Next();
+		}
 	}
 
 

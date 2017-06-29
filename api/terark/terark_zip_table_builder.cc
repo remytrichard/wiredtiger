@@ -651,6 +651,11 @@ namespace rocksdb {
 				return s;
 			}
 			}*/
+		fstring zvTypeMem(bzvType.data(), bzvType.mem_size());
+		s = WriteBlock(zvTypeMem, file_, &offset_, &zvTypeBlock);
+		if (!s.ok()) {
+			return s;
+		}
 		index.reset();
 		properties_.index_size = indexBlock.size();
 

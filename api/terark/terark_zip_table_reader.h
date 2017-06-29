@@ -36,7 +36,10 @@
 namespace rocksdb {
 
 	class TerarkTableProperties;
-	class TerarkTableReader {};
+	class TerarkTableReader {
+	public:
+		virtual ~TerarkTableReader() {}
+	};
 
 	class TerarkEmptyTableReader : public TerarkTableReader, boost::noncopyable {
 		class Iter : public Iterator, boost::noncopyable {
@@ -105,7 +108,7 @@ namespace rocksdb {
 	 */
 	class TerarkZipTableReader : public TerarkTableReader, boost::noncopyable {
 	public:
-		Iterator* NewIterator(Arena*, bool skip_filters);
+		Iterator* NewIterator();
 
 		std::shared_ptr<const TerarkTableProperties>
 			GetTableProperties() const  { return table_properties_; }
@@ -126,7 +129,6 @@ namespace rocksdb {
 		const TerarkTableReaderOptions table_reader_options_;
 		std::shared_ptr<const TerarkTableProperties> table_properties_;
 		const TerarkZipTableOptions& tzto_;
-		bool isReverseBytewiseOrder_;
 		Status LoadIndex(Slice mem);
 	};
 

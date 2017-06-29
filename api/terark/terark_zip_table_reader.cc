@@ -102,7 +102,6 @@ namespace rocksdb {
 			//SeekForPrevImpl(target, &table_reader_options_->internal_comparator);
 		}
 
-		// TBD(kg): ...
 		void Seek(const Slice& target) override {
 			//TryPinBuffer(interKeyBuf_xx_);
 			if (iter_->Seek(fstringOf(target))) {
@@ -166,6 +165,8 @@ namespace rocksdb {
 		bool UnzipIterRecord(bool hasRecord) {
 			if (hasRecord) {
 				size_t recId = iter_->id();
+				printf("iter_->id(): %ld\n", iter_->id());
+				printf("recId: %ld\n", recId);
 				zValtype_ = ZipValueType(subReader_->type_[recId]);
 				try {
 					valueBuf_.erase_all();
@@ -315,14 +316,8 @@ namespace rocksdb {
 
 	Iterator*
 	TerarkZipTableReader::
-	NewIterator(Arena* arena, bool skip_filters) {
-		(void)skip_filters; // unused
-		if (arena) {
-			return new(arena->AllocateAligned(sizeof(TerarkZipTableIterator)))
-				TerarkZipTableIterator(table_reader_options_, &subReader_);
-		} else {
-			return new TerarkZipTableIterator(table_reader_options_, &subReader_);
-		}
+	NewIterator() {
+		return new TerarkZipTableIterator(table_reader_options_, &subReader_);
 	}
 
 
@@ -331,7 +326,5 @@ namespace rocksdb {
 	TerarkZipTableReader::TerarkZipTableReader(const TerarkTableReaderOptions& tro,
 		const TerarkZipTableOptions& tzto)
 		: table_reader_options_(tro)
-		, tzto_(tzto) {
-		isReverseBytewiseOrder_ = false;
-	}
+		, tzto_(tzto) {}
 }

@@ -261,33 +261,6 @@ namespace rocksdb {
 			if (contents->size() != n + kRocksdbBlockTrailerSize) {
 				return Status::Corruption("truncated block read");
 			}
-			
-
-			// Check the crc of the type and the block contents
-			//const char* data = contents->data();  // Pointer to where Read put the data
-			//if (options.verify_checksums) {
-			/*if (true) {
-				PERF_TIMER_GUARD(block_checksum_time);
-				uint32_t value = DecodeFixed32(data + n + 1);
-				uint32_t actual = 0;
-				switch (footer.checksum()) {
-				case kCRC32c:
-					value = crc32c::Unmask(value);
-					actual = crc32c::Value(data, n + 1);
-					break;
-				case kxxHash:
-					actual = XXH32(data, static_cast<int>(n) + 1, 0);
-					break;
-				default:
-					s = Status::Corruption("unknown checksum type");
-				}
-				if (s.ok() && actual != value) {
-					s = Status::Corruption("block checksum mismatch");
-				}
-				if (!s.ok()) {
-					return s;
-				}
-				}*/
 			return s;
 		}
 
