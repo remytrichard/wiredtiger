@@ -54,20 +54,24 @@ namespace rocksdb {
 		const char* Name() const { return "TerarkChunkManager"; }
 
 	public:
-		void AddChunk(const std::string&, TerarkChunk*) {}
-		TerarkChunk* GetChunk(const std::string&) {}
+		void AddChunk(const std::string& fname, TerarkChunk* chunk) {
+			chunk_dict_[fname] = chunk;
+		}
+		TerarkChunk* GetChunk(const std::string& fname) {
+			return chunk_dict_[fname];
+		}
 
 	public:
 		Status
 			NewTableReader(const TerarkTableReaderOptions& table_reader_options,
 				std::unique_ptr<RandomAccessFileReader>&& file,
 				uint64_t file_size,
-				std::unique_ptr<TerarkTableReader>* table) const;
+				std::unique_ptr<TerarkTableReader>* table);
 
 		TerarkZipTableBuilder*
 			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
-				uint32_t column_family_id,
-				WritableFileWriter* file) const;
+							const std::string& fname,
+							WritableFileWriter* file);
 		
 		Status NewIterator(const std::string& fname, Iterator** iter);
 

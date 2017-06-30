@@ -88,11 +88,12 @@ namespace rocksdb {
 
 	TerarkZipTableBuilder::TerarkZipTableBuilder(const TerarkZipTableOptions& tzto,
 		const TerarkTableBuilderOptions& tbo,
-		uint32_t column_family_id,
+		const std::string& fname,
 		WritableFileWriter* file,
 		size_t key_prefixLen)
 		: table_options_(tzto)
 		, table_build_options_(tbo)
+		, chunk_name_(fname)
 		, key_prefixLen_(key_prefixLen)
 		, chunk_state_(kJustCreated) {
 		properties_.fixed_key_len = 0;
@@ -634,6 +635,8 @@ namespace rocksdb {
 			 , (g_sumKeyLen + g_sumValueLen) / g_pf.uf(g_lastTime, t8)
 			 , (g_sumKeyLen + g_sumValueLen - g_sumEntryNum * 8) / g_pf.uf(g_lastTime, t8)
 			 );*/
+
+		SetState(kCreateDone);
 		return s;
 	}
 

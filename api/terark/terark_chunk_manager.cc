@@ -198,8 +198,8 @@ namespace rocksdb {
 
 	TerarkZipTableBuilder*
 	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
-		uint32_t column_family_id,
-		WritableFileWriter* file) const {
+										const std::string& fname,
+										WritableFileWriter* file) {
 		const rocksdb::Comparator* userCmp = &table_builder_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			THROW_STD(invalid_argument,
@@ -223,11 +223,13 @@ namespace rocksdb {
 			g_lastTime = g_pf.now();
 		}
 		nth_new_terark_table_++;
-		return new TerarkZipTableBuilder(table_options_,
-			table_builder_options,
-			column_family_id,
-			file,
-			keyPrefixLen);
+		TerarkZipTableBuilder* chunk = new TerarkZipTableBuilder(table_options_,
+																 table_builder_options,
+																 fname,
+																 file,
+																 keyPrefixLen);
+		AddChunk(fname, chunk);
+		return chunk;
 	}
 
 	Status
@@ -239,7 +241,7 @@ namespace rocksdb {
 	TerarkChunkManager::NewTableReader(const TerarkTableReaderOptions& table_reader_options,
 									   std::unique_ptr<RandomAccessFileReader>&& file,
 									   uint64_t file_size, 
-									   std::unique_ptr<TerarkTableReader>* table) const {
+									   std::unique_ptr<TerarkTableReader>* table) {
 		const rocksdb::Comparator* userCmp = &table_reader_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",

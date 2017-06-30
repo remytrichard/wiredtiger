@@ -32,6 +32,7 @@
 #include <terark/util/fstrvec.hpp>
 // project headers
 #include "terark_zip_table.h"
+#include "terark_zip_table_reader.h"
 #include "terark_zip_internal.h"
 #include "terark_zip_common.h"
 #include "terark_zip_index.h"
@@ -62,7 +63,7 @@ namespace rocksdb {
 	public:
 		TerarkZipTableBuilder(const TerarkZipTableOptions&,
 							  const TerarkTableBuilderOptions& tbo,
-							  uint32_t column_family_id,
+							  const std::string& fname,
 							  WritableFileWriter* file,
 							  size_t key_prefixLen);
 
@@ -86,8 +87,10 @@ namespace rocksdb {
 		class TerarChunkIterator : public Iterator, boost::noncopyable {
 	public:
 		TerarChunkIterator(TerarkZipTableBuilder* chunk) 
-			: chunk_(chunk),
-			iter_(chunk_->index_->NewIterator()) { iter_->SetInvalid(); }
+			: chunk_(chunk) {
+			iter_.reset(chunk_->index_->NewIterator()); 
+			iter_->SetInvalid(); 
+		}
 		~TerarChunkIterator() {}
 		bool Valid() const { return iter_->Valid(); }
 		void SeekToFirst();
@@ -100,10 +103,11 @@ namespace rocksdb {
 		Slice value() const;
 		Status status() const { return status_; }
 		//void SetIterInvalid() { iter_->SetInvalid(); }
-		void DecodeCurrKeyValue();
+		//void DecodeCurrKeyValue();
 		bool UnzipIterRecord(bool);
 
 	protected:
+		TerarkZipSubReader* subReader_;
 		TerarkZipTableBuilder* chunk_;
 		std::unique_ptr<TerarkIndex::Iterator> iter_;
 		valvec<byte_t>          keyBuf_;
@@ -111,10 +115,12 @@ namespace rocksdb {
 		Status                  status_;
 	};
 
-	Status NewIterator(Iterator** iter);
+	Iterator* NewIterator();
 
-	private:
+	public:
 	Status OpenForRead();
+	
+	//Status OpenForRead(RandomAccessFileReader* file, uint64_t file_size);
 		
 	/*
 	 * building phase operations
@@ -194,6 +200,7 @@ namespace rocksdb {
 	// for read purpose
 	std::unique_ptr<TerarkIndex> index_;
 	std::unique_ptr<terark::BlobStore> store_;
+	std::unique_ptr<rocksdb::RandomAccessFileReader> file_reader_;
 	};
 
 

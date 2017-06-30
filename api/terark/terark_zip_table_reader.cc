@@ -234,8 +234,8 @@ namespace rocksdb {
 	}
 
 
-	Status
-	TerarkZipTableBuilder::NewIterator(Iterator** iter) {
+	Iterator*
+	TerarkZipTableBuilder::NewIterator() {
 		// check cuurent state
 		// if CreateDone state:
 		//   read value, index blocks
@@ -243,54 +243,64 @@ namespace rocksdb {
 		// else if SecondPass state:
 		//   only Add is allowed
 		// add iter into dict
-		if (chunk_state_ == kCreateDone) {
+		if (chunk_state_ == kCreateDone ||
+			chunk_state_ == kOpenForRead) {
+			Status s = OpenForRead();
+			if (!s.ok()) {
+				printf("Fail to open chunk: %s\n", s.getState());
+				return nullptr;
+			}
 		} else if (chunk_state_ == kSecondPass) {
+			// do nothing
 		} else {
 			// invalid state
+			printf("Chunk::NewIterator is invalid, state %d\n", chunk_state_);
+			return nullptr;
 		}
 		// TBD(kg): unique ptr ?
-		*iter = new TerarChunkIterator(this);
-
-		return Status();
+		//Iterator* iter = new TerarChunkIterator(&subReader_);
+		Iterator* iter = new TerarChunkIterator(this);
+		return iter;
 	}
 
 	Status
 	TerarkZipTableBuilder::OpenForRead() {
 		if (chunk_state_ == kOpenForRead) {
+			return Status::OK();
 		} else if (chunk_state_ != kCreateDone) {
-			// invalid state
+			return Status::NotSupported("Chunk is not ready for Read");
 		}
 		// prepare chunk file
 		rocksdb::EnvOptions env_options;
+		env_options.use_mmap_reads = env_options.use_mmap_writes = true;
 		rocksdb::Options options;
 		std::unique_ptr<rocksdb::RandomAccessFile> file;
 		rocksdb::Status s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
 		assert(s.ok());
-		std::unique_ptr<rocksdb::RandomAccessFileReader> 
-			file_reader(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
+		file_reader_.reset(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
 		uint64_t file_size = 0;
 		s = options.env->GetFileSize(chunk_name_, &file_size);
 		assert(s.ok());
 		// read meta data -- properties, index meta, value meta
 		TerarkTableProperties* table_props = nullptr;
-		s = TerarkReadTableProperties(file_reader.get(), file_size,
+		s = TerarkReadTableProperties(file_reader_.get(), file_size,
 			kTerarkZipTableMagicNumber, options, &table_props);
 		if (!s.ok()) {
 			return s;
 		}
 		assert(nullptr != table_props);
 		Slice file_data;
-		s = file_reader->Read(0, file_size, &file_data, nullptr);
+		s = file_reader_->Read(0, file_size, &file_data, nullptr);
 		if (!s.ok()) {
 			return s;
 		}
 		TerarkBlockContents valueDictBlock, indexBlock;
-		s = TerarkReadMetaBlock(file_reader.get(), file_size, kTerarkZipTableMagicNumber, options,
+		s = TerarkReadMetaBlock(file_reader_.get(), file_size, kTerarkZipTableMagicNumber, options,
 			kTerarkZipTableValueDictBlock, &valueDictBlock);
 		if (!s.ok()) {
 			return s;
 		}
-		s = TerarkReadMetaBlock(file_reader.get(), file_size, kTerarkZipTableMagicNumber, options,
+		s = TerarkReadMetaBlock(file_reader_.get(), file_size, kTerarkZipTableMagicNumber, options,
 			kTerarkZipTableIndexBlock, &indexBlock);
 		if (!s.ok()) {
 			return s;

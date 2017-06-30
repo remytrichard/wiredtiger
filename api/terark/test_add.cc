@@ -61,14 +61,40 @@ int main() {
 		std::unique_ptr<rocksdb::WritableFileWriter> 
 			file_writer(new rocksdb::WritableFileWriter(std::move(file), env_options));
 
-		rocksdb::TerarkZipTableBuilder* chunk = manager->NewTableBuilder(builder_options, 0, file_writer.get());
+		rocksdb::TerarkZipTableBuilder* chunk = 
+			manager->NewTableBuilder(builder_options, fname, file_writer.get());
 		for (auto& iter : dict) {
 			chunk->Add(iter.first, iter.second);
 		}
 		s = chunk->Finish();
 		assert(s.ok());
 	}
-	{
+	{		
+		rocksdb::TerarkZipTableBuilder* chunk = manager->GetChunk(sst_path);
+		assert(chunk != nullptr);
+		rocksdb::Iterator* iter = chunk->NewIterator();
+		assert(iter != nullptr);
+
+		for (auto& di : dict) {
+			iter->Seek(di.first);
+			if (!iter->Valid()) {
+				printf("Seek failed on key %s\n", di.first.c_str());
+				return 1;
+			}
+			std::string key(iter->key().data(), iter->key().size());
+			std::string val(iter->value().data(), iter->value().size());
+			if (di.first != key) {
+				printf("key expected:%s actual:%s\n", di.first.c_str(), key.c_str());
+				return 1;
+			}
+			if (di.second != val) {
+				printf("val expected %s actual: %s\n", di.second.c_str(), val.c_str());
+				return 1;
+			}
+		}
+		std::cout << "\n\nTest Case Passed!\n\n";
+	}
+	/*{
 		rocksdb::Options options;
 		const rocksdb::Comparator* comparator = rocksdb::BytewiseComparator();
 		rocksdb::TerarkTableReaderOptions reader_options(*comparator);
@@ -109,7 +135,7 @@ int main() {
 			}
 		}
 		std::cout << "\n\nTest Case Passed!\n\n";
-	}
+		}*/
 
 	return 0;
 }
