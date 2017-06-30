@@ -61,13 +61,52 @@ namespace rocksdb {
 	class TerarkZipTableBuilder : boost::noncopyable {
 	public:
 		TerarkZipTableBuilder(const TerarkZipTableOptions&,
-			const TerarkTableBuilderOptions& tbo,
-			uint32_t column_family_id,
-			WritableFileWriter* file,
-			size_t key_prefixLen);
+							  const TerarkTableBuilderOptions& tbo,
+							  uint32_t column_family_id,
+							  WritableFileWriter* file,
+							  size_t key_prefixLen);
 
 		~TerarkZipTableBuilder();
 
+		enum ChunkState {
+			kJustCreated = 0,
+			kFirstPass = 1,
+			kSecondPass = 2,
+			kCreateDone = 3,
+			kOpenForRead = 4
+		};
+		ChunkState GetState() { return chunk_state_; }
+		void SetState(ChunkState state) { chunk_state_ = state; }
+
+		/*
+		 * read phase operations
+		 */
+	public:
+		class TerarChunkIterator : public Iterator, boost::noncopyable {
+			public:
+			Status Open(const std::string&, const TerarkTableProperties&);
+			TerarChunkIterator() {}
+			~TerarChunkIterator() {}
+			bool Valid() const { return false; }
+			void SeekToFirst();
+			void SeekToLast();
+			void SeekForPrev(const Slice&);
+			void Seek(const Slice&);
+			void Next();
+			void Prev();
+			Slice key();
+			Slice value();
+			Status status() const { return Status::OK(); }
+		};
+		Status NewIterator(Iterator** iter);
+
+	private:
+		Status OpenForRead();
+		
+		/*
+		 * building phase operations
+		 */
+	public:
 		void Add(const Slice& key, const Slice& value);
 		Status status() const { return status_; }
 		Status Finish();
@@ -75,15 +114,6 @@ namespace rocksdb {
 		uint64_t NumEntries() const { return properties_.num_entries; }
 		uint64_t FileSize() const;
 		
-		enum ChunkState {
-			kJustCreated = 0,
-			kFirstPass = 1,
-			kSecondPass = 2,
-			kFinished = 3
-		};
-		ChunkState GetState() { return chunk_state_; }
-		void SetState(ChunkState state) { chunk_state_ = state; }
-
 	private:
 		struct KeyValueStatus {
 			TerarkIndex::KeyStat stat;
@@ -100,8 +130,6 @@ namespace rocksdb {
 		Status EmptyTableFinish();
 
 		Status ZipValueToFinish(fstring tmpIndexFile, std::function<void()> waitIndex);
-		void BuilderWriteValues(NativeDataInput<InputBuffer>& tmpValueFileinput
-			, KeyValueStatus& kvs, std::function<void(fstring val)> write);
 		Status WriteStore(TerarkIndex* index, BlobStore* store,
 						  KeyValueStatus& kvs, std::function<void(const void*, size_t)> write,
 						  TerarkBlockHandle& dataBlock,
@@ -113,18 +141,21 @@ namespace rocksdb {
 		Status WriteMetaData(std::initializer_list<std::pair<const std::string*, TerarkBlockHandle> > blocks);
 		DictZipBlobStore::ZipBuilder* createZipBuilder() const;
 
-
 		// test related
 		void DebugPrepare();
 		void DebugCleanup();
 
+		
+	private:
 
-		Arena arena_;
+		// - build phase
+		// - read only phase
 		ChunkState chunk_state_;
+		const std::string chunk_name_;
+
 		const TerarkZipTableOptions& table_options_;
-		// start TableBuilderOptions
-		const TerarkTableBuilderOptions& ioptions_; // replace ImmutableCFOptions with TerarkTBOptions
-		// end TableBuilderOptions
+		const TerarkTableBuilderOptions& table_build_options_; // replace ImmutableCFOptions with TerarkTBOptions
+
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem
 		valvec<byte_t> prevUserKey_;
 		//valvec<byte_b> value_;
@@ -146,6 +177,10 @@ namespace rocksdb {
 
 		long long t0 = 0;
 		size_t key_prefixLen_;
+		
+		// for read purpose
+		std::unique_ptr<TerarkIndex> index_;
+		std::unique_ptr<terark::BlobStore> store_;
 	};
 
 

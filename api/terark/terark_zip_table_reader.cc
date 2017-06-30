@@ -1,9 +1,3 @@
-// project headers
-#include "terark_zip_table_reader.h"
-#include "terark_zip_common.h"
-#include "trk_format.h"
-#include "trk_meta_blocks.h"
-#include "trk_table_properties.h"
 
 // boost headers
 #include <boost/scope_exit.hpp>
@@ -15,6 +9,14 @@
 #include "rocksdb/iterator.h"
 // terark headers
 #include <terark/util/crc.hpp>
+
+// project headers
+#include "terark_zip_table_builder.h"
+#include "terark_zip_table_reader.h"
+#include "terark_zip_common.h"
+#include "trk_format.h"
+#include "trk_meta_blocks.h"
+#include "trk_table_properties.h"
 
 
 namespace {
@@ -54,10 +56,9 @@ namespace rocksdb {
 
 	class TerarkZipTableIterator : public Iterator, boost::noncopyable {
 	protected:
-		const TerarkTableReaderOptions* table_reader_options_;
 		const TerarkZipSubReader* subReader_;
-		unique_ptr<TerarkIndex::Iterator> iter_;
-		std::string             interKeyBuf_;
+		std::unique_ptr<TerarkIndex::Iterator> iter_;
+		//std::string             interKeyBuf_;
 		valvec<byte_t>          interKeyBuf_xx_;
 		valvec<byte_t>          valueBuf_;
 		Slice                   userValue_;
@@ -67,8 +68,7 @@ namespace rocksdb {
 	public:
 		TerarkZipTableIterator(const TerarkTableReaderOptions& tro
 			, const TerarkZipSubReader *subReader)
-			: table_reader_options_(&tro)
-			, subReader_(subReader) {
+			: subReader_(subReader) {
 			if (subReader_ != nullptr) {
 				iter_.reset(subReader_->index_->NewIterator());
 				iter_->SetInvalid();
@@ -170,9 +170,104 @@ namespace rocksdb {
 		}
 	};
 
-	TerarkZipSubReader::~TerarkZipSubReader() {
-		//type_.risk_release_ownership();
+	Status
+	TerarkZipTableBuilder::NewIterator(Iterator** iter) {
+		// check cuurent state
+		// if CreateDone state:
+		//   read value, index blocks
+		//   load index
+		// else if SecondPass state:
+		//   only Add is allowed
+		// add iter into dict
+		if (chunk_state_ == kCreateDone) {
+		} else if (chunk_state_ == kSecondPass) {
+		} else {
+			// invalid state
+		}
+		
+		return Status();
 	}
+
+	Status
+	TerarkZipTableBuilder::OpenForRead() {
+		if (chunk_state_ == kOpenForRead) {
+		} else if (chunk_state_ != kCreateDone) {
+			// invalid state
+		}
+		// prepare chunk file
+		rocksdb::EnvOptions env_options;
+		rocksdb::Options options;
+		std::unique_ptr<rocksdb::RandomAccessFile> file;
+		rocksdb::Status s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
+		assert(s.ok());
+		std::unique_ptr<rocksdb::RandomAccessFileReader> 
+			file_reader(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
+		uint64_t file_size = 0;
+		s = options.env->GetFileSize(chunk_name_, &file_size);
+		assert(s.ok());
+		// read meta data -- properties, index meta, value meta
+		TerarkTableProperties* table_props = nullptr;
+		s = TerarkReadTableProperties(file_reader.get(), file_size,
+			kTerarkZipTableMagicNumber, options, &table_props);
+		if (!s.ok()) {
+			return s;
+		}
+		assert(nullptr != table_props);
+		Slice file_data;
+		s = file_reader->Read(0, file_size, &file_data, nullptr);
+		if (!s.ok()) {
+			return s;
+		}
+		TerarkBlockContents valueDictBlock, indexBlock;
+		s = TerarkReadMetaBlock(file_reader.get(), file_size, kTerarkZipTableMagicNumber, options,
+			kTerarkZipTableValueDictBlock, &valueDictBlock);
+		if (!s.ok()) {
+			return s;
+		}
+		s = TerarkReadMetaBlock(file_reader.get(), file_size, kTerarkZipTableMagicNumber, options,
+			kTerarkZipTableIndexBlock, &indexBlock);
+		if (!s.ok()) {
+			return s;
+		}
+		// read contents -- index, value
+		try {
+			store_.reset(terark::BlobStore::load_from_user_memory(
+					fstring(file_data.data(), table_props->data_size), fstringOf(valueDictBlock.data)));
+			index_ = TerarkIndex::LoadMemory(fstringOf(indexBlock.data));
+		} catch (const BadCrc32cException& ex) {
+			return Status::Corruption("TerarkZipTableBuilder::Open()", ex.what());
+		} catch (const std::exception& ex) {
+			return Status::InvalidArgument("TerarkZipTableBuilder::OpenForRead()", ex.what());
+		}
+		// 
+		long long t0 = g_pf.now();
+		if (table_options_.warmUpIndexOnOpen) {
+			MmapWarmUp(fstringOf(indexBlock.data));
+			if (!table_options_.warmUpValueOnOpen) {
+				MmapWarmUp(store_->get_dict());
+				for (fstring block : store_->get_index_blocks()) {
+					MmapWarmUp(block);
+				}
+			}
+		}
+		if (table_options_.warmUpValueOnOpen) {
+			MmapWarmUp(store_->get_mmap());
+		}
+		long long t1 = g_pf.now();
+		index_->BuildCache(table_options_.indexCacheRatio);
+		long long t2 = g_pf.now();
+		/*INFO(ioptions.info_log
+		  , "TerarkZipTableReader::Open(): fsize = %zd, entries = %zd keys = %zd indexSize = %zd valueSize=%zd, warm up time = %6.3f'sec, build cache time = %6.3f'sec\n"
+		  , size_t(file_size), size_t(table_properties_->num_entries)
+		  , subReader_.index_->NumKeys()
+		  , size_t(table_properties_->index_size)
+		  , size_t(table_properties_->data_size)
+		  , g_pf.sf(t0, t1)
+		  , g_pf.sf(t1, t2)
+		  );*/
+		return Status::OK();
+	}
+
 
 	Status
 	TerarkEmptyTableReader::Open(RandomAccessFileReader* file, uint64_t file_size) {
@@ -230,31 +325,15 @@ namespace rocksdb {
 		if (!s.ok()) {
 			return s;
 		}
-		s = TerarkReadMetaBlock(file, file_size, kTerarkZipTableMagicNumber, ioptions,
-						  kTerarkZipTableCommonPrefixBlock, &commonPrefixBlock);
-		if (s.ok()) {
-			subReader_.commonPrefix_.assign(commonPrefixBlock.data.data(),
-											commonPrefixBlock.data.size());
-		} else {
-			// some error, usually is
-			// Status::Corruption("Cannot find the meta block", meta_block_name)
-			WARN(ioptions.info_log
-				 , "Read %s block failed, treat as old SST version, error: %s\n"
-				 , kTerarkZipTableCommonPrefixBlock.c_str()
-				 , s.ToString().c_str());
-		}
 		try {
 			subReader_.store_.reset(terark::BlobStore::load_from_user_memory(
 				fstring(file_data.data(), props->data_size), fstringOf(valueDictBlock.data)));
+			subReader_.index_ = TerarkIndex::LoadMemory(fstringOf(indexBlock.data));
 		} catch (const BadCrc32cException& ex) {
 			return Status::Corruption("TerarkZipTableReader::Open()", ex.what());
+		} catch (const std::exception& ex) {
+			return Status::InvalidArgument("TerarkZipTableReader::Open()", ex.what());
 		}
-		s = LoadIndex(indexBlock.data);
-		if (!s.ok()) {
-			return s;
-		}
-		size_t recNum = subReader_.index_->NumKeys();
-
 		long long t0 = g_pf.now();
 		if (tzto_.warmUpIndexOnOpen) {
 			MmapWarmUp(fstringOf(indexBlock.data));
@@ -280,18 +359,6 @@ namespace rocksdb {
 			 , g_pf.sf(t0, t1)
 			 , g_pf.sf(t1, t2)
 			 );*/
-		return Status::OK();
-	}
-
-	Status TerarkZipTableReader::LoadIndex(Slice mem) {
-		auto func = "TerarkZipTableReader::LoadIndex()";
-		try {
-			subReader_.index_ = TerarkIndex::LoadMemory(fstringOf(mem));
-		} catch (const BadCrc32cException& ex) {
-			return Status::Corruption(func, ex.what());
-		} catch (const std::exception& ex) {
-			return Status::InvalidArgument(func, ex.what());
-		}
 		return Status::OK();
 	}
 

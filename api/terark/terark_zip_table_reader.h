@@ -86,19 +86,8 @@ namespace rocksdb {
 	};
 
 	struct TerarkZipSubReader {
-		size_t subIndex_;
-		std::string prefix_;
 		std::unique_ptr<TerarkIndex> index_;
 		std::unique_ptr<terark::BlobStore> store_;
-		bitfield_array<2> type_;
-		std::string commonPrefix_;
-
-		enum {
-			FlagNone = 0,
-			FlagSkipFilter = 1,
-		};
-
-		~TerarkZipSubReader();
 	};
 
 	/**
@@ -129,7 +118,6 @@ namespace rocksdb {
 		const TerarkTableReaderOptions table_reader_options_;
 		std::shared_ptr<const TerarkTableProperties> table_properties_;
 		const TerarkZipTableOptions& tzto_;
-		Status LoadIndex(Slice mem);
 	};
 
 

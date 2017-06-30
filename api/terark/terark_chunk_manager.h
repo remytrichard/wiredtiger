@@ -68,12 +68,14 @@ namespace rocksdb {
 			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 				uint32_t column_family_id,
 				WritableFileWriter* file) const;
+		
+		Status NewIterator(const std::string& fname, Iterator** iter);
 
 		std::string GetPrintableTableOptions() const;
 
 		// Sanitizes the specified DB Options.
-		Status SanitizeOptions(const DBOptions& db_opts,
-			const ColumnFamilyOptions& cf_opts) const;
+		//Status SanitizeOptions(const DBOptions& db_opts,
+		//	const ColumnFamilyOptions& cf_opts) const;
 
 		void* GetOptions() { return &table_options_; }
 
@@ -86,7 +88,8 @@ namespace rocksdb {
  
 	private:
 		// should replace name of TerarkZipTableBuilder with TerarkChunk
-		std::map<std::string, TerarkZipTableBuilder*> _chunk_dict;
+		std::map<std::string, TerarkZipTableBuilder*> chunk_dict_;
+		std::map<WT_CURSOR*, Iterator*>               cursor_dict_;
 	};
 
 

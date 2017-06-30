@@ -161,6 +161,7 @@ namespace rocksdb {
 			return BytewiseComparator() == cmp;
 #endif
 		}
+
 	} // namespace
 
 	TerarkChunkManager* TerarkChunkManager::_instance = nullptr;
@@ -197,13 +198,13 @@ namespace rocksdb {
 
 	TerarkZipTableBuilder*
 	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
-										uint32_t column_family_id,
-										WritableFileWriter* file) const {
+		uint32_t column_family_id,
+		WritableFileWriter* file) const {
 		const rocksdb::Comparator* userCmp = &table_builder_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			THROW_STD(invalid_argument,
-					  "TerarkChunkManager::NewTableBuilder(): "
-					  "user comparator must be 'leveldb.BytewiseComparator'");
+				"TerarkChunkManager::NewTableBuilder(): "
+				"user comparator must be 'leveldb.BytewiseComparator'");
 		}
 		int curlevel = table_builder_options.level;
 		int numlevel = table_builder_options.ioptions.num_levels;
@@ -221,64 +222,17 @@ namespace rocksdb {
 		if (0 == nth_new_terark_table_) {
 			g_lastTime = g_pf.now();
 		}
-		/*if (fallback_factory_) {
-		  if (curlevel >= 0 && curlevel < minlevel) {
-		  nth_new_fallback_table_++;
-		  TerarkZipTableBuilder* tb = fallback_factory_->NewTableBuilder(table_builder_options,
-		  column_family_id, file);
-		  INFO(table_builder_options.ioptions.info_log
-		  , "TerarkChunkManager::NewTableBuilder() returns class: %s\n"
-		  , ClassName(*tb).c_str());
-		  return tb;
-		  }
-		  }*/
 		nth_new_terark_table_++;
 		return new TerarkZipTableBuilder(table_options_,
-										 table_builder_options,
-										 column_family_id,
-										 file,
-										 keyPrefixLen);
+			table_builder_options,
+			column_family_id,
+			file,
+			keyPrefixLen);
 	}
 
-	std::string TerarkChunkManager::GetPrintableTableOptions() const {
-		std::string ret;
-		ret.reserve(2000);
-		const char* cvb[] = {"false", "true"};
-		const int kBufferSize = 200;
-		char buffer[kBufferSize];
-		const auto& tzto = table_options_;
-		const double gb = 1ull << 30;
-
-		ret += "localTempDir             : ";
-		ret += tzto.localTempDir;
-		ret += '\n';
-
-#ifdef M_APPEND
-# error WTF ?
-#endif
-#define M_APPEND(fmt, value)											\
-		ret.append(buffer, snprintf(buffer, kBufferSize, fmt "\n", value))
-
-		M_APPEND("indexType                : %s", tzto.indexType.c_str());
-		M_APPEND("checksumLevel            : %d", tzto.checksumLevel);
-		M_APPEND("entropyAlgo              : %d", (int)tzto.entropyAlgo);
-		M_APPEND("indexNestLevel           : %d", tzto.indexNestLevel);
-		M_APPEND("terarkZipMinLevel        : %d", tzto.terarkZipMinLevel);
-		M_APPEND("debugLevel               : %d", tzto.debugLevel);
-		M_APPEND("useSuffixArrayLocalMatch : %s", cvb[!!tzto.useSuffixArrayLocalMatch]);
-		M_APPEND("warmUpIndexOnOpen        : %s", cvb[!!tzto.warmUpIndexOnOpen]);
-		M_APPEND("warmUpValueOnOpen        : %s", cvb[!!tzto.warmUpValueOnOpen]);
-		M_APPEND("disableSecondPassIter    : %s", cvb[!!tzto.disableSecondPassIter]);
-		M_APPEND("estimateCompressionRatio : %f", tzto.estimateCompressionRatio);
-		M_APPEND("sampleRatio              : %f", tzto.sampleRatio);
-		M_APPEND("indexCacheRatio          : %f", tzto.indexCacheRatio);
-		M_APPEND("softZipWorkingMemLimit   : %.3fGB", tzto.softZipWorkingMemLimit / gb);
-		M_APPEND("hardZipWorkingMemLimit   : %.3fGB", tzto.hardZipWorkingMemLimit / gb);
-		M_APPEND("smallTaskMemory          : %.3fGB", tzto.smallTaskMemory / gb);
-
-#undef M_APPEND
-
-		return ret;
+	Status
+	TerarkChunkManager::NewIterator(const std::string& fname, Iterator** iter) {
+		return Status();
 	}
 
 	Status
@@ -321,21 +275,46 @@ namespace rocksdb {
 		}
 		return s;
 	}
-	
-	Status
-	TerarkChunkManager::SanitizeOptions(const DBOptions& db_opts,
-										const ColumnFamilyOptions& cf_opts)
-		const {
-		if (!IsBytewiseComparator(cf_opts.comparator)) {
-			return Status::InvalidArgument("TerarkChunkManager::SanitizeOptions()",
-										   "user comparator must be 'leveldb.BytewiseComparator'");
-		}
-		auto indexFactory = TerarkIndex::GetFactory(table_options_.indexType);
-		if (!indexFactory) {
-			std::string msg = "invalid indexType: " + table_options_.indexType;
-			return Status::InvalidArgument(msg);
-		}
-		return Status::OK();
+
+	std::string TerarkChunkManager::GetPrintableTableOptions() const {
+		std::string ret;
+		ret.reserve(2000);
+		const char* cvb[] = {"false", "true"};
+		const int kBufferSize = 200;
+		char buffer[kBufferSize];
+		const auto& tzto = table_options_;
+		const double gb = 1ull << 30;
+
+		ret += "localTempDir             : ";
+		ret += tzto.localTempDir;
+		ret += '\n';
+
+#ifdef M_APPEND
+# error WTF ?
+#endif
+#define M_APPEND(fmt, value)											\
+		ret.append(buffer, snprintf(buffer, kBufferSize, fmt "\n", value))
+
+		M_APPEND("indexType                : %s", tzto.indexType.c_str());
+		M_APPEND("checksumLevel            : %d", tzto.checksumLevel);
+		M_APPEND("entropyAlgo              : %d", (int)tzto.entropyAlgo);
+		M_APPEND("indexNestLevel           : %d", tzto.indexNestLevel);
+		M_APPEND("terarkZipMinLevel        : %d", tzto.terarkZipMinLevel);
+		M_APPEND("debugLevel               : %d", tzto.debugLevel);
+		M_APPEND("useSuffixArrayLocalMatch : %s", cvb[!!tzto.useSuffixArrayLocalMatch]);
+		M_APPEND("warmUpIndexOnOpen        : %s", cvb[!!tzto.warmUpIndexOnOpen]);
+		M_APPEND("warmUpValueOnOpen        : %s", cvb[!!tzto.warmUpValueOnOpen]);
+		M_APPEND("disableSecondPassIter    : %s", cvb[!!tzto.disableSecondPassIter]);
+		M_APPEND("estimateCompressionRatio : %f", tzto.estimateCompressionRatio);
+		M_APPEND("sampleRatio              : %f", tzto.sampleRatio);
+		M_APPEND("indexCacheRatio          : %f", tzto.indexCacheRatio);
+		M_APPEND("softZipWorkingMemLimit   : %.3fGB", tzto.softZipWorkingMemLimit / gb);
+		M_APPEND("hardZipWorkingMemLimit   : %.3fGB", tzto.hardZipWorkingMemLimit / gb);
+		M_APPEND("smallTaskMemory          : %.3fGB", tzto.smallTaskMemory / gb);
+
+#undef M_APPEND
+
+		return ret;
 	}
 
 }
