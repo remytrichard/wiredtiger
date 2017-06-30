@@ -31,17 +31,9 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 
 	std::unique_ptr<rocksdb::WritableFile> file;
 	// TBD(kg): need more settings on env
-	rocksdb::EnvOptions env_options;
-	env_options.use_mmap_reads = env_options.use_mmap_writes = true;
 	std::string fname(uri);
-	rocksdb::Status s = options.env->NewWritableFile(fname, &file, env_options);
-	assert(s.ok());
-	//file->SetPreallocationBlockSize(immutable_db_options_.manifest_preallocation_size);
-	std::unique_ptr<rocksdb::WritableFileWriter> 
-		file_writer(new rocksdb::WritableFileWriter(std::move(file), env_options));
-	// TBD(kg): file_writer.get()...	
-	rocksdb::TerarkChunk* chunk = manager->NewTableBuilder(builder_options, 0, file_writer.get());
-	manager->AddChunk(uri, chunk);
+	rocksdb::TerarkChunk* chunk = manager->NewTableBuilder(builder_options, fname);
+	manager->AddChunk(fname, chunk);
 
 	return (0);
 }
@@ -85,8 +77,6 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *src_cursor, WT_CURSOR *dest) 
 
 	return (0);
 }
-
-
 
 
 

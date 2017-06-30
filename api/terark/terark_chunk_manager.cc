@@ -196,8 +196,7 @@ namespace rocksdb {
 
 	TerarkZipTableBuilder*
 	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
-										const std::string& fname,
-										WritableFileWriter* file) {
+		const std::string& fname) {
 		const rocksdb::Comparator* userCmp = &table_builder_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			THROW_STD(invalid_argument,
@@ -222,17 +221,19 @@ namespace rocksdb {
 		}
 		nth_new_terark_table_++;
 		TerarkZipTableBuilder* chunk = new TerarkZipTableBuilder(table_options_,
-																 table_builder_options,
-																 fname,
-																 file,
-																 keyPrefixLen);
-		AddChunk(fname, chunk);
+			table_builder_options,
+			fname,
+			keyPrefixLen);
 		return chunk;
 	}
 
-	Status
-	TerarkChunkManager::NewIterator(const std::string& fname, Iterator** iter) {
-		return Status();
+	Iterator*
+	TerarkChunkManager::NewIterator(const std::string& fname) {
+		rocksdb::TerarkZipTableBuilder* chunk = GetChunk(fname);
+		if (!chunk) {
+			return nullptr;
+		}
+		return chunk->NewIterator();
 	}
 
 

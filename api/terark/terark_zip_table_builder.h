@@ -63,7 +63,6 @@ namespace rocksdb {
 		TerarkZipTableBuilder(const TerarkZipTableOptions&,
 							  const TerarkTableBuilderOptions& tbo,
 							  const std::string& fname,
-							  WritableFileWriter* file,
 							  size_t key_prefixLen);
 
 		~TerarkZipTableBuilder();
@@ -115,7 +114,7 @@ namespace rocksdb {
 	private:
 	Status OpenForRead();
 	
-	//Status OpenForRead(RandomAccessFileReader* file, uint64_t file_size);
+	
 		
 	/*
 	 * building phase operations
@@ -182,7 +181,7 @@ namespace rocksdb {
 	std::mt19937_64 randomGenerator_;
 	uint64_t sampleUpperBound_;
 	size_t sampleLenSum_ = 0;
-	WritableFileWriter* file_;
+	std::unique_ptr<rocksdb::WritableFileWriter> file_writer_;
 	uint64_t offset_ = 0;
 	Status status_;
 	TerarkTableProperties properties_;

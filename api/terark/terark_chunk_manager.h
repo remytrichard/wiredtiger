@@ -59,14 +59,21 @@ namespace rocksdb {
 		TerarkChunk* GetChunk(const std::string& fname) {
 			return chunk_dict_[fname];
 		}
+		void AddIterator(WT_CURSOR* cursor, Iterator* iter) {
+			assert(cursor != nullptr);
+			cursor_dict_[cursor] = iter;
+		}
+		Iterator* GetIterator(WT_CURSOR* cursor) {
+			assert(cursor != nullptr);
+			return cursor_dict_[cursor];
+		}
 
 	public:
 		TerarkZipTableBuilder*
 			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
-							const std::string& fname,
-							WritableFileWriter* file);
+							const std::string& fname);
 		
-		Status NewIterator(const std::string& fname, Iterator** iter);
+		Iterator* NewIterator(const std::string& fname);
 
 		std::string GetPrintableTableOptions() const;
 

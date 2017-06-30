@@ -154,13 +154,16 @@ namespace rocksdb {
 			return Status::NotSupported("Chunk is not ready for Read");
 		}
 		// prepare chunk file
-		rocksdb::EnvOptions env_options;
-		env_options.use_mmap_reads = env_options.use_mmap_writes = true;
+		rocksdb::Status s;
 		rocksdb::Options options;
-		std::unique_ptr<rocksdb::RandomAccessFile> file;
-		rocksdb::Status s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
-		assert(s.ok());
-		file_reader_.reset(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
+		if (!file_reader_) { // may have been inited during construction
+			rocksdb::EnvOptions env_options;
+			env_options.use_mmap_reads = env_options.use_mmap_writes = true;
+			std::unique_ptr<rocksdb::RandomAccessFile> file;
+			s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
+			assert(s.ok());
+			file_reader_.reset(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
+		}
 		uint64_t file_size = 0;
 		s = options.env->GetFileSize(chunk_name_, &file_size);
 		assert(s.ok());
