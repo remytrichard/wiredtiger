@@ -170,6 +170,70 @@ namespace rocksdb {
 		}
 	};
 
+
+	void TerarkZipTableBuilder::TerarChunkIterator::SeekToFirst() {
+		UnzipIterRecord(iter_->SeekToFirst());
+	}
+
+	void TerarkZipTableBuilder::TerarChunkIterator::SeekToLast() {
+		UnzipIterRecord(iter_->SeekToLast());
+	}
+
+	void TerarkZipTableBuilder::TerarChunkIterator::SeekForPrev(const Slice& target) {
+		Seek(target);
+		if (!Valid()) {
+			SeekToLast();
+		}
+		while (Valid() && target.compare(key()) < 0) {
+			Prev();
+		}
+	}
+
+	void TerarkZipTableBuilder::TerarChunkIterator::Seek(const Slice& target) {
+		UnzipIterRecord(iter_->Seek(fstringOf(target)));
+	}
+
+	void TerarkZipTableBuilder::TerarChunkIterator::Next() {
+		assert(iter_->Valid());
+		UnzipIterRecord(iter_->Next());
+	}
+
+	void TerarkZipTableBuilder::TerarChunkIterator::Prev() {
+		assert(iter_->Valid());
+		UnzipIterRecord(iter_->Prev());
+	}
+
+	Slice TerarkZipTableBuilder::TerarChunkIterator::key() const {
+		assert(iter_->Valid());
+		return SliceOf(keyBuf_);
+	}
+
+	Slice TerarkZipTableBuilder::TerarChunkIterator::value() const {
+		assert(iter_->Valid());
+		return SliceOf(fstring(valueBuf_));
+	}
+
+	bool TerarkZipTableBuilder::TerarChunkIterator::UnzipIterRecord(bool hasRecord) {
+		if (hasRecord) {
+			assert(iter_->id() < chunk_->index_->NumKeys());
+			size_t recId = iter_->id();
+			try {
+				valueBuf_.erase_all();
+				chunk_->store_->get_record_append(recId, &valueBuf_);
+			} catch (const BadCrc32cException& ex) { // crc checksum error
+				iter_->SetInvalid();
+				status_ = Status::Corruption("TerarkZipTableIterator::UnzipIterRecord()", ex.what());
+				return false;
+			}
+			keyBuf_.assign((byte_t*)iter_->key().data(), iter_->key().size());
+			return true;
+		} else {
+			iter_->SetInvalid();
+			return false;
+		}
+	}
+
+
 	Status
 	TerarkZipTableBuilder::NewIterator(Iterator** iter) {
 		// check cuurent state
@@ -184,7 +248,9 @@ namespace rocksdb {
 		} else {
 			// invalid state
 		}
-		
+		// TBD(kg): unique ptr ?
+		*iter = new TerarChunkIterator(this);
+
 		return Status();
 	}
 
@@ -267,7 +333,6 @@ namespace rocksdb {
 		  );*/
 		return Status::OK();
 	}
-
 
 	Status
 	TerarkEmptyTableReader::Open(RandomAccessFileReader* file, uint64_t file_size) {
