@@ -14,7 +14,6 @@
 #include "terark_zip_common.h"
 #include "terark_zip_table.h"
 #include "terark_zip_table_builder.h"
-#include "terark_zip_table_reader.h"
 // std headers
 #include <memory>
 #include <mutex>

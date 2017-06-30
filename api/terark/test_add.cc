@@ -21,8 +21,6 @@
 #include "terark_chunk_manager.h"
 #include "terark_zip_table.h"
 #include "terark_zip_table_builder.h"
-#include "terark_zip_table_reader.h"
-
 
 static const char *home;
 static const char* sst_path = "./data/0001.sst";

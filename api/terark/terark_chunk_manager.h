@@ -5,7 +5,6 @@
 #include "terark_zip_common.h"
 #include "terark_zip_table.h"
 #include "terark_zip_table_builder.h"
-#include "terark_zip_table_reader.h"
 // std headers
 #include <memory>
 #include <mutex>
@@ -62,12 +61,6 @@ namespace rocksdb {
 		}
 
 	public:
-		Status
-			NewTableReader(const TerarkTableReaderOptions& table_reader_options,
-				std::unique_ptr<RandomAccessFileReader>&& file,
-				uint64_t file_size,
-				std::unique_ptr<TerarkTableReader>* table);
-
 		TerarkZipTableBuilder*
 			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 							const std::string& fname,

@@ -21,7 +21,7 @@ test_add: ${OBJS}
 #terark_zip_table.o: terark_zip_internal.h terark_zip_table.h trk_table_properties.h
 #	${CXX} ${CFLAGS} ${INC} ${LIB} -c terark_zip_table.cc
 
-terark_zip_table_reader.o: terark_zip_internal.h terark_zip_table_reader.h trk_table_properties.h
+terark_zip_table_reader.o: terark_zip_internal.h terark_zip_table_builder.h trk_table_properties.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c terark_zip_table_reader.cc
 
 terark_zip_common.o: terark_zip_common.h

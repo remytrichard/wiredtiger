@@ -43,7 +43,6 @@
 #include "terark_zip_internal.h"
 #include "terark_chunk_manager.h"
 #include "terark_zip_table_builder.h"
-#include "terark_zip_table_reader.h"
 
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
@@ -195,7 +194,6 @@ namespace rocksdb {
 		return _instance;
 	}
 
-
 	TerarkZipTableBuilder*
 	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 										const std::string& fname,
@@ -237,46 +235,6 @@ namespace rocksdb {
 		return Status();
 	}
 
-	Status
-	TerarkChunkManager::NewTableReader(const TerarkTableReaderOptions& table_reader_options,
-									   std::unique_ptr<RandomAccessFileReader>&& file,
-									   uint64_t file_size, 
-									   std::unique_ptr<TerarkTableReader>* table) {
-		const rocksdb::Comparator* userCmp = &table_reader_options.internal_comparator;
-		if (!IsBytewiseComparator(userCmp)) {
-			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",
-										   "user comparator must be 'leveldb.BytewiseComparator'");
-		}
-		TerarkFooter footer;
-		Status s = TerarkReadFooterFromFile(file.get(), file_size, &footer);
-		if (!s.ok()) {
-			return s;
-		}
-		if (footer.table_magic_number() != kTerarkZipTableMagicNumber) {
-			return Status::InvalidArgument("TerarkChunkManager::NewTableReader()",
-										   "fallback_factory is null and magic_number is not kTerarkZipTable");
-		}
-		TerarkBlockContents emptyTableBC;
-		s = TerarkReadMetaBlock(file.get(), file_size, kTerarkZipTableMagicNumber
-								, table_reader_options.ioptions, kTerarkEmptyTableKey, &emptyTableBC);
-		if (s.ok()) {
-			std::unique_ptr<TerarkEmptyTableReader>
-				t(new TerarkEmptyTableReader(table_reader_options));
-			s = t->Open(file.release(), file_size);
-			if (!s.ok()) {
-				return s;
-			}
-			*table = std::move(t);
-			return s;
-		}
-		std::unique_ptr<TerarkZipTableReader>
-			t(new TerarkZipTableReader(table_reader_options, table_options_));
-		s = t->Open(file.release(), file_size);
-		if (s.ok()) {
-			*table = std::move(t);
-		}
-		return s;
-	}
 
 	std::string TerarkChunkManager::GetPrintableTableOptions() const {
 		std::string ret;

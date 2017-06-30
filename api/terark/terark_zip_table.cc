@@ -12,7 +12,6 @@
 #include "terark_zip_internal.h"
 #include "terark_chunk_manager.h"
 #include "terark_zip_table_builder.h"
-#include "terark_zip_table_reader.h"
 
 // std headers
 #include <future>

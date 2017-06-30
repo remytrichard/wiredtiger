@@ -5,7 +5,9 @@
 // boost headers
 #include <boost/scope_exit.hpp>
 // rocksdb headers
-#include <rocksdb/merge_operator.h>
+#include "file_reader_writer.h"
+#include "rocksdb/env.h"
+#include "rocksdb/table.h"
 #include <table/meta_blocks.h>
 // wiredtiger headers
 #include "wiredtiger.h"

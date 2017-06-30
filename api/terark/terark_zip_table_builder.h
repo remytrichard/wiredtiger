@@ -32,7 +32,6 @@
 #include <terark/util/fstrvec.hpp>
 // project headers
 #include "terark_zip_table.h"
-#include "terark_zip_table_reader.h"
 #include "terark_zip_internal.h"
 #include "terark_zip_common.h"
 #include "terark_zip_index.h"
@@ -102,22 +101,18 @@ namespace rocksdb {
 		Slice key() const;
 		Slice value() const;
 		Status status() const { return status_; }
-		//void SetIterInvalid() { iter_->SetInvalid(); }
-		//void DecodeCurrKeyValue();
 		bool UnzipIterRecord(bool);
 
 	protected:
-		TerarkZipSubReader* subReader_;
 		TerarkZipTableBuilder* chunk_;
 		std::unique_ptr<TerarkIndex::Iterator> iter_;
 		valvec<byte_t>          keyBuf_;
 		valvec<byte_t>          valueBuf_;
 		Status                  status_;
 	};
-
 	Iterator* NewIterator();
 
-	public:
+	private:
 	Status OpenForRead();
 	
 	//Status OpenForRead(RandomAccessFileReader* file, uint64_t file_size);
