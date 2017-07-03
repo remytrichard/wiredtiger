@@ -53,21 +53,21 @@ int main() {
 		rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
 		
 		std::string fname(sst_path);
-		/*std::unique_ptr<rocksdb::WritableFile> file;
-		  
-		rocksdb::Status s = options.env->NewWritableFile(fname, &file, env_options);
-		assert(s.ok());
-		std::unique_ptr<rocksdb::WritableFileWriter> 
-			file_writer(new rocksdb::WritableFileWriter(std::move(file), env_options));
-		*/
 		rocksdb::TerarkZipTableBuilder* chunk = 
 			manager->NewTableBuilder(builder_options, fname);
 		manager->AddChunk(fname, chunk);
-
+		
+		// 1st pass
 		for (auto& iter : dict) {
 			chunk->Add(iter.first, iter.second);
 		}
-		rocksdb::Status s = chunk->Finish();
+		rocksdb::Status s = chunk->Finish1stPass();
+		assert(s.ok());
+		// 2nd pass
+		for (auto& iter : dict) {
+			chunk->Add(iter.second);
+		}
+		s = chunk->Finish2ndPass();
 		assert(s.ok());
 	}
 	{		

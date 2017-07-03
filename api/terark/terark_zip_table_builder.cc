@@ -129,17 +129,20 @@ namespace rocksdb {
 				SetState(kCreateDone);
 				file_reader_.reset(reader.release());
 				return;
+			} else {
+				abort();
 			}
 		}
 		
-		// Empty chunk
+		// Newly created chunk, prepare to Add
+		// temp mmap files
 		std::unique_ptr<rocksdb::WritableFile> file;
 		s = options.env->NewWritableFile(fname, &file, env_options);
 		assert(s.ok());
 		file_writer_.reset(new rocksdb::WritableFileWriter(std::move(file), env_options));
 		sampleUpperBound_ = randomGenerator_.max() * table_options_.sampleRatio;
 		tmpValueFile_.path = tzto.localTempDir + "/Terark-XXXXXX";
-		tmpValueFile_.open_temp();
+		//tmpValueFile_.open_temp();
 		tmpKeyFile_.path = tmpValueFile_.path + ".keydata";
 		tmpKeyFile_.open();
 		tmpSampleFile_.path = tmpValueFile_.path + ".sample";
@@ -147,6 +150,12 @@ namespace rocksdb {
 		if (table_options_.debugLevel == 4) {
 			tmpDumpFile_.open(tmpValueFile_.path + ".dump", "wb+");
 		}
+		// blob store builder
+		DictZipBlobStore::Options dzopt;
+		dzopt.entropyAlgo = DictZipBlobStore::Options::EntropyAlgo(table_options_.entropyAlgo);
+		dzopt.checksumLevel = table_options_.checksumLevel;
+		dzopt.useSuffixArrayLocalMatch = table_options_.useSuffixArrayLocalMatch;
+		zbuilder_.reset(DictZipBlobStore::createZipBuilder(dzopt));
 		// init stats
 		histogram_.emplace_back();
 		auto& currentHistogram = histogram_.back();
@@ -155,15 +164,6 @@ namespace rocksdb {
 		currentHistogram.stat.maxKeyLen = 0;
 		currentHistogram.stat.sumKeyLen = 0;
 		currentHistogram.stat.numKeys = 0;
-	}
-
-	DictZipBlobStore::ZipBuilder*
-	TerarkZipTableBuilder::createZipBuilder() const {
-		DictZipBlobStore::Options dzopt;
-		dzopt.entropyAlgo = DictZipBlobStore::Options::EntropyAlgo(table_options_.entropyAlgo);
-		dzopt.checksumLevel = table_options_.checksumLevel;
-		dzopt.useSuffixArrayLocalMatch = table_options_.useSuffixArrayLocalMatch;
-		return DictZipBlobStore::createZipBuilder(dzopt);
 	}
 
 	TerarkZipTableBuilder::~TerarkZipTableBuilder() {}
@@ -193,7 +193,25 @@ namespace rocksdb {
 		}
 	}
 
+	Status TerarkZipTableBuilder::EmptyTableFinish() {
+		//INFO(table_build_options_.info_log
+		//	 , "TerarkZipTableBuilder::EmptyFinish():this=%p\n", this);
+		offset_ = 0;
+		TerarkBlockHandle emptyTableBH;
+		Status s = WriteBlock(Slice("Empty"), file_writer_.get(), &offset_, &emptyTableBH);
+		if (!s.ok()) {
+			return s;
+		}
+		return WriteMetaData({
+				{ &kTerarkEmptyTableKey                         , emptyTableBH  },
+			   });
+	}
 
+	/*
+	 *  First Pass: After all key-value Added, create 2 task: one for index build, one for sample build.
+	 *      Put them into task-pool, picked to start based on their Memory Rating.
+	 *      Exist once sample build task done.
+	 */
 	void TerarkZipTableBuilder::Add(const Slice& key, const Slice& value) {
 		if (table_options_.debugLevel == 4) {
 			fprintf(tmpDumpFile_.fp(), "DEBUG: 1st pass => %s / %s \n", key.data(), value.data());
@@ -227,12 +245,11 @@ namespace rocksdb {
 		tmpKeyFile_.writer << userKey;
 		// TBD(kg): since we have pre-merge & merge, there is no need
 		// to write such tmp value file !!!
-		tmpValueFile_.writer << fstringOf(value);
+		//tmpValueFile_.writer << fstringOf(value);
 		if (!value.empty() && randomGenerator_() < sampleUpperBound_) {
 			tmpSampleFile_.writer << fstringOf(value);
 			sampleLenSum_ += value.size();
 		}
-		
 		prevUserKey_.assign(userKey);
 
 		properties_.num_entries++;
@@ -240,29 +257,7 @@ namespace rocksdb {
 		properties_.raw_value_size += value.size();
 	}
 
-
-	Status TerarkZipTableBuilder::EmptyTableFinish() {
-		//INFO(table_build_options_.info_log
-		//	 , "TerarkZipTableBuilder::EmptyFinish():this=%p\n", this);
-		offset_ = 0;
-		TerarkBlockHandle emptyTableBH;
-		Status s = WriteBlock(Slice("Empty"), file_writer_.get(), &offset_, &emptyTableBH);
-		if (!s.ok()) {
-			return s;
-		}
-		return WriteMetaData({
-				{ &kTerarkEmptyTableKey                         , emptyTableBH  },
-			   });
-	}
-
-	/*  First Pass: After all key-value Added, create 2 task: one for index build, one for sample build.
-	 *      Put them into task-pool, picked to start based on their Memory Rating.
-	 *      Exist once sample build task done.
-	 *  Second Pass: Add all values again. Wait until index build task done & all values added.
-	 *      Then write chunk file.
-	 */
-
-	Status TerarkZipTableBuilder::Finish() {
+	Status TerarkZipTableBuilder::Finish1stPass() {
 		assert(!closed_);
 		closed_ = true;
 
@@ -279,7 +274,7 @@ namespace rocksdb {
 			}
 		}
 		tmpKeyFile_.complete_write();
-		tmpValueFile_.complete_write();
+		//tmpValueFile_.complete_write();
 		tmpSampleFile_.complete_write();
 		{
 			long long rawBytes = properties_.raw_key_size + properties_.raw_value_size;
@@ -364,11 +359,12 @@ namespace rocksdb {
 			sumWorkingMem += myWorkMem;
 		};
 		// indexing is also slow, run it in parallel
-		AutoDeleteFile tmpIndexFile{tmpValueFile_.path + ".index"};
+		//AutoDeleteFile tmpIndexFile{tmpValueFile_.path + ".index"};
+		tmpIndexFile_.fpath = tmpValueFile_.path + ".index";
 		std::future<void> asyncIndexResult = 
 			std::async(std::launch::async, [&]() {
 					size_t fileOffset = 0;
-					FileStream writer(tmpIndexFile, "wb+");
+					FileStream writer(tmpIndexFile_, "wb+");
 					NativeDataInput<InputBuffer> tempKeyFileReader(&tmpKeyFile_.fp);
 					for (size_t i = 0; i < histogram_.size(); ++i) {
 						auto& keyStat = histogram_[i].stat;
@@ -384,9 +380,10 @@ namespace rocksdb {
 							assert(sumWorkingMem >= myWorkMem);
 							sumWorkingMem -= myWorkMem;
 							zipCond.notify_all();
-						}BOOST_SCOPE_EXIT_END;
+						} BOOST_SCOPE_EXIT_END;
 
-						long long t1 = g_pf.now();
+						//long long t1 = g_pf.now();
+						tms_.push_back(g_pf.now());
 						histogram_[i].keyFileBegin = fileOffset;
 						factory->Build(tempKeyFileReader, table_options_, [&fileOffset, &writer](const void* data, size_t size) {
 								fileOffset += size;
@@ -397,7 +394,7 @@ namespace rocksdb {
 						long long tt = g_pf.now();
 						/*INFO(table_build_options_.info_log
 							 , "TerarkZipTableBuilder::Finish():this=%p:  index pass time =%7.2f's, %8.3f'MB/sec\n"
-							 , this, g_pf.sf(t1, tt), properties_.raw_key_size*1.0 / g_pf.uf(t1, tt)
+							 , this, g_pf.sf(tms[0], tt), properties_.raw_key_size*1.0 / g_pf.uf(tms[0], tt)
 							 );*/
 					}
 					tmpKeyFile_.close();
@@ -424,25 +421,19 @@ namespace rocksdb {
 			waitQueue.trim(std::remove_if(waitQueue.begin(), waitQueue.end(),
 										  [this](PendingTask x) {return this == x.tztb; }));
 		};
-		return ZipValueToFinish(tmpIndexFile, waitIndex);
+		return ZipValueToFinish(waitIndex);
 	}
 
 	Status
 	TerarkZipTableBuilder::
-	ZipValueToFinish(fstring tmpIndexFile, std::function<void()> waitIndex) {
+	ZipValueToFinish(std::function<void()> waitIndex) {
 		DebugPrepare();
 		assert(histogram_.size() == 1);
-		AutoDeleteFile tmpStoreFile{tmpValueFile_.path + ".zbs"};
-		NativeDataInput<InputBuffer> input(&tmpValueFile_.fp);
+		tmpStoreFile_.fpath = tmpValueFile_.path + ".zbs";
 		auto& kvs = histogram_.front();
-		terark::BlobStore::Dictionary dict;
-		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder;
-		std::unique_ptr<terark::BlobStore> store;
-		DictZipBlobStore::ZipStat dzstat;
-		long long t3, t4;
+		long long t3;
 		{
 			t3 = g_pf.now();
-			zbuilder = UniquePtrOf(this->createZipBuilder());
 			{
 				valvec<byte_t> sample;
 				NativeDataInput<InputBuffer> input(&tmpSampleFile_.fp);
@@ -450,7 +441,7 @@ namespace rocksdb {
 				if (sampleLenSum_ < INT32_MAX) {
 					for (size_t len = 0; len < sampleLenSum_; ) {
 						input >> sample;
-						zbuilder->addSample(sample);
+						zbuilder_->addSample(sample);
 						len += sample.size();
 					}
 					realsampleLenSum = sampleLenSum_;
@@ -459,7 +450,7 @@ namespace rocksdb {
 					for (size_t len = 0; len < sampleLenSum_; ) {
 						input >> sample;
 						if (randomGenerator_() < upperBound2) {
-							zbuilder->addSample(sample);
+							zbuilder_->addSample(sample);
 							realsampleLenSum += sample.size();
 						}
 						len += sample.size();
@@ -467,32 +458,37 @@ namespace rocksdb {
 				}
 				tmpSampleFile_.close();
 				if (0 == realsampleLenSum) { // prevent from empty
-					zbuilder->addSample("Hello World!");
+					zbuilder_->addSample("Hello World!");
 				}
-				zbuilder->finishSample();
-				zbuilder->prepare(kvs.stat.numKeys, tmpStoreFile);
+				zbuilder_->finishSample();
+				zbuilder_->prepare(kvs.stat.numKeys, tmpStoreFile_);
 			}
-
-			{
-				valvec<byte_t> value;
-				for (size_t recId = 0; recId < kvs.stat.numKeys; recId++) {
-					value.erase_all();
-					input.load_add(value);
-					zbuilder->addRecord(value);
-				}
-			}
-
-			DictZipBlobStore* zstore;
-			store.reset(zstore = zbuilder->finish(DictZipBlobStore::ZipBuilder::FinishFreeDict));
-			dzstat = zbuilder->getZipStat();
-
-			t4 = g_pf.now();
-			dict = zbuilder->getDictionary();
 		}
 		DebugCleanup();
 		// wait for indexing complete, if indexing is slower than value compressing
 		waitIndex();
-		return WriteSSTFile(t3, t4, tmpIndexFile, store.get(), dict, dzstat);
+		return Status::OK();
+	}
+
+
+
+
+	/*
+	 *  Second Pass: Add all values again. Wait until index build task done & all values added.
+	 *      Then write chunk file.
+	 */
+	Status TerarkZipTableBuilder::Finish2ndPass() {
+		terark::BlobStore::Dictionary dict;
+		std::unique_ptr<terark::BlobStore> store;
+		DictZipBlobStore::ZipStat dzstat;
+		// TBD(kg): t3 is not valid currently
+		long long t3 = 0, t4;
+		DictZipBlobStore* zstore;
+		store.reset(zstore = zbuilder_->finish(DictZipBlobStore::ZipBuilder::FinishFreeDict));
+		dzstat = zbuilder_->getZipStat();
+		t4 = g_pf.now();
+		dict = zbuilder_->getDictionary();
+		return WriteSSTFile(t3, t4, store.get(), dict, dzstat);
 	}
 
 	Status TerarkZipTableBuilder::WriteStore(TerarkIndex* index, terark::BlobStore* store,
@@ -526,17 +522,16 @@ namespace rocksdb {
 	}
 
 	Status TerarkZipTableBuilder::WriteSSTFile(long long t3, long long t4,
-		fstring tmpIndexFile, terark::BlobStore* zstore,
+		terark::BlobStore* zstore,
 		terark::BlobStore::Dictionary dict,
 		const DictZipBlobStore::ZipStat& dzstat) {
 		assert(histogram_.size() == 1);
 		auto& kvs = histogram_.front();
 		auto& keyStat = kvs.stat;
-		auto& bzvType = kvs.type;
 		const size_t realsampleLenSum = dict.memory.size();
 		long long rawBytes = properties_.raw_key_size + properties_.raw_value_size;
 		long long t5 = g_pf.now();
-		std::unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile));
+		std::unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile_));
 		printf("index->keys: %d, keyStat->keys: %d\n", index->NumKeys(), keyStat.numKeys);
 		//sleep(1000);
 		assert(index->NumKeys() == keyStat.numKeys);
@@ -544,7 +539,7 @@ namespace rocksdb {
 		TerarkBlockHandle dataBlock, dictBlock, indexBlock, zvTypeBlock(0, 0);
 		TerarkBlockHandle commonPrefixBlock;
 		{
-			size_t real_size = index->Memory().size() + zstore->mem_size() + bzvType.mem_size();
+			size_t real_size = index->Memory().size() + zstore->mem_size();
 			size_t block_size, last_allocated_block;
 			file_writer_->writable_file()->GetPreallocationStatus(&block_size, &last_allocated_block);
 			/*INFO(table_build_options_.info_log
@@ -674,6 +669,8 @@ namespace rocksdb {
 			 );*/
 
 		SetState(kCreateDone);
+		tmpIndexFile_.Delete();
+		tmpStoreFile_.Delete();
 		file_writer_.reset();
 		return s;
 	}
@@ -712,13 +709,18 @@ namespace rocksdb {
 		return s;
 	}
 
+
+
+
+
+
 	void TerarkZipTableBuilder::Abandon() {
 		closed_ = true;
 		tmpKeyFile_.complete_write();
 		tmpValueFile_.complete_write();
 		tmpSampleFile_.complete_write();
-		tmpZipDictFile_.Delete();
-		tmpZipValueFile_.Delete();
+		//tmpZipDictFile_.Delete();
+		//tmpZipValueFile_.Delete();
 	}
 
 
@@ -728,7 +730,6 @@ namespace rocksdb {
 		if (tmpDumpFile_.isOpen()) {
 			tmpDumpFile_.close();
 		}
-		tmpValueFile_.close();
 	}
 
 }

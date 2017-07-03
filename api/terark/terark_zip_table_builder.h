@@ -13,6 +13,7 @@
 
 // std headers
 #include <random>
+#include <vector>
 // wiredtiger headers
 #include "wiredtiger.h"
 // rocksdb headers
@@ -120,9 +121,18 @@ namespace rocksdb {
 	 * building phase operations
 	 */
 	public:
-	void Add(const Slice& key, const Slice& value);
+	void Add(const Slice& key, const Slice& value); // first pass
+	Status Finish1stPass();
+
+	// second pass
+	void Add(const Slice& value) {
+		// TBD(kg): need add State check, not sure if lock should be employed
+		valvec<byte_t> record(value.data(), value.size());
+		zbuilder_->addRecord(record);
+	}
+	Status Finish2ndPass();
+
 	Status status() const { return status_; }
-	Status Finish();
 	void Abandon();
 	uint64_t NumEntries() const { return properties_.num_entries; }
 	uint64_t FileSize() const;
@@ -133,7 +143,6 @@ namespace rocksdb {
 		valvec<char> prefix;
 		Uint32Histogram key;
 		Uint32Histogram value;
-		bitfield_array<2> type;
 		size_t keyFileBegin = 0;
 		size_t keyFileEnd = 0;
 		size_t valueFileBegin = 0;
@@ -141,17 +150,16 @@ namespace rocksdb {
 	};
 	Status EmptyTableFinish();
 
-	Status ZipValueToFinish(fstring tmpIndexFile, std::function<void()> waitIndex);
+	Status ZipValueToFinish(std::function<void()> waitIndex);
 	Status WriteStore(TerarkIndex* index, BlobStore* store,
 					  KeyValueStatus& kvs, std::function<void(const void*, size_t)> write,
 					  TerarkBlockHandle& dataBlock,
 					  long long& t5, long long& t6, long long& t7);
 	Status WriteSSTFile(long long t3, long long t4,
-						fstring tmpIndexFile, terark::BlobStore* zstore,
+						terark::BlobStore* zstore,
 						terark::BlobStore::Dictionary dict,
 						const DictZipBlobStore::ZipStat& dzstat);
 	Status WriteMetaData(std::initializer_list<std::pair<const std::string*, TerarkBlockHandle> > blocks);
-	DictZipBlobStore::ZipBuilder* createZipBuilder() const;
 
 	// test related
 	void DebugPrepare();
@@ -168,15 +176,19 @@ namespace rocksdb {
 	const TerarkZipTableOptions& table_options_;
 	const TerarkTableBuilderOptions& table_build_options_; // replace ImmutableCFOptions with TerarkTBOptions
 
+	std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 	valvec<KeyValueStatus> histogram_; // per keyPrefix one elem
 	valvec<byte_t> prevUserKey_;
+	std::vector<long long> tms_;
 	//valvec<byte_b> value_;
 	TempFileDeleteOnClose tmpKeyFile_;
 	TempFileDeleteOnClose tmpValueFile_;
 	TempFileDeleteOnClose tmpSampleFile_;
 	FileStream tmpDumpFile_;
-	AutoDeleteFile tmpZipDictFile_;
-	AutoDeleteFile tmpZipValueFile_;
+	AutoDeleteFile tmpIndexFile_;
+	AutoDeleteFile tmpStoreFile_;
+	//AutoDeleteFile tmpZipDictFile_;
+	//AutoDeleteFile tmpZipValueFile_;
 	std::mt19937_64 randomGenerator_;
 	uint64_t sampleUpperBound_;
 	size_t sampleLenSum_ = 0;
