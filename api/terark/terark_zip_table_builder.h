@@ -139,7 +139,6 @@ namespace rocksdb {
 		size_t valueFileBegin = 0;
 		size_t valueFileEnd = 0;
 	};
-	void AddPrevUserKey(bool finish = false);
 	Status EmptyTableFinish();
 
 	Status ZipValueToFinish(fstring tmpIndexFile, std::function<void()> waitIndex);

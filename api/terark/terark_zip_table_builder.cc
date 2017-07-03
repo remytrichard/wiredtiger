@@ -115,7 +115,7 @@ namespace rocksdb {
 		env_options.use_mmap_reads = env_options.use_mmap_writes = true;
 		uint64_t file_size = 0;
 		s = options.env->GetFileSize(fname, &file_size);
-		if (s.ok() && file_size > 100) {
+		if (s.ok() && file_size > 100) { // CreateDone chunk
 			std::unique_ptr<rocksdb::RandomAccessFile> file;
 			rocksdb::Status s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
 			assert(s.ok());
@@ -132,6 +132,7 @@ namespace rocksdb {
 			}
 		}
 		
+		// Empty chunk
 		std::unique_ptr<rocksdb::WritableFile> file;
 		s = options.env->NewWritableFile(fname, &file, env_options);
 		assert(s.ok());
@@ -146,6 +147,14 @@ namespace rocksdb {
 		if (table_options_.debugLevel == 4) {
 			tmpDumpFile_.open(tmpValueFile_.path + ".dump", "wb+");
 		}
+		// init stats
+		histogram_.emplace_back();
+		auto& currentHistogram = histogram_.back();
+		currentHistogram.prefix.emplace_back();
+		currentHistogram.stat.minKeyLen = std::numeric_limits<int>::max();
+		currentHistogram.stat.maxKeyLen = 0;
+		currentHistogram.stat.sumKeyLen = 0;
+		currentHistogram.stat.numKeys = 0;
 	}
 
 	DictZipBlobStore::ZipBuilder*
@@ -187,50 +196,44 @@ namespace rocksdb {
 
 	void TerarkZipTableBuilder::Add(const Slice& key, const Slice& value) {
 		if (table_options_.debugLevel == 4) {
-			//rocksdb::ParsedInternalKey ikey;
-			//rocksdb::ParseInternalKey(key, &ikey);
-			//fprintf(tmpDumpFile_.fp(), "DEBUG: 1st pass => %s / %s \n", ikey.DebugString(true).c_str(), value.ToString(true).c_str());
 			fprintf(tmpDumpFile_.fp(), "DEBUG: 1st pass => %s / %s \n", key.data(), value.data());
 		}
 		DEBUG_PRINT_1ST_PASS_KEY(key);
 		uint64_t offset = uint64_t((properties_.raw_key_size + properties_.raw_value_size)
 								   * table_options_.estimateCompressionRatio);
 		fstring userKey(key.data(), key.size());
-		if (terark_likely(!histogram_.empty())) {
+		{	
+			// update stat
+			auto& currentHistogram = histogram_.back();
 			auto& keyStat = histogram_.back().stat;
-			assert(prevUserKey_ < userKey);
-			keyStat.commonPrefixLen = fstring(prevUserKey_.data(), keyStat.commonPrefixLen)
-				.commonPrefixLen(userKey);
+			if (terark_likely(keyStat.numKeys > 0)) {
+				assert(prevUserKey_ < userKey);
+				keyStat.commonPrefixLen = fstring(prevUserKey_.data(), keyStat.commonPrefixLen)
+					.commonPrefixLen(userKey);
+			} else {
+				t0 = g_pf.now();
+				keyStat.commonPrefixLen = userKey.size();
+				keyStat.minKey.assign(userKey);
+			}
 			keyStat.minKeyLen = std::min(userKey.size(), keyStat.minKeyLen);
 			keyStat.maxKeyLen = std::max(userKey.size(), keyStat.maxKeyLen);
-			AddPrevUserKey();
-			prevUserKey_.assign(userKey);
-		} else {
-			if (terark_unlikely(histogram_.empty())) {
-				t0 = g_pf.now();
-			} else {
-				AddPrevUserKey(true);
-			}
-			histogram_.emplace_back();
-			auto& currentHistogram = histogram_.back();
-			//currentHistogram.prefix.assign(userKey.data(), key_prefixLen_);
-			currentHistogram.prefix.emplace_back();
-			currentHistogram.stat.commonPrefixLen = userKey.size();
-			currentHistogram.stat.minKeyLen = userKey.size();
-			currentHistogram.stat.maxKeyLen = userKey.size();
-			currentHistogram.stat.sumKeyLen = 0;
-			currentHistogram.stat.numKeys = 0;
-			currentHistogram.stat.minKey.assign(userKey);
-			prevUserKey_.assign(userKey);
+			keyStat.sumKeyLen += userKey.size();
+			keyStat.numKeys++;
+			keyStat.maxKey.assign(userKey);
+			currentHistogram.key[userKey.size()]++;
+			currentHistogram.value[value.size()]++;
 		}
-		//value_.assign(value.data(), value.size());
-		valueBuf_.emplace_back(value.data(), value.size());
+
+		tmpKeyFile_.writer << userKey;
+		// TBD(kg): since we have pre-merge & merge, there is no need
+		// to write such tmp value file !!!
+		tmpValueFile_.writer << fstringOf(value);
 		if (!value.empty() && randomGenerator_() < sampleUpperBound_) {
 			tmpSampleFile_.writer << fstringOf(value);
 			sampleLenSum_ += value.size();
 		}
-		//tmpValueFile_.writer.ensureWrite(valueBuf_.back().first, 8);
-		tmpValueFile_.writer << fstringOf(value);
+		
+		prevUserKey_.assign(userKey);
 
 		properties_.num_entries++;
 		properties_.raw_key_size += key.size();
@@ -252,16 +255,21 @@ namespace rocksdb {
 			   });
 	}
 
+	/*  First Pass: After all key-value Added, create 2 task: one for index build, one for sample build.
+	 *      Put them into task-pool, picked to start based on their Memory Rating.
+	 *      Exist once sample build task done.
+	 *  Second Pass: Add all values again. Wait until index build task done & all values added.
+	 *      Then write chunk file.
+	 */
 
 	Status TerarkZipTableBuilder::Finish() {
 		assert(!closed_);
 		closed_ = true;
 
-		if (histogram_.empty()) {
+		if (histogram_.back().stat.numKeys == 0) {
 			return EmptyTableFinish();
 		}
 
-		AddPrevUserKey(true);
 		for (auto& item : histogram_) {
 			item.key.finish();
 			item.value.finish();
@@ -321,6 +329,7 @@ namespace rocksdb {
 					size_t minRateIdx = size_t(-1);
 					double minRateVal = DBL_MAX;
 					auto wq = waitQueue.data();
+					// pick smallest rate first
 					for (size_t i = 0, n = waitQueue.size(); i < n; ++i) {
 						double rate = myWorkMem / (0.1 + now - wq[i].startTime);
 						if (rate < minRateVal) {
@@ -393,16 +402,16 @@ namespace rocksdb {
 					}
 					tmpKeyFile_.close();
 				});
+		// dict memory usage
 		size_t myDictMem = std::min<size_t>(sampleLenSum_, INT32_MAX) * 6;
 		waitForMemory(myDictMem, "dictZip");
-
 		BOOST_SCOPE_EXIT(&myDictMem) {
 			std::unique_lock<std::mutex> zipLock(zipMutex);
 			assert(sumWorkingMem >= myDictMem);
 			// if success, myDictMem is 0, else sumWorkingMem should be restored
 			sumWorkingMem -= myDictMem;
 			zipCond.notify_all();
-		}BOOST_SCOPE_EXIT_END;
+		} BOOST_SCOPE_EXIT_END;
 
 		auto waitIndex = [&]() {
 			{
@@ -712,27 +721,8 @@ namespace rocksdb {
 		tmpZipValueFile_.Delete();
 	}
 
-	void TerarkZipTableBuilder::AddPrevUserKey(bool finish) {
-		// update histogram
-		size_t valueLen = valueBuf_.strpool.size();
-		histogram_.back().value[valueLen]++;
-		valueBuf_.erase_all();
 
-		auto& currentHistogram = histogram_.back();
-		currentHistogram.key[prevUserKey_.size()]++;
-		tmpKeyFile_.writer << prevUserKey_;
-		currentHistogram.stat.sumKeyLen += prevUserKey_.size();
-		currentHistogram.stat.numKeys++;
-		if (finish) {
-			currentHistogram.stat.maxKey.assign(prevUserKey_);
-		}
-		//printf("AddPrevUserKey: %*s\n", prevUserKey_.size(), prevUserKey_.data());
-	}
-
-
-
-	void TerarkZipTableBuilder::DebugPrepare() {
-	}
+	void TerarkZipTableBuilder::DebugPrepare() {}
 
 	void TerarkZipTableBuilder::DebugCleanup() {
 		if (tmpDumpFile_.isOpen()) {

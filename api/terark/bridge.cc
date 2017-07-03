@@ -47,7 +47,31 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	(void)config;
 	(void)new_cursor;
 
-	// 
+	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
+	// Allocate and initialize a WiredTiger cursor.
+	WT_CURSOR *cursor;
+	if ((cursor = (WT_CURSOR*)calloc(1, sizeof(*cursor))) == NULL)
+		return (errno);
+
+	cursor->next = trk_cursor_next;
+	cursor->prev = trk_cursor_prev;
+	cursor->reset = trk_cursor_reset;
+	cursor->search = trk_cursor_search;
+	cursor->search_near = trk_cursor_search_near;
+	cursor->insert = trk_cursor_insert;
+	cursor->update = NULL;
+	cursor->remove = NULL;
+	cursor->close = trk_cursor_close;
+
+	/*
+	 * Configure local cursor information.
+	 */
+
+	/* Return combined cursor to WiredTiger. */
+	*new_cursor = (WT_CURSOR *)cursor;
+
+	rocksdb::Iterator* iter = manager->NewIterator(uri);
+	manager->AddIterator(cursor, iter);
 
 	return (0);
 }
@@ -101,7 +125,7 @@ int trk_cursor_search(WT_CURSOR *cursor) {
 	return (0);
 }
 
-int tr_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
+int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	(void)cursor;
 	(void)exactp;
 
@@ -113,7 +137,10 @@ int trk_cursor_insert(WT_CURSOR *cursor) {
 	return (0);
 }
 
-
+int trk_cursor_close(WT_CURSOR *cursor) {
+	(void)cursor;
+	return (0);
+}
 
 static const char *home;
 int test_main() {

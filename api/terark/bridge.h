@@ -69,7 +69,7 @@ extern "C" {
 	 * found, < 0 if a smaller key is returned, > 0 if a larger key is
 	 * returned
 	 */
-	int tr_cursor_search_near(WT_CURSOR *cursor, int *exactp);
+	int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp);
 
 	/*!
 	 * Insert a record and optionally update an existing record.
@@ -120,6 +120,16 @@ extern "C" {
 	 * ---------------------------------------------------------------------
 	 */
 	int trk_cursor_insert(WT_CURSOR *cursor);
+
+	/*!
+	 * Close the cursor.
+	 *
+	 * This releases the resources associated with the cursor handle.
+	 * Cursors are closed implicitly by ending the enclosing connection or
+	 * closing the session in which they were opened.
+	 */
+	int trk_cursor_close(WT_CURSOR *cursor);
+
 
 
 #if defined(__cplusplus)
