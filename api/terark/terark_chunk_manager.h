@@ -12,6 +12,8 @@
 #include <rocksdb/slice.h>
 #include <rocksdb/env.h>
 #include <rocksdb/table.h>
+// wiredtiger headers
+#include "wiredtiger.h"
 // terark headers
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>
@@ -58,6 +60,15 @@ namespace rocksdb {
 		}
 		TerarkChunk* GetChunk(const std::string& fname) {
 			return chunk_dict_[fname];
+		}
+		TerarkChunk* GetChunk(WT_CURSOR* cursor) {
+			Iterator* it = cursor_dict_[cursor];
+			if (it != nullptr) {
+				TerarkZipTableBuilder::TerarChunkIterator* iter =
+					dynamic_cast<TerarkZipTableBuilder::TerarChunkIterator*>(it);
+				return iter->chunk_;
+			}
+			return nullptr;
 		}
 		void AddIterator(WT_CURSOR* cursor, Iterator* iter) {
 			assert(cursor != nullptr);

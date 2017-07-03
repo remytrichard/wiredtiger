@@ -7,7 +7,7 @@
 #include "wiredtiger.h"
 #include "wiredtiger_ext.h"
 
-#include "file_reader_writer.h"
+//#include "file_reader_writer.h"
 #include "rocksdb/env.h"
 
 #include "terark_zip_internal.h"
@@ -62,10 +62,12 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	cursor->update = NULL;
 	cursor->remove = NULL;
 	cursor->close = trk_cursor_close;
-
+	
 	/*
 	 * Configure local cursor information.
 	 */
+	cursor->key_format = "S";
+	cursor->value_format = "S";
 
 	/* Return combined cursor to WiredTiger. */
 	*new_cursor = (WT_CURSOR *)cursor;
@@ -97,12 +99,37 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *src_cursor, WT_CURSOR *dest) 
 		ret = src_cursor->get_value(src_cursor, &value);
 		chunk->Add(key, value);
 	}
+	chunk->Finish1stPass();
 	chunk->SetState(rocksdb::TerarkChunk::kSecondPass);
 
 	return (0);
 }
 
+int trk_cursor_insert(WT_CURSOR *cursor) {
+	(void)cursor;
 
+	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
+	rocksdb::TerarkChunk* chunk = manager->GetChunk(cursor);
+	if (chunk->GetState() != rocksdb::TerarkChunk::kSecondPass) {
+		printf("trk_cursor_insert: Invalid State\n");
+		return -1;
+	}
+	const char *value;
+	int ret = cursor->get_value(cursor, &value);
+	assert(ret == 0);
+	chunk->Add(value);
+
+	return (0);
+}
+
+int trk_cursor_close(WT_CURSOR *cursor) {
+	(void)cursor;
+	
+	// check state
+	//chunk->Finish1stPass();
+	
+	return (0);
+}
 
 
 int trk_cursor_next(WT_CURSOR *cursor) {
@@ -132,18 +159,9 @@ int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	return (0);
 }
 
-int trk_cursor_insert(WT_CURSOR *cursor) {
-	(void)cursor;
-	return (0);
-}
-
-int trk_cursor_close(WT_CURSOR *cursor) {
-	(void)cursor;
-	return (0);
-}
 
 static const char *home;
-int test_main() {
+int main() {
 	WT_CONNECTION *conn;
 	WT_SESSION *session;
 	int ret;
@@ -179,7 +197,7 @@ int test_main() {
 		trk_pre_merge
 	};
 	
-	ret = conn->add_data_source(conn, "trk_sst:", &trk_dsrc, NULL);
+	ret = conn->add_data_source(conn, "terark", &trk_dsrc, NULL);
 	// TBD(kg): make sure start_generation is set as 1
 	// just set it in config_def right now.
 	//ret = conn->configure_method(conn,
@@ -189,7 +207,9 @@ int test_main() {
 
 	{
 		WT_CURSOR *c;
-		session->create(session, "table:bucket", "type=lsm,key_format=S,value_format=S");
+		//session->create(session, "table:bucket", "type=lsm,key_format=S,value_format=S,merge_custom=(prefix=terark,start_generation=2)");
+		session->create(session, "table:bucket", 
+						"type=lsm,lsm=(merge_custom=(prefix=terark,start_generation=2)),key_format=S,value_format=S");
 		session->open_cursor(session, "table:bucket", NULL, NULL, &c);
 		for (int i = 0; i < 300000; i++) {
 			char key[20] = { 0 };

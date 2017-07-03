@@ -95,48 +95,6 @@ int main() {
 		}
 		std::cout << "\n\nTest Case Passed!\n\n";
 	}
-	/*{
-		rocksdb::Options options;
-		const rocksdb::Comparator* comparator = rocksdb::BytewiseComparator();
-		rocksdb::TerarkTableReaderOptions reader_options(*comparator);
-
-		std::string fname(sst_path);
-		std::unique_ptr<rocksdb::RandomAccessFile> file;
-		rocksdb::Status s = options.env->NewRandomAccessFile(fname, &file, env_options);
-		assert(s.ok());
-		std::unique_ptr<rocksdb::RandomAccessFileReader> 
-			file_reader(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
-		
-		uint64_t file_size = 0;
-		s = options.env->GetFileSize(fname, &file_size);
-		assert(s.ok());
-
-		std::unique_ptr<rocksdb::TerarkTableReader> table(nullptr);
-		s = manager->NewTableReader(reader_options, std::move(file_reader), 
-									file_size, &table);
-		assert(s.ok());
-
-		rocksdb::TerarkZipTableReader* reader = dynamic_cast<rocksdb::TerarkZipTableReader*>(table.get());
-		rocksdb::Iterator* iter = reader->NewIterator();
-		for (auto& di : dict) {
-			iter->Seek(di.first);
-			if (!iter->Valid()) {
-				printf("Seek failed on key %s\n", di.first.c_str());
-				return 1;
-			}
-			std::string key(iter->key().data(), iter->key().size());
-			std::string val(iter->value().data(), iter->value().size());
-			if (di.first != key) {
-				printf("key expected:%s actual:%s\n", di.first.c_str(), key.c_str());
-				return 1;
-			}
-			if (di.second != val) {
-				printf("val expected %s actual: %s\n", di.second.c_str(), val.c_str());
-				return 1;
-			}
-		}
-		std::cout << "\n\nTest Case Passed!\n\n";
-		}*/
 
 	return 0;
 }

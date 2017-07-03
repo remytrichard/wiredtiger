@@ -103,8 +103,12 @@ namespace rocksdb {
 		Status status() const { return status_; }
 		bool UnzipIterRecord(bool);
 
-	protected:
+		
+	public:
+		// TBD(kg): ...
 		TerarkZipTableBuilder* chunk_;
+
+	protected:
 		std::unique_ptr<TerarkIndex::Iterator> iter_;
 		valvec<byte_t>          keyBuf_;
 		valvec<byte_t>          valueBuf_;
