@@ -235,7 +235,8 @@ __wt_lsm_tree_set_chunk_size(
 	const char *filename;
 
 	filename = chunk->uri;
-	if (!WT_PREFIX_SKIP(filename, "file:"))
+	if (!WT_PREFIX_SKIP(filename, "file:") &&
+		!WT_PREFIX_MATCH(filename, "terark:"))
 		WT_RET_MSG(session, EINVAL,
 		    "Expected a 'file:' URI: %s", chunk->uri);
 	WT_RET(__wt_fs_size(session, filename, &size));

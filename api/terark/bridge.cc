@@ -16,8 +16,8 @@
 #include "terark_zip_table_builder.h"
 
 
+static const char *home;
 static WT_CONNECTION *conn;
-
 // TBD(kg): parse config as well
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
@@ -33,9 +33,9 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 
 	std::unique_ptr<rocksdb::WritableFile> file;
 	// TBD(kg): need more settings on env
-	std::string fname(uri);
-	rocksdb::TerarkChunk* chunk = manager->NewTableBuilder(builder_options, fname);
-	manager->AddChunk(fname, chunk);
+	std::string path(std::string(home) + "/" + uri);
+	rocksdb::TerarkChunk* chunk = manager->NewTableBuilder(builder_options, path);
+	manager->AddChunk(uri, chunk);
 
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
 	const char* value = "key_format=S,value_format=S,app_metadata=";
@@ -121,20 +121,49 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 }
 
 
+/*!
+ * TBD(kg): key/value related ops use WT_ITEM currently
+ */
 int trk_get_key(WT_CURSOR *cursor, ...) {
-	(void)cursor;
+	va_list ap;
+	va_start(ap, cursor);
+	WT_ITEM* key = va_arg(ap, WT_ITEM *);
+	key->data = cursor->key.data;
+	key->size = cursor->key.size;
+	va_end(ap);
+
+	return (0);
 }
 
 int trk_get_value(WT_CURSOR *cursor, ...) {
-	(void)cursor;
+	va_list ap;
+	va_start(ap, cursor);
+	WT_ITEM* value = va_arg(ap, WT_ITEM *);
+	value->data = cursor->value.data;
+	value->size = cursor->value.size;
+	va_end(ap);
+
+	return (0);
 }
 
 void trk_set_key(WT_CURSOR *cursor, ...) {
-	(void)cursor;
+	WT_ITEM* buf = &cursor->key;
+	va_list ap;
+	va_start(ap, cursor);
+	WT_ITEM* item = va_arg(ap, WT_ITEM *);
+	buf->size = item->size;
+	buf->data = item->data;
+	va_end(ap);
 }
 
 void trk_set_value(WT_CURSOR *cursor, ...) {
-	(void)cursor;
+	WT_ITEM* buf = &cursor->key;
+	va_list ap;
+	va_start(ap, cursor);
+	WT_ITEM* item = va_arg(ap, WT_ITEM *);
+	buf->size = item->size;
+	buf->data = item->data;
+	va_end(ap);
 }
 
 int trk_cursor_insert(WT_CURSOR *cursor) {
@@ -161,13 +190,14 @@ int trk_cursor_close(WT_CURSOR *cursor) {
 	// check state
 	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
 	rocksdb::TerarkChunk* chunk = manager->GetChunk(cursor);
+	printf("trk_cursor_close, chunk state: %d\n", chunk->GetState());
 	if (chunk->GetState() != rocksdb::TerarkChunk::kSecondPass) {
-		printf("trk_cursor_close: Invalid State\n");
-		return -1;
+		return 0;
 	}
 	
 	chunk->Finish2ndPass();
-	
+	chunk->SetState(rocksdb::TerarkChunk::kCreateDone);
+
 	return (0);
 }
 
@@ -208,7 +238,6 @@ int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 }
 
 
-static const char *home;
 int main() {
 	WT_SESSION *session;
 	int ret;
@@ -264,6 +293,11 @@ int main() {
 		session->create(session, "table:bucket", 
 						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2)),"
 						"key_format=S,value_format=S");
+
+		/*session->create(session, "table:bucket", 
+						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=file,suffix=.terark,start_generation=2)),"
+						"key_format=S,value_format=S");
+		*/
 		session->open_cursor(session, "table:bucket", NULL, NULL, &c);
 		for (int i = 0; i < 10000000; i++) {
 			char key[20] = { 0 };
