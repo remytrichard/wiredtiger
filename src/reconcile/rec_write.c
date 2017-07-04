@@ -525,7 +525,6 @@ __rec_las_checkpoint_test(WT_SESSION_IMPL *session, WT_RECONCILE *r)
 	conn = S2C(session);
 	btree = S2BT(session);
 
-	printf("__rec_las_checkpoint_test\n");
 	/*
 	 * Running checkpoints can collide with the lookaside table because
 	 * reconciliation using the lookaside table writes the key's last
@@ -3092,7 +3091,6 @@ __rec_split_finish(WT_SESSION_IMPL *session, WT_RECONCILE *r)
 
 	btree = S2BT(session);
 
-	printf("\n---- rec_split_finish, entries cnt %d\n", r->entries);
 	/*
 	 * We're done reconciling, write the final page. Call raw compression
 	 * until/unless there's not enough data to compress.
@@ -5082,7 +5080,6 @@ __rec_row_leaf(WT_SESSION_IMPL *session,
 	const void *p;
 	void *copy;
 
-	printf("---- enter _rec_row_leaf, row cnt: %d\n", page->pg_row_entries);
 	btree = S2BT(session);
 	slvg_skip = salvage == NULL ? 0 : salvage->skip;
 

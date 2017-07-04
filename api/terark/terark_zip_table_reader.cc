@@ -136,7 +136,7 @@ namespace rocksdb {
 			}
 			return new TerarChunkIterator(this);
 		} else {
-			return new TerarChunkIterator();
+			return new TerarChunkIterator(this, true);
 		}
 	}
 

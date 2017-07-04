@@ -85,13 +85,13 @@ namespace rocksdb {
 	
 		class TerarChunkIterator : public Iterator, boost::noncopyable {
 	public:
-		TerarChunkIterator(TerarkZipTableBuilder* chunk) 
+	TerarChunkIterator(TerarkZipTableBuilder* chunk, bool isTest = false)
 			: chunk_(chunk) {
-			iter_.reset(chunk_->index_->NewIterator()); 
-			iter_->SetInvalid(); 
+			if (!isTest) {
+				iter_.reset(chunk_->index_->NewIterator()); 
+				iter_->SetInvalid(); 
+			}
 		}
-		// will be removed
-		TerarChunkIterator() {}
 		~TerarChunkIterator() {}
 		bool Valid() const { return iter_->Valid(); }
 		void SeekToFirst();
