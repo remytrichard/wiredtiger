@@ -90,6 +90,8 @@ namespace rocksdb {
 			iter_.reset(chunk_->index_->NewIterator()); 
 			iter_->SetInvalid(); 
 		}
+		// will be removed
+		TerarChunkIterator() {}
 		~TerarChunkIterator() {}
 		bool Valid() const { return iter_->Valid(); }
 		void SeekToFirst();
@@ -102,7 +104,6 @@ namespace rocksdb {
 		Slice value() const;
 		Status status() const { return status_; }
 		bool UnzipIterRecord(bool);
-
 		
 	public:
 		// TBD(kg): ...

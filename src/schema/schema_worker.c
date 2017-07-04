@@ -37,7 +37,6 @@ __wt_schema_worker(WT_SESSION_IMPL *session,
 	if (name_func != NULL)
 		WT_ERR(name_func(session, uri, &skip));
 
-	printf("enter schema_worker: %s\n", uri);
 	/* If the callback said to skip this object, we're done. */
 	if (skip)
 		return (0);

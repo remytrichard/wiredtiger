@@ -16,6 +16,8 @@
 #include "terark_zip_table_builder.h"
 
 
+static WT_CONNECTION *conn;
+
 // TBD(kg): parse config as well
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
@@ -34,6 +36,11 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	std::string fname(uri);
 	rocksdb::TerarkChunk* chunk = manager->NewTableBuilder(builder_options, fname);
 	manager->AddChunk(fname, chunk);
+
+	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
+	const char* value = "key_format=S,value_format=S,app_metadata=";
+	int ret = wt_api->metadata_insert(wt_api, session, uri, value);
+	assert(ret == 0);
 
 	return (0);
 }
@@ -162,7 +169,6 @@ int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 
 static const char *home;
 int main() {
-	WT_CONNECTION *conn;
 	WT_SESSION *session;
 	int ret;
 
@@ -198,6 +204,10 @@ int main() {
 	};
 	
 	ret = conn->add_data_source(conn, "terark", &trk_dsrc, NULL);
+
+	ret = conn->configure_method(conn,
+								 "WT_SESSION.open_cursor", NULL, "collator=", "string", NULL);
+
 	// TBD(kg): make sure start_generation is set as 1
 	// just set it in config_def right now.
 	//ret = conn->configure_method(conn,
@@ -209,9 +219,10 @@ int main() {
 		WT_CURSOR *c;
 		//session->create(session, "table:bucket", "type=lsm,key_format=S,value_format=S,merge_custom=(prefix=terark,start_generation=2)");
 		session->create(session, "table:bucket", 
-						"type=lsm,lsm=(merge_custom=(prefix=terark,start_generation=2)),key_format=S,value_format=S");
+						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2)),"
+						"key_format=S,value_format=S");
 		session->open_cursor(session, "table:bucket", NULL, NULL, &c);
-		for (int i = 0; i < 300000; i++) {
+		for (int i = 0; i < 10000000; i++) {
 			char key[20] = { 0 };
 			char value[40] = { 0 };
 			snprintf(key, 20, "key%05d", i);

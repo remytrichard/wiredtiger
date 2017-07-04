@@ -134,16 +134,10 @@ namespace rocksdb {
 				printf("Fail to open chunk: %s\n", s.getState());
 				return nullptr;
 			}
-		} else if (chunk_state_ == kSecondPass) {
-			// do nothing
+			return new TerarChunkIterator(this);
 		} else {
-			// invalid state
-			printf("Chunk::NewIterator is invalid, state %d\n", chunk_state_);
-			return nullptr;
+			return new TerarChunkIterator();
 		}
-		// TBD(kg): unique ptr ?
-		Iterator* iter = new TerarChunkIterator(this);
-		return iter;
 	}
 
 	Status
