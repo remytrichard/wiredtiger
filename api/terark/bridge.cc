@@ -64,6 +64,8 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	 */
 	cursor->key_format = "S";
 	cursor->value_format = "S";
+	// TBD(kg): make sure it's safe
+	cursor->uri = uri;
 
 	// set cursor-ops based on builder/reader
 	if (chunk_manager->IsChunkExist(uri)) {
@@ -164,8 +166,6 @@ void trk_set_value(WT_CURSOR *cursor, ...) {
 }
 
 int trk_cursor_insert(WT_CURSOR *cursor) {
-	(void)cursor;
-
 	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	WT_ITEM value;
 	int ret = cursor->get_value(cursor, &value);
@@ -175,8 +175,7 @@ int trk_cursor_insert(WT_CURSOR *cursor) {
 	return (0);
 }
 
-// builder_cursor_close
-// reader_cursor_close 
+
 int trk_builder_cursor_close(WT_CURSOR *cursor) {
 	(void)cursor;
 	
@@ -184,36 +183,71 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	builder->Finish2ndPass();
 
+	// TBD(kg): remove/delete builder from manager
 	return (0);
 }
 
 int trk_reader_cursor_close(WT_CURSOR *cursor) {
 	(void)cursor;
+	// TBD(kg): remove/delete builder from manager
+
 	return (0);
 }
 
-// only builder will use the following cursor-ops
+static inline void set_kv(rocksdb::Iterator* iter, WT_CURSOR* cursor) {
+	{
+		WT_ITEM* buf = &cursor->key;
+		rocksdb::Slice key = iter->key();
+		buf->size = key.size();
+		buf->data = key.data();
+	}
+	{
+		WT_ITEM* buf = &cursor->value;
+		rocksdb::Slice value = iter->value();
+		buf->size = value.size();
+		buf->data = value.data();
+	}
+}
+
+// only reader will use the following cursor-ops
 int trk_cursor_next(WT_CURSOR *cursor) {
-	(void)cursor;
-	printf("trk_cursor_next\n");
-
-	//rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetIterator(cursor);
-
+	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
+	iter->Next();
+	if (!iter->Valid()) {
+		return -1;
+	}
+	set_kv(iter, cursor);
 	return (0);
 }
 
 int trk_cursor_prev(WT_CURSOR *cursor) {
-	(void)cursor;
+	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
+	iter->Prev();
+	if (!iter->Valid()) {
+		return -1;
+	}
+	set_kv(iter, cursor);
 	return (0);
 }
 
+// TBD(kg): any resources held by the cursor are released
 int trk_cursor_reset(WT_CURSOR *cursor) {
 	(void)cursor;
 	return (0);
 }
 
 int trk_cursor_search(WT_CURSOR *cursor) {
-	(void)cursor;
+	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
+	iter->Seek(rocksdb::Slice((const char*)cursor->key.data, cursor->key.size));
+	if (!iter->Valid()) {
+		return WT_NOTFOUND;
+	}
+	rocksdb::Slice key = iter->key();
+	WT_ITEM* buf = &cursor->key;
+	if (key.size() != buf->size ||
+		memcmp(key.data(), buf->data, key.size())) {
+		return WT_NOTFOUND;
+	}
 	return (0);
 }
 
@@ -279,7 +313,7 @@ int main() {
 		//session->create(session, "table:bucket", "type=lsm,key_format=S,value_format=S,merge_custom=(prefix=terark,start_generation=2)");
 		// TBD(kg): should we set raw == true ?
 		session->create(session, "table:bucket", 
-						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2)),"
+						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2),chunk_size=10MB),"
 						"key_format=S,value_format=S");
 
 		/*session->create(session, "table:bucket", 
@@ -287,7 +321,7 @@ int main() {
 						"key_format=S,value_format=S");
 		*/
 		session->open_cursor(session, "table:bucket", NULL, NULL, &c);
-		for (int i = 0; i < 10000000; i++) {
+		for (int i = 0; i < 10 * 1000 * 1000; i++) {
 			char key[20] = { 0 };
 			char value[40] = { 0 };
 			snprintf(key, 20, "key%05d", i);
@@ -298,6 +332,25 @@ int main() {
 		}
 		{
 			// cursor read ...
+			c->reset(c);
+			const char *key, *value;
+			for (int i = 0; i < 10 * 1000 * 1000; i++) {
+				ret = c->next(c);
+				assert(ret == 0);
+				c->get_key(c, &key);
+				c->get_value(c, &value);
+				// prepare
+				char ckey[20] = { 0 };
+				char cvalue[20] = { 0 };
+				snprintf(ckey, 20, "key%05d", i);
+				snprintf(cvalue, 40, "value%010d", i);
+				// cmp
+				if (i >= 9999) {
+					assert(memcmp(key, ckey, strlen(key)) == 0);
+					assert(memcmp(value, cvalue, strlen(value)) == 0);
+					printf("cmp key %s ok\n", key);
+				}
+			}
 		}
 
 		c->close(c);

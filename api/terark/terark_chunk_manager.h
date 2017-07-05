@@ -103,7 +103,7 @@ namespace rocksdb {
 		// should replace name of TerarkChunkBuilder with TerarkChunk
 		std::map<std::string, TerarkChunkBuilder*> builder_dict_;
 		std::map<std::string, TerarkChunkReader*>  reader_dict_;
-		std::map<WT_CURSOR*, Iterator*>               cursor_dict_;
+		std::map<WT_CURSOR*, Iterator*>            cursor_dict_;
 	};
 
 

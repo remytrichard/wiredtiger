@@ -18,9 +18,10 @@
 #include "rocksdb/env.h"
 // project headers
 #include "terark_zip_internal.h"
-#include "terark_chunk_manager.h"
 #include "terark_zip_table.h"
-#include "terark_zip_table_builder.h"
+#include "terark_chunk_manager.h"
+#include "terark_chunk_builder.h"
+#include "terark_chunk_reader.h"
 
 static const char *home;
 static const char* sst_path = "./data/0001.sst";
@@ -43,6 +44,7 @@ int main() {
 	InitDict();
 
 	std::string test = "123";
+	std::string fname(sst_path);
 
 	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
 	rocksdb::Options options;
@@ -52,28 +54,25 @@ int main() {
 		const rocksdb::Comparator* comparator = rocksdb::BytewiseComparator();
 		rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
 		
-		std::string fname(sst_path);
-		rocksdb::TerarkZipTableBuilder* chunk = 
+		rocksdb::TerarkChunkBuilder* builder = 
 			manager->NewTableBuilder(builder_options, fname);
-		manager->AddChunk(fname, chunk);
+		manager->AddBuilder(fname, builder);
 		
 		// 1st pass
 		for (auto& iter : dict) {
-			chunk->Add(iter.first, iter.second);
+			builder->Add(iter.first, iter.second);
 		}
-		rocksdb::Status s = chunk->Finish1stPass();
+		rocksdb::Status s = builder->Finish1stPass();
 		assert(s.ok());
 		// 2nd pass
 		for (auto& iter : dict) {
-			chunk->Add(iter.second);
+			builder->Add(iter.second);
 		}
-		s = chunk->Finish2ndPass();
+		s = builder->Finish2ndPass();
 		assert(s.ok());
 	}
 	{		
-		rocksdb::TerarkZipTableBuilder* chunk = manager->GetChunk(sst_path);
-		assert(chunk != nullptr);
-		rocksdb::Iterator* iter = chunk->NewIterator();
+		rocksdb::Iterator* iter = manager->NewIterator(fname);
 		assert(iter != nullptr);
 
 		for (auto& di : dict) {

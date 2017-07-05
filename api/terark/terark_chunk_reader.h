@@ -51,7 +51,6 @@ namespace rocksdb {
 		~TerarkChunkReader();
 
 	public:
-	
 		class TerarkReaderIterator : public Iterator, boost::noncopyable {
 	public:
 	TerarkReaderIterator(TerarkChunkReader* chunk, bool isTest = false)

@@ -19,8 +19,8 @@ all: bridge
 bridge: ${OBJS}
 	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o bridge bridge.cc
 
-#test_add: ${OBJS}
-#	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o test_add test_add.cc
+test_add: ${OBJS}
+	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o test_add test_add.cc
 
 #terark_zip_table.o: terark_zip_internal.h terark_zip_table.h trk_table_properties.h
 #	${CXX} ${CFLAGS} ${INC} ${LIB} -c terark_zip_table.cc
