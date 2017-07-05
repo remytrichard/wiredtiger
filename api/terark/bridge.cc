@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include "bridge.h"
@@ -68,23 +69,29 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	cursor->uri = uri;
 
 	// set cursor-ops based on builder/reader
-	if (chunk_manager->IsChunkExist(uri)) {
+	std::string path(std::string(home) + "/" + uri);
+	if (chunk_manager->IsChunkExist(path)) {
+		printf("open cursor for read: %s\n", uri);
 		cursor->next = trk_cursor_next;
 		cursor->prev = trk_cursor_prev;
-		cursor->reset = trk_cursor_reset;
+		cursor->reset = trk_reader_cursor_reset;
 		cursor->search = trk_cursor_search;
 		cursor->search_near = trk_cursor_search_near;
 		cursor->get_key = trk_get_key;
 		cursor->get_value = trk_get_value;
+		cursor->set_key = trk_set_key;
+		cursor->set_value = trk_set_value;
 		cursor->close = trk_reader_cursor_close;
 		// read iterator
-		rocksdb::Iterator* iter = chunk_manager->NewIterator(uri);
+		rocksdb::Iterator* iter = chunk_manager->NewIterator(path);
 		chunk_manager->AddIterator(cursor, iter);
 	} else {
+		printf("open cursor for build: %s\n", uri);
 		cursor->get_key = trk_get_key;
 		cursor->get_value = trk_get_value;
 		cursor->set_key = trk_set_key;
 		cursor->set_value = trk_set_value;
+		cursor->reset = trk_builder_cursor_reset;
 		cursor->insert = trk_cursor_insert;
 		cursor->close = trk_builder_cursor_close;
 	}
@@ -177,9 +184,7 @@ int trk_cursor_insert(WT_CURSOR *cursor) {
 
 
 int trk_builder_cursor_close(WT_CURSOR *cursor) {
-	(void)cursor;
-	
-	printf("trk_cursor_close\n");
+	printf("builder close entered: %s\n", cursor->uri);
 	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	builder->Finish2ndPass();
 
@@ -188,8 +193,8 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 }
 
 int trk_reader_cursor_close(WT_CURSOR *cursor) {
-	(void)cursor;
 	// TBD(kg): remove/delete builder from manager
+	printf("reader close entered: %s\n", cursor->uri);
 
 	return (0);
 }
@@ -211,16 +216,20 @@ static inline void set_kv(rocksdb::Iterator* iter, WT_CURSOR* cursor) {
 
 // only reader will use the following cursor-ops
 int trk_cursor_next(WT_CURSOR *cursor) {
+	//printf("next entered: %s\n", cursor->uri);
+	// WT_NOTFOUND == -31803
+	#define END_REACHED -31803
 	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Next();
 	if (!iter->Valid()) {
-		return -1;
+		return END_REACHED;
 	}
 	set_kv(iter, cursor);
 	return (0);
 }
 
 int trk_cursor_prev(WT_CURSOR *cursor) {
+	//printf("prev entered: %s\n", cursor->uri);
 	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Prev();
 	if (!iter->Valid()) {
@@ -231,33 +240,60 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 }
 
 // TBD(kg): any resources held by the cursor are released
-int trk_cursor_reset(WT_CURSOR *cursor) {
-	(void)cursor;
+int trk_reader_cursor_reset(WT_CURSOR *cursor) {
+	printf("reader reset entered: %s\n", cursor->uri);
+	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
+	iter->SeekToFirst();
+	return (0);
+}
+int trk_builder_cursor_reset(WT_CURSOR *cursor) {
+	printf("builder reset entered: %s\n", cursor->uri);
 	return (0);
 }
 
 int trk_cursor_search(WT_CURSOR *cursor) {
+	//printf("search entered: %s\n", cursor->uri);
 	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Seek(rocksdb::Slice((const char*)cursor->key.data, cursor->key.size));
 	if (!iter->Valid()) {
 		return WT_NOTFOUND;
 	}
 	rocksdb::Slice key = iter->key();
-	WT_ITEM* buf = &cursor->key;
-	if (key.size() != buf->size ||
-		memcmp(key.data(), buf->data, key.size())) {
+	WT_ITEM* kbuf = &cursor->key;
+	if (key.size() != kbuf->size ||
+		memcmp(key.data(), kbuf->data, key.size())) {
 		return WT_NOTFOUND;
 	}
+	rocksdb::Slice value = iter->value();
+	WT_ITEM* vbuf = &cursor->value;
+	vbuf->size = value.size();
+	vbuf->data = value.data();
+
 	return (0);
 }
 
 int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
+	printf("search near entered: %s\n", cursor->uri);
 	(void)cursor;
 	(void)exactp;
 
 	return (0);
 }
 
+
+std::map<std::string, std::string> dict;
+void InitDict() {
+	std::ifstream fi("./samples_large.txt");
+	//std::ifstream fi("./samples.txt");
+	while (true) {
+		std::string key, val;
+		if (!std::getline(fi, key)) break;
+		if (!std::getline(fi, val)) break;
+		key = key.substr(5);
+		val = val.substr(5);
+		dict[key] = val;
+	}
+}
 
 int main() {
 	WT_SESSION *session;
@@ -310,48 +346,42 @@ int main() {
 
 	{
 		WT_CURSOR *c;
-		//session->create(session, "table:bucket", "type=lsm,key_format=S,value_format=S,merge_custom=(prefix=terark,start_generation=2)");
 		// TBD(kg): should we set raw == true ?
 		session->create(session, "table:bucket", 
-						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2),chunk_size=10MB),"
+						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2),chunk_size=2MB),"
 						"key_format=S,value_format=S");
-
+		
 		/*session->create(session, "table:bucket", 
-						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=file,suffix=.terark,start_generation=2)),"
+						"type=lsm,lsm=(merge_min=2,chunk_size=2MB),"
 						"key_format=S,value_format=S");
 		*/
 		session->open_cursor(session, "table:bucket", NULL, NULL, &c);
-		for (int i = 0; i < 10 * 1000 * 1000; i++) {
-			char key[20] = { 0 };
-			char value[40] = { 0 };
-			snprintf(key, 20, "key%05d", i);
-			snprintf(value, 40, "value%010d", i);
-			c->set_key(c, key);
-			c->set_value(c, value);
+
+		printf("start insert...\n");
+		InitDict();
+		for (auto& iter : dict) {
+			c->set_key(c, iter.first.c_str());
+			c->set_value(c, iter.second.c_str());
 			c->insert(c);
 		}
+		printf("insert done\n");
+		sleep(300);
+		printf("start search...\n");
 		{
 			// cursor read ...
-			c->reset(c);
-			const char *key, *value;
-			for (int i = 0; i < 10 * 1000 * 1000; i++) {
-				ret = c->next(c);
+			//c->reset(c);
+			for (auto& di : dict) {
+				c->set_key(c, di.first.c_str());
+				int ret = c->search(c);
 				assert(ret == 0);
-				c->get_key(c, &key);
+				const char *value;
 				c->get_value(c, &value);
-				// prepare
-				char ckey[20] = { 0 };
-				char cvalue[20] = { 0 };
-				snprintf(ckey, 20, "key%05d", i);
-				snprintf(cvalue, 40, "value%010d", i);
-				// cmp
-				if (i >= 9999) {
-					assert(memcmp(key, ckey, strlen(key)) == 0);
-					assert(memcmp(value, cvalue, strlen(value)) == 0);
-					printf("cmp key %s ok\n", key);
-				}
+				ret = memcmp(value, di.second.c_str(), strlen(value));
+				//printf("val expected %s actual: %s\n", di.second.c_str(), value);
+				assert(ret == 0);
 			}
 		}
+		std::cout << "\n\nTest Case Passed!\n\n";
 
 		c->close(c);
 	}

@@ -73,7 +73,8 @@ extern "C" {
 	 * In the case of a statistics cursor, resetting the cursor refreshes
 	 * the statistics information returned.
 	 */
-	int trk_cursor_reset(WT_CURSOR *cursor);
+	int trk_builder_cursor_reset(WT_CURSOR *cursor);
+	int trk_reader_cursor_reset(WT_CURSOR *cursor);
 
 	/*!
 	 * Return the record matching the key. The key must first be set.
