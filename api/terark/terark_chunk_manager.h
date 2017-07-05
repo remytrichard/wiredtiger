@@ -51,7 +51,6 @@ namespace rocksdb {
 
 	public:
 		static TerarkChunkManager* sharedInstance();
-
 		const char* Name() const { return "TerarkChunkManager"; }
 
 	public:
@@ -80,6 +79,8 @@ namespace rocksdb {
 		}
 
 	public:
+		bool IsChunkExist(const std::string&);
+
 		TerarkZipTableBuilder*
 			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 							const std::string& fname);

@@ -18,15 +18,16 @@
 
 static const char *home;
 static WT_CONNECTION *conn;
+static rocksdb::TerarkChunkManager* chunk_manager;
+
 // TBD(kg): parse config as well
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
 	(void)dsrc;
 	(void)session;
-	(void)uri;
 	(void)config;
 
-	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
+	// TBD(kg): make sure such file is not exist, remove it anyway
 	rocksdb::Options options;
 	const rocksdb::Comparator* comparator = rocksdb::BytewiseComparator();
 	rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
@@ -34,8 +35,8 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	std::unique_ptr<rocksdb::WritableFile> file;
 	// TBD(kg): need more settings on env
 	std::string path(std::string(home) + "/" + uri);
-	rocksdb::TerarkChunk* chunk = manager->NewTableBuilder(builder_options, path);
-	manager->AddChunk(uri, chunk);
+	rocksdb::TerarkChunk* chunk = chunk_manager->NewTableBuilder(builder_options, path);
+	chunk_manager->AddChunk(uri, chunk);
 
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
 	const char* value = "key_format=S,value_format=S,app_metadata=";
@@ -50,41 +51,43 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 					const char *uri, WT_CONFIG_ARG *config, WT_CURSOR **new_cursor) {
 	(void)dsrc;
 	(void)session;
-	(void)uri;
 	(void)config;
-	(void)new_cursor;
 
-	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
 	// Allocate and initialize a WiredTiger cursor.
 	WT_CURSOR *cursor;
 	if ((cursor = (WT_CURSOR*)calloc(1, sizeof(*cursor))) == NULL)
 		return (errno);
 
-	cursor->next = trk_cursor_next;
-	cursor->prev = trk_cursor_prev;
-	cursor->reset = trk_cursor_reset;
-	cursor->search = trk_cursor_search;
-	cursor->search_near = trk_cursor_search_near;
-	cursor->get_key = trk_get_key;
-	cursor->get_value = trk_get_value;
-	cursor->set_key = trk_set_key;
-	cursor->set_value = trk_set_value;
-	cursor->insert = trk_cursor_insert;
-	cursor->update = NULL;
-	cursor->remove = NULL;
-	cursor->close = trk_cursor_close;
-	
 	/*
 	 * Configure local cursor information.
 	 */
 	cursor->key_format = "S";
 	cursor->value_format = "S";
 
+	// set cursor-ops based on builder/reader
+	if (chunk_manager->IsChunkExist(uri)) {
+		cursor->next = trk_cursor_next;
+		cursor->prev = trk_cursor_prev;
+		cursor->reset = trk_cursor_reset;
+		cursor->search = trk_cursor_search;
+		cursor->search_near = trk_cursor_search_near;
+		cursor->get_key = trk_get_key;
+		cursor->get_value = trk_get_value;
+		cursor->close = trk_reader_cursor_close;
+		// read iterator
+		rocksdb::Iterator* iter = chunk_manager->NewIterator(uri);
+		chunk_manager->AddIterator(cursor, iter);
+	} else {
+		cursor->get_key = trk_get_key;
+		cursor->get_value = trk_get_value;
+		cursor->set_key = trk_set_key;
+		cursor->set_value = trk_set_value;
+		cursor->insert = trk_cursor_insert;
+		cursor->close = trk_builder_cursor_close;
+	}
+
 	/* Return combined cursor to WiredTiger. */
 	*new_cursor = (WT_CURSOR *)cursor;
-
-	rocksdb::Iterator* iter = manager->NewIterator(uri);
-	manager->AddIterator(cursor, iter);
 
 	return (0);
 }
@@ -98,8 +101,7 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 	printf("trk_pre_merge: %s\n", dest->uri);
 
 	std::string fname(dest->uri);
-	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
-	rocksdb::TerarkChunk* chunk = manager->GetChunk(fname);
+	rocksdb::TerarkChunk* chunk = chunk_manager->GetChunk(fname);
 	if (chunk->GetState() != rocksdb::TerarkChunk::kJustCreated) {
 		printf("trk_pre_merge: Invalid State\n");
 		return -1;
@@ -169,8 +171,7 @@ void trk_set_value(WT_CURSOR *cursor, ...) {
 int trk_cursor_insert(WT_CURSOR *cursor) {
 	(void)cursor;
 
-	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
-	rocksdb::TerarkChunk* chunk = manager->GetChunk(cursor);
+	rocksdb::TerarkChunk* chunk = chunk_manager->GetChunk(cursor);
 	if (chunk->GetState() != rocksdb::TerarkChunk::kSecondPass) {
 		printf("trk_cursor_insert: Invalid State\n");
 		return -1;
@@ -183,13 +184,14 @@ int trk_cursor_insert(WT_CURSOR *cursor) {
 	return (0);
 }
 
-int trk_cursor_close(WT_CURSOR *cursor) {
+// builder_cursor_close
+// reader_cursor_close 
+int trk_builder_cursor_close(WT_CURSOR *cursor) {
 	(void)cursor;
 	
 	printf("trk_cursor_close\n");
 	// check state
-	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
-	rocksdb::TerarkChunk* chunk = manager->GetChunk(cursor);
+	rocksdb::TerarkChunk* chunk = chunk_manager->GetChunk(cursor);
 	printf("trk_cursor_close, chunk state: %d\n", chunk->GetState());
 	if (chunk->GetState() != rocksdb::TerarkChunk::kSecondPass) {
 		return 0;
@@ -201,13 +203,17 @@ int trk_cursor_close(WT_CURSOR *cursor) {
 	return (0);
 }
 
+int trk_reader_cursor_close(WT_CURSOR *cursor) {
+	(void)cursor;
+	return (0);
+}
 
+// only builder will use the following cursor-ops
 int trk_cursor_next(WT_CURSOR *cursor) {
 	(void)cursor;
 	printf("trk_cursor_next\n");
 
-	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
-	rocksdb::TerarkChunk* chunk = manager->GetChunk(cursor);
+	rocksdb::TerarkChunk* chunk = chunk_manager->GetChunk(cursor);
 	if (chunk->GetState() != rocksdb::TerarkChunk::kSecondPass) {
 		printf("trk_cursor_close: Invalid State\n");
 		return -1;
@@ -249,6 +255,7 @@ int main() {
     } else
 		home = NULL;
 
+	chunk_manager = rocksdb::TerarkChunkManager::sharedInstance();
 	ret = wiredtiger_open(home, NULL, "create", &conn);
 	ret = conn->open_session(conn, NULL, NULL, &session);
 

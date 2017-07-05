@@ -161,7 +161,8 @@ extern "C" {
 	 * Cursors are closed implicitly by ending the enclosing connection or
 	 * closing the session in which they were opened.
 	 */
-	int trk_cursor_close(WT_CURSOR *cursor);
+	int trk_builder_cursor_close(WT_CURSOR *cursor);
+	int trk_reader_cursor_close(WT_CURSOR *cursor);
 
 
 

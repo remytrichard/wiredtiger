@@ -8,7 +8,7 @@
 #include "file_reader_writer.h"
 #include "rocksdb/env.h"
 #include "rocksdb/table.h"
-#include <table/meta_blocks.h>
+//#include <table/meta_blocks.h>
 // wiredtiger headers
 #include "wiredtiger.h"
 // terark headers

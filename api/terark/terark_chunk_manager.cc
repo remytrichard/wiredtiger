@@ -19,23 +19,21 @@
 # include <sys/types.h>
 # include <sys/mman.h>
 #endif
-
 // boost headers
 #include <boost/predef/other/endian.h>
-
-// rocksdb headers
-#include "rocksdb/options.h"
-
-// terark headers
-#include <terark/lcast.hpp>
-
 // 3rd-party headers
 #ifdef TERARK_SUPPORT_UINT64_COMPARATOR
 # if !BOOST_ENDIAN_LITTLE_BYTE && !BOOST_ENDIAN_BIG_BYTE
 #   error Unsupported endian !
 # endif
 #endif
-
+// rocksdb headers
+#include "file_reader_writer.h"
+#include "rocksdb/env.h"
+#include "rocksdb/options.h"
+#include "rocksdb/table.h"
+// terark headers
+#include <terark/lcast.hpp>
 // project headers
 #include "terark_zip_table.h"
 #include "terark_zip_index.h"
@@ -46,7 +44,7 @@
 
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
-
+#include "trk_table_properties.h"
 
 namespace rocksdb {
 	
@@ -192,6 +190,35 @@ namespace rocksdb {
 						 }*/
 		}
 		return _instance;
+	}
+
+	// TBD(kg): should we reuse such file_reader?
+	bool TerarkChunkManager::IsChunkExist(const std::string& fname) {
+		// check within reader first ?
+
+		rocksdb::Options options;
+		rocksdb::EnvOptions env_options;
+		env_options.use_mmap_reads = true;
+		uint64_t file_size = 0;
+		rocksdb::Status s = options.env->GetFileSize(fname, &file_size);
+		if (s.ok() && file_size > 100) {
+			std::unique_ptr<rocksdb::RandomAccessFile> file;
+			rocksdb::Status s = options.env->NewRandomAccessFile(fname, &file, env_options);
+			assert(s.ok());
+			std::unique_ptr<rocksdb::RandomAccessFileReader>
+				reader(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
+			// check footer
+			TerarkTableProperties* table_props = nullptr;
+			s = TerarkReadTableProperties(reader.get(), file_size,
+										  kTerarkZipTableMagicNumber, options, &table_props);
+			if (s.ok()) {
+				//file_reader_.reset(reader.release());
+				return true;
+			} else {
+				abort();
+			}
+		}
+		return false;
 	}
 
 	TerarkZipTableBuilder*

@@ -11,7 +11,7 @@
 #include "wiredtiger.h"
 #include "wiredtiger_ext.h"
 
-#include "file_reader_writer.h"
+//#include "file_reader_writer.h"
 // rocksdb headers
 #include "rocksdb/slice.h"
 #include "rocksdb/table.h"
