@@ -13,7 +13,8 @@
 #include "terark_zip_internal.h"
 #include "terark_chunk_manager.h"
 #include "terark_zip_table.h"
-#include "terark_zip_table_builder.h"
+#include "terark_chunk_builder.h"
+#include "terark_chunk_reader.h"
 
 
 static const char *home;
@@ -35,8 +36,8 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	std::unique_ptr<rocksdb::WritableFile> file;
 	// TBD(kg): need more settings on env
 	std::string path(std::string(home) + "/" + uri);
-	rocksdb::TerarkChunk* chunk = chunk_manager->NewTableBuilder(builder_options, path);
-	chunk_manager->AddChunk(uri, chunk);
+	rocksdb::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
+	chunk_manager->AddBuilder(uri, builder);
 
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
 	const char* value = "key_format=S,value_format=S,app_metadata=";
@@ -101,23 +102,17 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 	printf("trk_pre_merge: %s\n", dest->uri);
 
 	std::string fname(dest->uri);
-	rocksdb::TerarkChunk* chunk = chunk_manager->GetChunk(fname);
-	if (chunk->GetState() != rocksdb::TerarkChunk::kJustCreated) {
-		printf("trk_pre_merge: Invalid State\n");
-		return -1;
-	}
-	
-	chunk->SetState(rocksdb::TerarkChunk::kFirstPass);
+	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(fname);
+
 	int ret = 0;
 	WT_ITEM key, value;
 	while ((ret = cursor->next(cursor)) == 0) {
 		ret = cursor->get_key(cursor, &key);
 		ret = cursor->get_value(cursor, &value);
-		chunk->Add(rocksdb::Slice((const char*)key.data, key.size), 
+		builder->Add(rocksdb::Slice((const char*)key.data, key.size), 
 				   rocksdb::Slice((const char*)value.data, value.size));
 	}
-	chunk->Finish1stPass();
-	chunk->SetState(rocksdb::TerarkChunk::kSecondPass);
+	builder->Finish1stPass();
 
 	return (0);
 }
@@ -171,15 +166,11 @@ void trk_set_value(WT_CURSOR *cursor, ...) {
 int trk_cursor_insert(WT_CURSOR *cursor) {
 	(void)cursor;
 
-	rocksdb::TerarkChunk* chunk = chunk_manager->GetChunk(cursor);
-	if (chunk->GetState() != rocksdb::TerarkChunk::kSecondPass) {
-		printf("trk_cursor_insert: Invalid State\n");
-		return -1;
-	}
+	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	WT_ITEM value;
 	int ret = cursor->get_value(cursor, &value);
 	assert(ret == 0);
-	chunk->Add(rocksdb::Slice((const char*)value.data, value.size));
+	builder->Add(rocksdb::Slice((const char*)value.data, value.size));
 
 	return (0);
 }
@@ -190,15 +181,8 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 	(void)cursor;
 	
 	printf("trk_cursor_close\n");
-	// check state
-	rocksdb::TerarkChunk* chunk = chunk_manager->GetChunk(cursor);
-	printf("trk_cursor_close, chunk state: %d\n", chunk->GetState());
-	if (chunk->GetState() != rocksdb::TerarkChunk::kSecondPass) {
-		return 0;
-	}
-	
-	chunk->Finish2ndPass();
-	chunk->SetState(rocksdb::TerarkChunk::kCreateDone);
+	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
+	builder->Finish2ndPass();
 
 	return (0);
 }
@@ -213,11 +197,8 @@ int trk_cursor_next(WT_CURSOR *cursor) {
 	(void)cursor;
 	printf("trk_cursor_next\n");
 
-	rocksdb::TerarkChunk* chunk = chunk_manager->GetChunk(cursor);
-	if (chunk->GetState() != rocksdb::TerarkChunk::kSecondPass) {
-		printf("trk_cursor_close: Invalid State\n");
-		return -1;
-	}
+	//rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetIterator(cursor);
+
 	return (0);
 }
 

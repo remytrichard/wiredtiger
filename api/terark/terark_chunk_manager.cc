@@ -40,7 +40,6 @@
 #include "terark_zip_common.h"
 #include "terark_zip_internal.h"
 #include "terark_chunk_manager.h"
-#include "terark_zip_table_builder.h"
 
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
@@ -221,7 +220,7 @@ namespace rocksdb {
 		return false;
 	}
 
-	TerarkZipTableBuilder*
+	TerarkChunkBuilder*
 	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 		const std::string& fname) {
 		const rocksdb::Comparator* userCmp = &table_builder_options.internal_comparator;
@@ -247,20 +246,21 @@ namespace rocksdb {
 			g_lastTime = g_pf.now();
 		}
 		nth_new_terark_table_++;
-		TerarkZipTableBuilder* chunk = new TerarkZipTableBuilder(table_options_,
+		TerarkChunkBuilder* builder = new TerarkChunkBuilder(table_options_,
 			table_builder_options,
 			fname,
 			keyPrefixLen);
-		return chunk;
+		return builder;
 	}
 
 	Iterator*
 	TerarkChunkManager::NewIterator(const std::string& fname) {
-		rocksdb::TerarkZipTableBuilder* chunk = GetChunk(fname);
-		if (!chunk) {
-			return nullptr;
+		rocksdb::TerarkChunkReader* reader = GetReader(fname);
+		if (!reader) {
+			reader = new TerarkChunkReader(table_options_, fname);
+			AddReader(fname, reader);
 		}
-		return chunk->NewIterator();
+		return reader->NewIterator();
 	}
 
 

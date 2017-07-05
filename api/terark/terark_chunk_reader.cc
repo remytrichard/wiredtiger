@@ -6,15 +6,11 @@
 //#include <table/sst_file_writer_collectors.h>
 //#include <table/meta_blocks.h>
 //#include <table/get_context.h>
-#include "file_reader_writer.h"
-#include "rocksdb/env.h"
-#include "rocksdb/iterator.h"
-#include "rocksdb/table.h"
 // terark headers
 #include <terark/util/crc.hpp>
 
 // project headers
-#include "terark_zip_table_builder.h"
+#include "terark_chunk_reader.h"
 #include "terark_zip_common.h"
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
@@ -56,15 +52,15 @@ namespace rocksdb {
 	using terark::byte_swap;
 	using terark::BlobStore;
 
-	void TerarkZipTableBuilder::TerarChunkIterator::SeekToFirst() {
+	void TerarkChunkReader::TerarkReaderIterator::SeekToFirst() {
 		UnzipIterRecord(iter_->SeekToFirst());
 	}
 
-	void TerarkZipTableBuilder::TerarChunkIterator::SeekToLast() {
+	void TerarkChunkReader::TerarkReaderIterator::SeekToLast() {
 		UnzipIterRecord(iter_->SeekToLast());
 	}
 
-	void TerarkZipTableBuilder::TerarChunkIterator::SeekForPrev(const Slice& target) {
+	void TerarkChunkReader::TerarkReaderIterator::SeekForPrev(const Slice& target) {
 		Seek(target);
 		if (!Valid()) {
 			SeekToLast();
@@ -74,31 +70,31 @@ namespace rocksdb {
 		}
 	}
 
-	void TerarkZipTableBuilder::TerarChunkIterator::Seek(const Slice& target) {
+	void TerarkChunkReader::TerarkReaderIterator::Seek(const Slice& target) {
 		UnzipIterRecord(iter_->Seek(fstringOf(target)));
 	}
 
-	void TerarkZipTableBuilder::TerarChunkIterator::Next() {
+	void TerarkChunkReader::TerarkReaderIterator::Next() {
 		assert(iter_->Valid());
 		UnzipIterRecord(iter_->Next());
 	}
 
-	void TerarkZipTableBuilder::TerarChunkIterator::Prev() {
+	void TerarkChunkReader::TerarkReaderIterator::Prev() {
 		assert(iter_->Valid());
 		UnzipIterRecord(iter_->Prev());
 	}
 
-	Slice TerarkZipTableBuilder::TerarChunkIterator::key() const {
+	Slice TerarkChunkReader::TerarkReaderIterator::key() const {
 		assert(iter_->Valid());
 		return SliceOf(keyBuf_);
 	}
 
-	Slice TerarkZipTableBuilder::TerarChunkIterator::value() const {
+	Slice TerarkChunkReader::TerarkReaderIterator::value() const {
 		assert(iter_->Valid());
 		return SliceOf(fstring(valueBuf_));
 	}
 
-	bool TerarkZipTableBuilder::TerarChunkIterator::UnzipIterRecord(bool hasRecord) {
+	bool TerarkChunkReader::TerarkReaderIterator::UnzipIterRecord(bool hasRecord) {
 		if (hasRecord) {
 			assert(iter_->id() < chunk_->index_->NumKeys());
 			size_t recId = iter_->id();
@@ -118,46 +114,31 @@ namespace rocksdb {
 		}
 	}
 
+
+	
 	Iterator*
-	TerarkZipTableBuilder::NewIterator() {
-		// check cuurent state
-		// if CreateDone state:
-		//   read value, index blocks
-		//   load index
-		// else if SecondPass state:
-		//   only Add is allowed
-		// add iter into dict
-		if (chunk_state_ == kCreateDone ||
-			chunk_state_ == kOpenForRead) {
-			Status s = OpenForRead();
-			if (!s.ok()) {
-				printf("Fail to open chunk: %s\n", s.getState());
-				return nullptr;
-			}
-			return new TerarChunkIterator(this);
-		} else {
-			return new TerarChunkIterator(this, true);
+	TerarkChunkReader::NewIterator() {
+		Status s = Open();
+		if (!s.ok()) {
+			printf("Fail to open chunk: %s\n", s.getState());
+			return nullptr;
 		}
+		return new TerarkReaderIterator(this);
 	}
 
 	Status
-	TerarkZipTableBuilder::OpenForRead() {
-		if (chunk_state_ == kOpenForRead) {
+	TerarkChunkReader::Open() {
+		if (file_reader_) {
 			return Status::OK();
-		} else if (chunk_state_ != kCreateDone) {
-			return Status::NotSupported("Chunk is not ready for Read");
 		}
 		// prepare chunk file
-		rocksdb::Status s;
 		rocksdb::Options options;
-		if (!file_reader_) { // may have been inited during construction
-			rocksdb::EnvOptions env_options;
-			env_options.use_mmap_reads = env_options.use_mmap_writes = true;
-			std::unique_ptr<rocksdb::RandomAccessFile> file;
-			s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
-			assert(s.ok());
-			file_reader_.reset(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
-		}
+		rocksdb::EnvOptions env_options;
+		env_options.use_mmap_reads = true;
+		std::unique_ptr<rocksdb::RandomAccessFile> file;
+		Status s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
+		assert(s.ok());
+		file_reader_.reset(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
 		uint64_t file_size = 0;
 		s = options.env->GetFileSize(chunk_name_, &file_size);
 		assert(s.ok());
@@ -213,7 +194,7 @@ namespace rocksdb {
 		index_->BuildCache(table_options_.indexCacheRatio);
 		long long t2 = g_pf.now();
 		/*INFO(ioptions.info_log
-		  , "TerarkZipTableReader::Open(): fsize = %zd, entries = %zd keys = %zd indexSize = %zd valueSize=%zd, warm up time = %6.3f'sec, build cache time = %6.3f'sec\n"
+		  , "TerarkChunkReader::Open(): fsize = %zd, entries = %zd keys = %zd indexSize = %zd valueSize=%zd, warm up time = %6.3f'sec, build cache time = %6.3f'sec\n"
 		  , size_t(file_size), size_t(table_properties_->num_entries)
 		  , subReader_.index_->NumKeys()
 		  , size_t(table_properties_->index_size)

@@ -1,10 +1,6 @@
 
 #pragma once
 
-// project headers
-#include "terark_zip_common.h"
-#include "terark_zip_table.h"
-#include "terark_zip_table_builder.h"
 // std headers
 #include <memory>
 #include <mutex>
@@ -19,6 +15,11 @@
 #include <terark/valvec.hpp>
 #include <terark/stdtypes.hpp>
 #include <terark/util/profiling.hpp>
+// project headers
+#include "terark_zip_common.h"
+#include "terark_zip_table.h"
+#include "terark_chunk_builder.h"
+#include "terark_chunk_reader.h"
 
 
 namespace rocksdb {
@@ -39,9 +40,8 @@ namespace rocksdb {
 	extern const std::string kTerarkZipTableCommonPrefixBlock;
 	extern const std::string kTerarkEmptyTableKey;
 
-	class TerarkZipTableBuilder;
-	class TerarkTableReader;
-	typedef TerarkZipTableBuilder TerarkChunk;
+	class TerarkChunkBuilder;
+	class TerarkChunkReader;
 	class TerarkChunkManager : boost::noncopyable {
 	private:
 		static TerarkChunkManager* _instance;
@@ -54,20 +54,17 @@ namespace rocksdb {
 		const char* Name() const { return "TerarkChunkManager"; }
 
 	public:
-		void AddChunk(const std::string& fname, TerarkChunk* chunk) {
-			chunk_dict_[fname] = chunk;
+		void AddBuilder(const std::string& fname, TerarkChunkBuilder* builder) {
+			builder_dict_[fname] = builder;
 		}
-		TerarkChunk* GetChunk(const std::string& fname) {
-			return chunk_dict_[fname];
+		TerarkChunkBuilder* GetBuilder(const std::string& fname) {
+			return builder_dict_[fname];
 		}
-		TerarkChunk* GetChunk(WT_CURSOR* cursor) {
-			Iterator* it = cursor_dict_[cursor];
-			if (it != nullptr) {
-				TerarkZipTableBuilder::TerarChunkIterator* iter =
-					dynamic_cast<TerarkZipTableBuilder::TerarChunkIterator*>(it);
-				return iter->chunk_;
-			}
-			return nullptr;
+		void AddReader(const std::string& fname, TerarkChunkReader* reader) {
+			reader_dict_[fname] = reader;
+		}
+		TerarkChunkReader* GetReader(const std::string& fname) {
+			return reader_dict_[fname];
 		}
 		void AddIterator(WT_CURSOR* cursor, Iterator* iter) {
 			assert(cursor != nullptr);
@@ -81,7 +78,7 @@ namespace rocksdb {
 	public:
 		bool IsChunkExist(const std::string&);
 
-		TerarkZipTableBuilder*
+		TerarkChunkBuilder*
 			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 							const std::string& fname);
 		
@@ -103,8 +100,9 @@ namespace rocksdb {
 		mutable size_t nth_new_fallback_table_ = 0;
  
 	private:
-		// should replace name of TerarkZipTableBuilder with TerarkChunk
-		std::map<std::string, TerarkZipTableBuilder*> chunk_dict_;
+		// should replace name of TerarkChunkBuilder with TerarkChunk
+		std::map<std::string, TerarkChunkBuilder*> builder_dict_;
+		std::map<std::string, TerarkChunkReader*>  reader_dict_;
 		std::map<WT_CURSOR*, Iterator*>               cursor_dict_;
 	};
 
