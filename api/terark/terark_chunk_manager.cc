@@ -35,9 +35,7 @@
 // terark headers
 #include <terark/lcast.hpp>
 // project headers
-#include "terark_zip_table.h"
 #include "terark_zip_index.h"
-#include "terark_zip_common.h"
 #include "terark_zip_internal.h"
 #include "terark_chunk_manager.h"
 
@@ -235,7 +233,6 @@ namespace rocksdb {
 		if (minlevel < 0) {
 			minlevel = numlevel - 1;
 		}
-		size_t keyPrefixLen = 0;
 #if 1
 		//INFO(table_builder_options.ioptions.info_log
 		//	 , "nth_newtable{ terark = %3zd fallback = %3zd } curlevel = %d minlevel = %d numlevel = %d fallback = %p\n"
@@ -248,8 +245,7 @@ namespace rocksdb {
 		nth_new_terark_table_++;
 		TerarkChunkBuilder* builder = new TerarkChunkBuilder(table_options_,
 			table_builder_options,
-			fname,
-			keyPrefixLen);
+			fname);
 		return builder;
 	}
 

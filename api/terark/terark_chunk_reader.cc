@@ -52,16 +52,6 @@ namespace rocksdb {
 	using terark::byte_swap;
 	using terark::BlobStore;
 
-	void TerarkChunkReader::TerarkReaderIterator::SeekToFirst() {
-		reseted_ = false;
-		UnzipIterRecord(iter_->SeekToFirst());
-	}
-
-	void TerarkChunkReader::TerarkReaderIterator::SeekToLast() {
-		reseted_ = false;
-		UnzipIterRecord(iter_->SeekToLast());
-	}
-
 	void TerarkChunkReader::TerarkReaderIterator::SeekForPrev(const Slice& target) {
 		reseted_ = false;
 		Seek(target);
@@ -73,11 +63,6 @@ namespace rocksdb {
 		}
 	}
 
-	void TerarkChunkReader::TerarkReaderIterator::Seek(const Slice& target) {
-		reseted_ = false;
-		UnzipIterRecord(iter_->Seek(fstringOf(target)));
-	}
-
 	void TerarkChunkReader::TerarkReaderIterator::Next() {
 		if (reseted_) {
 			SeekToFirst();
@@ -86,22 +71,6 @@ namespace rocksdb {
 		}
 		assert(iter_->Valid());
 		UnzipIterRecord(iter_->Next());
-	}
-
-	void TerarkChunkReader::TerarkReaderIterator::Prev() {
-		reseted_ = false;
-		assert(iter_->Valid());
-		UnzipIterRecord(iter_->Prev());
-	}
-
-	Slice TerarkChunkReader::TerarkReaderIterator::key() const {
-		assert(iter_->Valid());
-		return SliceOf(keyBuf_);
-	}
-
-	Slice TerarkChunkReader::TerarkReaderIterator::value() const {
-		assert(iter_->Valid());
-		return SliceOf(fstring(valueBuf_));
 	}
 
 	bool TerarkChunkReader::TerarkReaderIterator::UnzipIterRecord(bool hasRecord) {

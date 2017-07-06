@@ -18,7 +18,7 @@
 #include "rocksdb/env.h"
 // project headers
 #include "terark_zip_internal.h"
-#include "terark_zip_table.h"
+#include "terark_zip_config.h"
 #include "terark_chunk_manager.h"
 #include "terark_chunk_builder.h"
 #include "terark_chunk_reader.h"

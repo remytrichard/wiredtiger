@@ -1,4 +1,4 @@
-#include "terark_zip_table.h"
+#include "terark_zip_config.h"
 #include "terark_zip_common.h"
 #include <terark/hash_strmap.hpp>
 #include <terark/util/throw.hpp>
@@ -18,6 +18,17 @@ namespace terark {
 }
 
 namespace rocksdb {
+
+	terark::profiling g_pf;
+
+	const uint64_t kTerarkZipTableMagicNumber = 0x1122334455667788;
+
+	const std::string kTerarkZipTableIndexBlock        = "TerarkZipTableIndexBlock";
+	const std::string kTerarkZipTableValueTypeBlock    = "TerarkZipTableValueTypeBlock";
+	const std::string kTerarkZipTableValueDictBlock    = "TerarkZipTableValueDictBlock";
+	const std::string kTerarkZipTableOffsetBlock       = "TerarkZipTableOffsetBlock";
+	const std::string kTerarkZipTableCommonPrefixBlock = "TerarkZipTableCommonPrefixBlock";
+	const std::string kTerarkEmptyTableKey             = "ThisIsAnEmptyTable";
 
 	static
 	int ComputeFileSizeMultiplier(double diskLimit, double minVal, int levels) {

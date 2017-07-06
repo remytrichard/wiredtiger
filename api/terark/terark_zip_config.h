@@ -1,5 +1,5 @@
 /*
- * terark_zip_table.h
+ * terark_zip_config.h
  *
  *  Created on: 2016-08-09
  *      Author: leipeng
@@ -7,16 +7,12 @@
 
 #pragma once
 
-#ifndef TERARK_ZIP_TABLE_H_
-#define TERARK_ZIP_TABLE_H_
-
 #include <string>
 #include <vector>
 
 #include "rocksdb/comparator.h"
 #include "rocksdb/env.h"
 #include "rocksdb/options.h"
-
 
 namespace rocksdb {
 
@@ -127,15 +123,9 @@ namespace rocksdb {
 	};
 
 
-
 	/// @memBytesLimit total memory can be used for the whole process
 	///   memBytesLimit == 0 indicate all physical memory can be used
 	bool TerarkZipConfigFromEnv(TerarkZipTableOptions&);
 
-	class TableFactory*
-		NewTerarkZipTableFactory(const TerarkZipTableOptions&,
-								 class TableFactory* fallback);
-
 }  // namespace rocksdb
 
-#endif /* TERARK_ZIP_TABLE_H_ */

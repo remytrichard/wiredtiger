@@ -17,7 +17,7 @@
 #include <terark/util/profiling.hpp>
 // project headers
 #include "terark_zip_common.h"
-#include "terark_zip_table.h"
+#include "terark_zip_config.h"
 #include "terark_chunk_builder.h"
 #include "terark_chunk_reader.h"
 
@@ -56,18 +56,26 @@ namespace rocksdb {
 		void AddBuilder(const std::string& fname, TerarkChunkBuilder* builder) {
 			builder_dict_[fname] = builder;
 		}
+		void RemoveBuilder(const std::string& fname) {
+			builder_dict_.erase(fname);
+		}
 		TerarkChunkBuilder* GetBuilder(const std::string& fname) {
 			return builder_dict_[fname];
 		}
+		// TBD(kg): when should we remve reader? no ref ?
 		void AddReader(const std::string& fname, TerarkChunkReader* reader) {
 			reader_dict_[fname] = reader;
 		}
 		TerarkChunkReader* GetReader(const std::string& fname) {
 			return reader_dict_[fname];
 		}
+
 		void AddIterator(WT_CURSOR* cursor, TerarkIterator* iter) {
 			assert(cursor != nullptr);
 			cursor_dict_[cursor] = iter;
+		}
+		void RemoveIterator(WT_CURSOR* cursor) {
+			cursor_dict_.erase(cursor);
 		}
 		TerarkIterator* GetIterator(WT_CURSOR* cursor) {
 			assert(cursor != nullptr);

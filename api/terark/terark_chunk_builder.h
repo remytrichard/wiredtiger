@@ -17,9 +17,6 @@
 // wiredtiger headers
 #include "wiredtiger.h"
 // rocksdb headers
-//#include <table/table_builder.h>
-//#include <table/block_builder.h>
-//#include <table/format.h>
 #include <util/arena.h>
 // terark headers
 #include <terark/fstring.hpp>
@@ -32,9 +29,9 @@
 #include <terark/bitfield_array.hpp>
 #include <terark/util/fstrvec.hpp>
 // project headers
-#include "terark_zip_table.h"
-#include "terark_zip_internal.h"
 #include "terark_zip_common.h"
+#include "terark_zip_config.h"
+#include "terark_zip_internal.h"
 #include "terark_zip_index.h"
 #include "trk_block_builder.h"
 #include "trk_format.h"
@@ -62,9 +59,8 @@ namespace rocksdb {
 	class TerarkChunkBuilder : boost::noncopyable {
 	public:
 		TerarkChunkBuilder(const TerarkZipTableOptions&,
-							  const TerarkTableBuilderOptions& tbo,
-							  const std::string& fname,
-							  size_t key_prefixLen);
+						   const TerarkTableBuilderOptions& tbo,
+						   const std::string& fname);
 
 		~TerarkChunkBuilder();
 
@@ -115,8 +111,6 @@ namespace rocksdb {
 
 		
 	private:
-
-		// - build phase
 		const std::string chunk_name_;
 
 		const TerarkZipTableOptions& table_options_;
@@ -133,8 +127,6 @@ namespace rocksdb {
 		FileStream tmpDumpFile_;
 		AutoDeleteFile tmpIndexFile_;
 		AutoDeleteFile tmpStoreFile_;
-		//AutoDeleteFile tmpZipDictFile_;
-		//AutoDeleteFile tmpZipValueFile_;
 		std::mt19937_64 randomGenerator_;
 		uint64_t sampleUpperBound_;
 		size_t sampleLenSum_ = 0;
@@ -146,7 +138,6 @@ namespace rocksdb {
 		bool closed_ = false;  // Either Finish() or Abandon() has been called.
 
 		long long t0 = 0;
-		size_t key_prefixLen_;
 	};
 
 

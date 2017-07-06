@@ -9,7 +9,7 @@
 #define TABLE_TERARK_ZIP_WEAK_FUNCTION_H_
 #pragma once
 
-#include "terark_zip_table.h"
+#include "terark_zip_config.h"
 
 namespace rocksdb {
 

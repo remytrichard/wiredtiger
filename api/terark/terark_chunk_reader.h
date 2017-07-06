@@ -24,7 +24,7 @@
 #include <terark/bitfield_array.hpp>
 #include <terark/util/fstrvec.hpp>
 // project headers
-#include "terark_zip_table.h"
+#include "terark_zip_config.h"
 #include "terark_zip_internal.h"
 #include "terark_zip_common.h"
 #include "terark_zip_index.h"
@@ -63,15 +63,34 @@ namespace rocksdb {
 		}
 		~TerarkReaderIterator() {}
 		bool Valid() const { return iter_->Valid(); }
-		void SeekToFirst();
-		void SeekToLast();
+		void SeekToFirst() {
+			reseted_ = false;
+			UnzipIterRecord(iter_->SeekToFirst());
+		}
+		void SeekToLast() {
+			reseted_ = false;
+			UnzipIterRecord(iter_->SeekToLast());
+		}
 		void SeekForPrev(const Slice&);
-		void Seek(const Slice&);
+		void Seek(const Slice& target) {
+			reseted_ = false;
+			UnzipIterRecord(iter_->Seek(fstringOf(target)));
+		}
 		void Next();
-		void Prev();
+		void Prev() {
+			reseted_ = false;
+			assert(iter_->Valid());
+			UnzipIterRecord(iter_->Prev());
+		}
 		void SetInvalid() { reseted_ = true; }
-		Slice key() const;
-		Slice value() const;
+		Slice key() const {
+			assert(iter_->Valid());
+			return SliceOf(keyBuf_);
+		}
+		Slice value() const {
+			assert(iter_->Valid());
+			return SliceOf(fstring(valueBuf_));
+		}
 		Status status() const { return status_; }
 		bool UnzipIterRecord(bool);
 		

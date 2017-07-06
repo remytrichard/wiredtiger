@@ -90,12 +90,10 @@ namespace rocksdb {
 
 	TerarkChunkBuilder::TerarkChunkBuilder(const TerarkZipTableOptions& tzto,
 		const TerarkTableBuilderOptions& tbo,
-		const std::string& fname,
-		size_t key_prefixLen)
+		const std::string& fname)
 		: table_options_(tzto)
 		, table_build_options_(tbo)
-		, chunk_name_(fname)
-		, key_prefixLen_(key_prefixLen) {
+		, chunk_name_(fname) {
 		properties_.fixed_key_len = 0;
 		properties_.num_data_blocks = 1;
 		properties_.column_family_id = 0;
@@ -538,7 +536,7 @@ namespace rocksdb {
 		}
 
 		std::string commonPrefix;
-		commonPrefix.reserve(key_prefixLen_ + keyStat.commonPrefixLen);
+		commonPrefix.reserve(keyStat.commonPrefixLen);
 		commonPrefix.append(kvs.prefix.data(), kvs.prefix.size());
 		commonPrefix.append((const char*)prevUserKey_.data(), keyStat.commonPrefixLen);
 		WriteBlock(commonPrefix, file_writer_.get(), &offset_, &commonPrefixBlock);
@@ -688,9 +686,9 @@ namespace rocksdb {
 
 	void TerarkChunkBuilder::Abandon() {
 		closed_ = true;
-		tmpKeyFile_.complete_write();
-		tmpValueFile_.complete_write();
-		tmpSampleFile_.complete_write();
+		//tmpKeyFile_.complete_write();
+		//tmpValueFile_.complete_write();
+		//tmpSampleFile_.complete_write();
 		//tmpZipDictFile_.Delete();
 		//tmpZipValueFile_.Delete();
 	}

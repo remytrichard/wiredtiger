@@ -12,7 +12,7 @@
 
 // project headers
 #include "terark_zip_common.h"
-#include "terark_zip_table.h"
+#include "terark_zip_config.h"
 #include "terark_chunk_builder.h"
 // std headers
 #include <memory>

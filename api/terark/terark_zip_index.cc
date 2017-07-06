@@ -1,6 +1,6 @@
 #include "terark_zip_index.h"
-#include "terark_zip_table.h"
 #include "terark_zip_common.h"
+#include "terark_zip_config.h"
 #include <terark/hash_strmap.hpp>
 #include <terark/fsa/dfa_mmap_header.hpp>
 #include <terark/fsa/fsa_cache.hpp>

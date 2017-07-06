@@ -22,7 +22,7 @@
 
 #include "terark_zip_internal.h"
 #include "terark_chunk_manager.h"
-#include "terark_zip_table.h"
+#include "terark_zip_config.h"
 #include "terark_chunk_builder.h"
 #include "terark_chunk_reader.h"
 
@@ -208,13 +208,17 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 	builder->Finish2ndPass();
 
 	// TBD(kg): remove/delete builder from manager
+	chunk_manager->RemoveBuilder(cursor->uri);
+	delete builder;
 	return (0);
 }
 
 int trk_reader_cursor_close(WT_CURSOR *cursor) {
 	// TBD(kg): remove/delete builder from manager
 	printf("reader close entered: %s\n", cursor->uri);
-
+	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
+	chunk_manager->RemoveIterator(cursor);
+	delete iter;
 	return (0);
 }
 
@@ -300,7 +304,6 @@ int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 
 	return (0);
 }
-
 
 std::map<std::string, std::string> dict;
 void InitDict() {
