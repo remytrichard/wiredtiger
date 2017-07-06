@@ -76,7 +76,7 @@ namespace rocksdb {
 		}
 		Status Finish2ndPass();
 
-		Status status() const { return status_; }
+		//Status status() const { return status_; }
 		void Abandon();
 		uint64_t NumEntries() const { return properties_.num_entries; }
 		uint64_t FileSize() const;
@@ -97,10 +97,9 @@ namespace rocksdb {
 		Status ZipValueToFinish(std::function<void()> waitIndex);
 		Status WriteStore(TerarkIndex* index, BlobStore* store,
 						  KeyValueStatus& kvs, std::function<void(const void*, size_t)> write,
-						  TerarkBlockHandle& dataBlock,
-						  long long& t5, long long& t6, long long& t7);
-		Status WriteSSTFile(long long t3, long long t4,
-							terark::BlobStore* zstore,
+						  TerarkBlockHandle& dataBlock);
+
+		Status WriteSSTFile(terark::BlobStore* zstore,
 							terark::BlobStore::Dictionary dict,
 							const DictZipBlobStore::ZipStat& dzstat);
 		Status WriteMetaData(std::initializer_list<std::pair<const std::string*, TerarkBlockHandle> > blocks);
@@ -119,7 +118,6 @@ namespace rocksdb {
 		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem
 		valvec<byte_t> prevUserKey_;
-		std::vector<long long> tms_;
 		//valvec<byte_b> value_;
 		TempFileDeleteOnClose tmpKeyFile_;
 		TempFileDeleteOnClose tmpValueFile_;
@@ -134,10 +132,33 @@ namespace rocksdb {
 		uint64_t offset_ = 0;
 		Status status_;
 		TerarkTableProperties properties_;
-		terark::fstrvec valueBuf_; // collect multiple values for one key
+		terark::fstrvec valueBuf_;
 		bool closed_ = false;  // Either Finish() or Abandon() has been called.
 
-		long long t0 = 0;
+	public:
+		enum TimeStamp {
+		    kBuildStart = 0,
+			kBuildIndexStart = 1,
+			kNotUsed2 = 2,
+			kSampleStart = 3,
+			kBlobStoreFinish = 4,
+			kGetOrderMapStart = 5,
+			kBZTypeBuildStart = 6,
+			kReorderStart = 7,
+			kBuildFinish = 8
+				};
+	private:
+		std::vector<long long> tms_;
+
+		long long t0 = 0; // builder start
+		long long t1 = 0; // build key index start
+		long long t2 = 0; // not used
+		long long t3 = 0; // start sampling
+		long long t4 = 0; // finish blob store
+		long long t5 = 0; // start get order map(traverse)
+		long long t6 = 0; // start bzType
+		long long t7 = 0; // start reorder
+		long long t8 = 0; // all data written, build finished
 	};
 
 

@@ -137,6 +137,7 @@ namespace rocksdb {
 		currentHistogram.stat.maxKeyLen = 0;
 		currentHistogram.stat.sumKeyLen = 0;
 		currentHistogram.stat.numKeys = 0;
+		tms_.resize(10);
 	}
 
 	TerarkChunkBuilder::~TerarkChunkBuilder() {}
@@ -168,7 +169,7 @@ namespace rocksdb {
 
 	Status TerarkChunkBuilder::EmptyTableFinish() {
 		//INFO(table_build_options_.info_log
-		//	 , "TerarkChunkBuilder::EmptyFinish():this=%p\n", this);
+		printf("TerarkChunkBuilder::EmptyFinish():this=%p\n", this);
 		offset_ = 0;
 		TerarkBlockHandle emptyTableBH;
 		Status s = WriteBlock(Slice("Empty"), file_writer_.get(), &offset_, &emptyTableBH);
@@ -202,7 +203,8 @@ namespace rocksdb {
 				keyStat.commonPrefixLen = fstring(prevUserKey_.data(), keyStat.commonPrefixLen)
 					.commonPrefixLen(userKey);
 			} else {
-				t0 = g_pf.now();
+				//t0 = g_pf.now();
+				tms_[kBuildStart] = (g_pf.now());
 				keyStat.commonPrefixLen = userKey.size();
 				keyStat.minKey.assign(userKey);
 			}
@@ -247,15 +249,14 @@ namespace rocksdb {
 			}
 		}
 		tmpKeyFile_.complete_write();
-		//tmpValueFile_.complete_write();
 		tmpSampleFile_.complete_write();
 		{
 			long long rawBytes = properties_.raw_key_size + properties_.raw_value_size;
 			long long tt = g_pf.now();
 			//INFO(table_build_options_.info_log
-			//	 , "TerarkChunkBuilder::Finish():this=%p:  first pass time =%7.2f's, %8.3f'MB/sec\n"
-			//	 , this, g_pf.sf(t0, tt), rawBytes*1.0 / g_pf.uf(t0, tt)
-			//	 );
+			printf("TerarkChunkBuilder::Finish():this=%p:  first pass time =%7.2f's, %8.3f'MB/sec\n"
+				 , this, g_pf.sf(tms_[0], tt), rawBytes*1.0 / g_pf.uf(tms_[0], tt)
+				 );
 		}
 		static std::mutex zipMutex;
 		static std::condition_variable zipCond;
@@ -315,18 +316,18 @@ namespace rocksdb {
 			if (myWorkMem > smallmem / 2) { // never wait for very smallmem(SST flush)
 				sumWaitingMem += myWorkMem;
 				while (shouldWait()) {
-					/*INFO(table_build_options_.info_log
-						 , "TerarkChunkBuilder::Finish():this=%p: sumWaitingMem = %f GB, sumWorkingMem = %f GB, %s WorkingMem = %f GB, wait...\n"
+					//INFO(table_build_options_.info_log
+					printf("TerarkChunkBuilder::Finish():this=%p: sumWaitingMem = %f GB, sumWorkingMem = %f GB, %s WorkingMem = %f GB, wait...\n"
 						 , this, sumWaitingMem / 1e9, sumWorkingMem / 1e9, who, myWorkMem / 1e9
-						 );*/
+						 );
 					zipCond.wait_for(zipLock, waitForTime);
 				}
-				/*INFO(table_build_options_.info_log
-					 , "TerarkChunkBuilder::Finish():this=%p: sumWaitingMem = %f GB, sumWorkingMem = %f GB, %s WorkingMem = %f GB, waited %8.3f sec, Key+Value bytes = %f GB\n"
+				//INFO(table_build_options_.info_log
+				printf("TerarkChunkBuilder::Finish():this=%p: sumWaitingMem = %f GB, sumWorkingMem = %f GB, %s WorkingMem = %f GB, waited %8.3f sec, Key+Value bytes = %f GB\n"
 					 , this, sumWaitingMem / 1e9, sumWorkingMem / 1e9, who, myWorkMem / 1e9
 					 , g_pf.sf(myStartTime, now)
 					 , (properties_.raw_key_size + properties_.raw_value_size) / 1e9
-					 );*/
+					 );
 				sumWaitingMem -= myWorkMem;
 			}
 			sumWorkingMem += myWorkMem;
@@ -356,7 +357,7 @@ namespace rocksdb {
 						} BOOST_SCOPE_EXIT_END;
 
 						//long long t1 = g_pf.now();
-						tms_.push_back(g_pf.now());
+						tms_[kBuildIndexStart] = g_pf.now();
 						histogram_[i].keyFileBegin = fileOffset;
 						factory->Build(tempKeyFileReader, table_options_, [&fileOffset, &writer](const void* data, size_t size) {
 								fileOffset += size;
@@ -365,10 +366,11 @@ namespace rocksdb {
 						histogram_[i].keyFileEnd = fileOffset;
 						assert((fileOffset - histogram_[i].keyFileBegin) % 8 == 0);
 						long long tt = g_pf.now();
-						/*INFO(table_build_options_.info_log
-							 , "TerarkChunkBuilder::Finish():this=%p:  index pass time =%7.2f's, %8.3f'MB/sec\n"
-							 , this, g_pf.sf(tms[0], tt), properties_.raw_key_size*1.0 / g_pf.uf(tms[0], tt)
-							 );*/
+						//INFO(table_build_options_.info_log
+						printf("TerarkChunkBuilder::Finish():this=%p:  index pass time =%7.2f's, %8.3f'MB/sec\n"
+							 , this, g_pf.sf(tms_[kBuildIndexStart], tt), 
+							   properties_.raw_key_size*1.0 / g_pf.uf(tms_[kBuildIndexStart], tt)
+							 );
 					}
 					tmpKeyFile_.close();
 				});
@@ -404,9 +406,8 @@ namespace rocksdb {
 		assert(histogram_.size() == 1);
 		tmpStoreFile_.fpath = tmpValueFile_.path + ".zbs";
 		auto& kvs = histogram_.front();
-		long long t3;
 		{
-			t3 = g_pf.now();
+			tms_[kSampleStart] = g_pf.now();
 			{
 				valvec<byte_t> sample;
 				NativeDataInput<InputBuffer> input(&tmpSampleFile_.fp);
@@ -454,26 +455,22 @@ namespace rocksdb {
 		terark::BlobStore::Dictionary dict;
 		std::unique_ptr<terark::BlobStore> store;
 		DictZipBlobStore::ZipStat dzstat;
-		// TBD(kg): t3 is not valid currently
-		long long t3 = 0, t4;
 		DictZipBlobStore* zstore;
 		store.reset(zstore = zbuilder_->finish(DictZipBlobStore::ZipBuilder::FinishFreeDict));
 		dzstat = zbuilder_->getZipStat();
-		t4 = g_pf.now();
+		tms_[kBlobStoreFinish] = g_pf.now();
 		dict = zbuilder_->getDictionary();
-		return WriteSSTFile(t3, t4, store.get(), dict, dzstat);
+		return WriteSSTFile(store.get(), dict, dzstat);
 	}
 
 	Status TerarkChunkBuilder::WriteStore(TerarkIndex* index, terark::BlobStore* store,
 		KeyValueStatus& kvs, std::function<void(const void*, size_t)> writeAppend,
-		TerarkBlockHandle& dataBlock,
-		long long& t5, long long& t6, long long& t7) {
+		TerarkBlockHandle& dataBlock) {
 		auto& keyStat = kvs.stat;
 		if (index->NeedsReorder()) {
 			terark::UintVecMin0 newToOld(keyStat.numKeys, keyStat.numKeys - 1);
 			index->GetOrderMap(newToOld);
-			t6 = g_pf.now();
-			t7 = g_pf.now();
+			tms_[kBZTypeBuildStart] = g_pf.now();
 			try {
 				dataBlock.set_offset(offset_);
 				store->reorder_zip_data(newToOld, std::ref(writeAppend));
@@ -482,7 +479,7 @@ namespace rocksdb {
 				return s;
 			}
 		} else {
-			t7 = t6 = t5;
+			tms_[kReorderStart] = tms_[kBZTypeBuildStart] = tms_[kGetOrderMapStart];
 			try {
 				dataBlock.set_offset(offset_);
 				store->save_mmap(std::ref(writeAppend));
@@ -494,8 +491,7 @@ namespace rocksdb {
 		return Status::OK();
 	}
 
-	Status TerarkChunkBuilder::WriteSSTFile(long long t3, long long t4,
-		terark::BlobStore* zstore,
+	Status TerarkChunkBuilder::WriteSSTFile(terark::BlobStore* zstore,
 		terark::BlobStore::Dictionary dict,
 		const DictZipBlobStore::ZipStat& dzstat) {
 		assert(histogram_.size() == 1);
@@ -503,10 +499,10 @@ namespace rocksdb {
 		auto& keyStat = kvs.stat;
 		const size_t realsampleLenSum = dict.memory.size();
 		long long rawBytes = properties_.raw_key_size + properties_.raw_value_size;
-		long long t5 = g_pf.now();
+		//long long t5 = g_pf.now();
+		tms_[kGetOrderMapStart] = g_pf.now();
 		std::unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile_));
 		printf("index->keys: %d, keyStat->keys: %d\n", index->NumKeys(), keyStat.numKeys);
-		//sleep(1000);
 		assert(index->NumKeys() == keyStat.numKeys);
 		Status s;
 		TerarkBlockHandle dataBlock, dictBlock, indexBlock, zvTypeBlock(0, 0);
@@ -515,13 +511,12 @@ namespace rocksdb {
 			size_t real_size = index->Memory().size() + zstore->mem_size();
 			size_t block_size, last_allocated_block;
 			file_writer_->writable_file()->GetPreallocationStatus(&block_size, &last_allocated_block);
-			/*INFO(table_build_options_.info_log
-				 , "TerarkChunkBuilder::Finish():this=%p: old prealloc_size = %zd, real_size = %zd\n"
+			//INFO(table_build_options_.info_log
+			printf("TerarkChunkBuilder::Finish():this=%p: old prealloc_size = %zd, real_size = %zd\n"
 				 , this, block_size, real_size
-				 );*/
+				 );
 			file_writer_->writable_file()->SetPreallocationBlockSize(1 * 1024 * 1024 + real_size);
 		}
-		long long t6, t7;
 		offset_ = 0;
 		auto writeAppend = [&](const void* data, size_t size) {
 			s = file_writer_->Append(Slice((const char*)data, size));
@@ -530,7 +525,7 @@ namespace rocksdb {
 			}
 			offset_ += size;
 		};
-		s = WriteStore(index.get(), zstore, kvs, writeAppend, dataBlock, t5, t6, t7);
+		s = WriteStore(index.get(), zstore, kvs, writeAppend, dataBlock);
 		if (!s.ok()) {
 			return s;
 		}
@@ -561,7 +556,7 @@ namespace rocksdb {
 				{ &kTerarkZipTableCommonPrefixBlock                            , commonPrefixBlock },
 			});
 
-		long long t8 = g_pf.now();
+		tms_[kBuildFinish] = g_pf.now();
 		{
 			std::unique_lock<std::mutex> lock(g_sumMutex);
 			g_sumKeyLen += properties_.raw_key_size;
@@ -570,12 +565,12 @@ namespace rocksdb {
 			g_sumUserKeyNum += keyStat.numKeys;
 			g_sumEntryNum += properties_.num_entries;
 		}
-		/*INFO(table_build_options_.info_log,
+		//INFO(table_build_options_.info_log,
+		printf(
 			 "TerarkChunkBuilder::Finish():this=%p: second pass time =%7.2f's, %8.3f'MB/sec, value only(%4.1f%% of KV)\n"
 			 "   wait indexing time = %7.2f's,\n"
 			 "  remap KeyValue time = %7.2f's, %8.3f'MB/sec (all stages of remap)\n"
 			 "    Get OrderMap time = %7.2f's, %8.3f'MB/sec (index lex order gen)\n"
-			 "  rebuild zvType time = %7.2f's, %8.3f'MB/sec\n"
 			 "  write SST data time = %7.2f's, %8.3f'MB/sec\n"
 			 "    z-dict build time = %7.2f's, sample length = %7.3f'MB, throughput = %6.3f'MB/sec\n"
 			 "    zip my value time = %7.2f's, unzip  length = %7.3f'GB\n"
@@ -594,18 +589,16 @@ namespace rocksdb {
 			 "    total entry num =%15.9f Billion\n"
 			 "    write speed all =%15.9f MB/sec (with    version num)\n"
 			 "    write speed all =%15.9f MB/sec (without version num)"
-			 , this, g_pf.sf(t3, t4)
-			 , properties_.raw_value_size*1.0 / g_pf.uf(t3, t4)
+			 , this, g_pf.sf(tms_[kSampleStart], tms_[kBlobStoreFinish])
+			 , properties_.raw_value_size*1.0 / g_pf.uf(tms_[kSampleStart], tms_[kBlobStoreFinish])
 			 , properties_.raw_value_size*100.0 / rawBytes
 
-			 , g_pf.sf(t4, t5) // wait indexing time
-			 , g_pf.sf(t5, t8), double(offset_) / g_pf.uf(t5, t8)
+			 , g_pf.sf(tms_[kBlobStoreFinish], tms_[kGetOrderMapStart]) // wait indexing time
+			 , g_pf.sf(tms_[kGetOrderMapStart], tms_[kBuildFinish]), double(offset_) / g_pf.uf(tms_[kGetOrderMapStart], tms_[kBuildFinish])
 
-			 , g_pf.sf(t5, t6), properties_.index_size / g_pf.uf(t5, t6) // index lex walk
+			 , g_pf.sf(tms_[kGetOrderMapStart], tms_[kBZTypeBuildStart]), properties_.index_size / g_pf.uf(tms_[kGetOrderMapStart], tms_[kBZTypeBuildStart]) // index lex walk
 
-			 , g_pf.sf(t6, t7), keyStat.numKeys * 2 / 8 / (g_pf.uf(t6, t7) + 1.0) // rebuild zvType
-
-			 , g_pf.sf(t7, t8), double(offset_) / g_pf.uf(t7, t8) // write SST data
+			 , g_pf.sf(tms_[kReorderStart], tms_[kBuildFinish]), double(offset_) / g_pf.uf(tms_[kReorderStart], tms_[kBuildFinish]) // write SST data
 
 			 , dzstat.dictBuildTime, realsampleLenSum / 1e6
 			 , realsampleLenSum / dzstat.dictBuildTime / 1e6
@@ -637,9 +630,9 @@ namespace rocksdb {
 			 , g_sumUserKeyLen / 1e9, g_sumUserKeyLen / 1e3 / g_sumUserKeyNum
 			 , g_sumUserKeyNum / 1e9
 			 , g_sumEntryNum / 1e9
-			 , (g_sumKeyLen + g_sumValueLen) / g_pf.uf(g_lastTime, t8)
-			 , (g_sumKeyLen + g_sumValueLen - g_sumEntryNum * 8) / g_pf.uf(g_lastTime, t8)
-			 );*/
+			 , (g_sumKeyLen + g_sumValueLen) / g_pf.uf(g_lastTime, tms_[kBuildFinish])
+			 , (g_sumKeyLen + g_sumValueLen - g_sumEntryNum * 8) / g_pf.uf(g_lastTime, tms_[kBuildFinish])
+			 );
 
 		tmpIndexFile_.Delete();
 		tmpStoreFile_.Delete();

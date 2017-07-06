@@ -81,15 +81,31 @@ namespace rocksdb {
 		double indexCacheRatio = 0;//0.001;
 	};
 
+	// Prints logs to stderr for faster debugging
+	/*class StdoutLogger {
+	public:
+		StdoutLogger(){}
+
+		// Brings overloaded Logv()s into scope so they're not hidden when we override
+		// a subset of them.
+		void Logv(const char* format, va_list ap) override {
+			vfprintf(stdout, format, ap);
+			fprintf(stdout, "\n");
+		}
+		};*/
+
 	class TerarkTableBuilderOptions {
 	public:
 	TerarkTableBuilderOptions(const rocksdb::Comparator& comp) : internal_comparator(comp) {
+			//info_log = new StdoutLogger();
 		}
 			
 		// replace ImmutableCFOptions with Options
 		rocksdb::Options ioptions;
 		//
 		std::string column_family_name;
+
+		//rocksdb::Logger* info_log;
 
 		//const std::vector<std::unique_ptr<IntTblPropCollectorFactory>>*
 		//  int_tbl_prop_collector_factories;
