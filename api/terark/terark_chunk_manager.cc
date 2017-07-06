@@ -253,7 +253,7 @@ namespace rocksdb {
 		return builder;
 	}
 
-	Iterator*
+	TerarkIterator*
 	TerarkChunkManager::NewIterator(const std::string& fname) {
 		rocksdb::TerarkChunkReader* reader = GetReader(fname);
 		if (!reader) {

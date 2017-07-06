@@ -3,6 +3,7 @@
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>
 #include <terark/util/refcount.hpp>
+#include <terark/int_vector.hpp>
 #include <terark/io/DataIO.hpp>
 #include <terark/io/StreamBuffer.hpp>
 #include <boost/intrusive_ptr.hpp>
@@ -72,7 +73,7 @@ namespace rocksdb {
 	virtual fstring Memory() const = 0;
 	virtual Iterator* NewIterator() const = 0;
 	virtual bool NeedsReorder() const = 0;
-	virtual void GetOrderMap(uint32_t* newToOld) const = 0;
+	virtual void GetOrderMap(terark::UintVecMin0& newToOld) const = 0;
 	virtual void BuildCache(double cacheRatio) = 0;
 	};
 

@@ -22,7 +22,8 @@ extern "C" {
 	//Callback performed before an LSM merge.
 	int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *source, WT_CURSOR *dest);
 
-
+	int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config);
+	
 	/*!
 	 * @param ... pointers to hold key fields corresponding to
 	 * WT_CURSOR::key_format.

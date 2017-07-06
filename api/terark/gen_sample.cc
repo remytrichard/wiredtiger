@@ -9,7 +9,7 @@
 
 using namespace std;
 
-const char* path = "./samples.txt";
+const char* path = "./samples_large.txt";
 std::string gen() {
 	char arr[51] = { 0 };
 	int sz = max(std::rand() % 50, 4);
@@ -24,7 +24,7 @@ std::string gen() {
 int main() {
 	std::srand(std::time(0)); // use current time as seed for random generator
 	ofstream fo(path);
-	for (int i = 0; i < 10 * 1000; i++) {
+	for (int i = 0; i < 1000 * 1000; i++) {
 		std::string key = gen();
 		std::string val = gen();
 		fo << "key: " << key << '\n';

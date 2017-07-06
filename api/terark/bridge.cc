@@ -1,4 +1,13 @@
 
+#ifdef _MSC_VER
+# include <io.h>
+#else
+# include <sys/types.h>
+# include <sys/stat.h>
+# include <fcntl.h>
+# include <cxxabi.h>
+#endif
+
 #include <stdio.h>
 #include <fstream>
 #include <iostream>
@@ -83,7 +92,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		cursor->set_value = trk_set_value;
 		cursor->close = trk_reader_cursor_close;
 		// read iterator
-		rocksdb::Iterator* iter = chunk_manager->NewIterator(path);
+		rocksdb::TerarkIterator* iter = chunk_manager->NewIterator(path);
 		chunk_manager->AddIterator(cursor, iter);
 	} else {
 		printf("open cursor for build: %s\n", uri);
@@ -109,9 +118,10 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 	(void)dest;
 	
 	printf("trk_pre_merge: %s\n", dest->uri);
-
-	std::string fname(dest->uri);
-	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(fname);
+	if (cursor->uri) {
+		printf("src is %s\n", cursor->uri);
+	}
+	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(dest->uri);
 
 	int ret = 0;
 	WT_ITEM key, value;
@@ -122,7 +132,16 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 				   rocksdb::Slice((const char*)value.data, value.size));
 	}
 	builder->Finish1stPass();
+	printf("trk_pre_merge done\n");
 
+	return (0);
+}
+
+int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config) {
+	printf("enter drop: %s\n", uri);
+	
+	std::string path(std::string(home) + "/" + uri);
+	::remove(path.c_str());
 	return (0);
 }
 
@@ -199,7 +218,7 @@ int trk_reader_cursor_close(WT_CURSOR *cursor) {
 	return (0);
 }
 
-static inline void set_kv(rocksdb::Iterator* iter, WT_CURSOR* cursor) {
+static inline void set_kv(rocksdb::TerarkIterator* iter, WT_CURSOR* cursor) {
 	{
 		WT_ITEM* buf = &cursor->key;
 		rocksdb::Slice key = iter->key();
@@ -217,20 +236,19 @@ static inline void set_kv(rocksdb::Iterator* iter, WT_CURSOR* cursor) {
 // only reader will use the following cursor-ops
 int trk_cursor_next(WT_CURSOR *cursor) {
 	//printf("next entered: %s\n", cursor->uri);
-	// WT_NOTFOUND == -31803
-	#define END_REACHED -31803
-	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
+	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Next();
 	if (!iter->Valid()) {
-		return END_REACHED;
+		printf("to the end: %s\n", cursor->uri);
+		return WT_NOTFOUND;
 	}
 	set_kv(iter, cursor);
 	return (0);
 }
 
 int trk_cursor_prev(WT_CURSOR *cursor) {
-	//printf("prev entered: %s\n", cursor->uri);
-	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
+	printf("prev entered: %s\n", cursor->uri);
+	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Prev();
 	if (!iter->Valid()) {
 		return -1;
@@ -240,10 +258,13 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 }
 
 // TBD(kg): any resources held by the cursor are released
+// reset followed by next?
 int trk_reader_cursor_reset(WT_CURSOR *cursor) {
-	printf("reader reset entered: %s\n", cursor->uri);
-	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
-	iter->SeekToFirst();
+	//printf("reader reset entered: %s\n", cursor->uri);
+
+	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
+	iter->SetInvalid();
+	//terark_iter->SeekToFirst();
 	return (0);
 }
 int trk_builder_cursor_reset(WT_CURSOR *cursor) {
@@ -253,7 +274,7 @@ int trk_builder_cursor_reset(WT_CURSOR *cursor) {
 
 int trk_cursor_search(WT_CURSOR *cursor) {
 	//printf("search entered: %s\n", cursor->uri);
-	rocksdb::Iterator* iter = chunk_manager->GetIterator(cursor);
+	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Seek(rocksdb::Slice((const char*)cursor->key.data, cursor->key.size));
 	if (!iter->Valid()) {
 		return WT_NOTFOUND;
@@ -307,7 +328,8 @@ int main() {
 		home = NULL;
 
 	chunk_manager = rocksdb::TerarkChunkManager::sharedInstance();
-	ret = wiredtiger_open(home, NULL, "create", &conn);
+	ret = wiredtiger_open(home, NULL, "create,verbose=[lsm,lsm_manager]", &conn);
+	//ret = wiredtiger_open(home, NULL, "create", &conn);
 	ret = conn->open_session(conn, NULL, NULL, &session);
 
 	//my_data_source_init(conn);
@@ -320,7 +342,7 @@ int main() {
 		NULL, //__wt_lsm_tree_alter, //my_alter,
 		trk_create,
 		NULL, //__wt_lsm_compact, //NULL, //my_compact,
-		NULL, //__wt_lsm_tree_drop, //NULL, //my_drop,
+		trk_drop, //__wt_lsm_tree_drop, //NULL, //my_drop,
 		trk_open_cursor,
 		NULL, //__wt_lsm_tree_rename, //NULL, //my_rename,
 		NULL, //my_salvage,
@@ -365,7 +387,7 @@ int main() {
 			c->insert(c);
 		}
 		printf("insert done\n");
-		sleep(300);
+		sleep(30);
 		printf("start search...\n");
 		{
 			// cursor read ...

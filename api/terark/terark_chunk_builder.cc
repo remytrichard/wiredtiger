@@ -12,6 +12,7 @@
 #include "wiredtiger.h"
 // terark headers
 #include <terark/util/sortable_strvec.hpp>
+#include <terark/int_vector.hpp>
 // project headers
 #include "terark_chunk_builder.h"
 #include "trk_block_builder.h"
@@ -471,8 +472,8 @@ namespace rocksdb {
 		long long& t5, long long& t6, long long& t7) {
 		auto& keyStat = kvs.stat;
 		if (index->NeedsReorder()) {
-			terark::AutoFree<uint32_t> newToOld(keyStat.numKeys, UINT32_MAX);
-			index->GetOrderMap(newToOld.p);
+			terark::UintVecMin0 newToOld(keyStat.numKeys, keyStat.numKeys - 1);
+			index->GetOrderMap(newToOld);
 			t6 = g_pf.now();
 			t7 = g_pf.now();
 			try {

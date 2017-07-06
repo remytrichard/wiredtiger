@@ -53,14 +53,17 @@ namespace rocksdb {
 	using terark::BlobStore;
 
 	void TerarkChunkReader::TerarkReaderIterator::SeekToFirst() {
+		reseted_ = false;
 		UnzipIterRecord(iter_->SeekToFirst());
 	}
 
 	void TerarkChunkReader::TerarkReaderIterator::SeekToLast() {
+		reseted_ = false;
 		UnzipIterRecord(iter_->SeekToLast());
 	}
 
 	void TerarkChunkReader::TerarkReaderIterator::SeekForPrev(const Slice& target) {
+		reseted_ = false;
 		Seek(target);
 		if (!Valid()) {
 			SeekToLast();
@@ -71,15 +74,22 @@ namespace rocksdb {
 	}
 
 	void TerarkChunkReader::TerarkReaderIterator::Seek(const Slice& target) {
+		reseted_ = false;
 		UnzipIterRecord(iter_->Seek(fstringOf(target)));
 	}
 
 	void TerarkChunkReader::TerarkReaderIterator::Next() {
+		if (reseted_) {
+			SeekToFirst();
+			reseted_ = false;
+			return;
+		}
 		assert(iter_->Valid());
 		UnzipIterRecord(iter_->Next());
 	}
 
 	void TerarkChunkReader::TerarkReaderIterator::Prev() {
+		reseted_ = false;
 		assert(iter_->Valid());
 		UnzipIterRecord(iter_->Prev());
 	}
@@ -116,7 +126,7 @@ namespace rocksdb {
 
 
 	
-	Iterator*
+	TerarkChunkReader::TerarkReaderIterator*
 	TerarkChunkReader::NewIterator() {
 		Status s = Open();
 		if (!s.ok()) {

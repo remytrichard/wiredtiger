@@ -120,12 +120,12 @@ namespace rocksdb {
 			return new MyIterator(m_trie.get());
 		}
 		bool NeedsReorder() const override final { return true; }
-		void GetOrderMap(uint32_t* newToOld)
+		void GetOrderMap(terark::UintVecMin0& newToOld)
 			const override final {
 			terark::NonRecursiveDictionaryOrderToStateMapGenerator gen;
 			gen(*m_trie, [&](size_t dictOrderOldId, size_t state) {
 					size_t newId = m_trie->state_to_word_id(state);
-					newToOld[newId] = uint32_t(dictOrderOldId);
+					newToOld.set_wire(newId, dictOrderOldId);
 				});
 		}
 		void BuildCache(double cacheRatio) {

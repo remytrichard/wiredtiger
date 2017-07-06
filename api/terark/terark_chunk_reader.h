@@ -59,6 +59,7 @@ namespace rocksdb {
 				iter_.reset(chunk_->index_->NewIterator()); 
 				iter_->SetInvalid(); 
 			}
+			reseted_ = false;
 		}
 		~TerarkReaderIterator() {}
 		bool Valid() const { return iter_->Valid(); }
@@ -68,6 +69,7 @@ namespace rocksdb {
 		void Seek(const Slice&);
 		void Next();
 		void Prev();
+		void SetInvalid() { reseted_ = true; }
 		Slice key() const;
 		Slice value() const;
 		Status status() const { return status_; }
@@ -78,12 +80,13 @@ namespace rocksdb {
 		TerarkChunkReader* chunk_;
 
 	protected:
+		bool  reseted_;
 		std::unique_ptr<TerarkIndex::Iterator> iter_;
 		valvec<byte_t>          keyBuf_;
 		valvec<byte_t>          valueBuf_;
 		Status                  status_;
 	};
-	Iterator* NewIterator();
+	TerarkReaderIterator* NewIterator();
 
 	private:
 	Status Open();
