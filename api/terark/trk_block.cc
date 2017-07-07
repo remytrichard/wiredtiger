@@ -43,7 +43,6 @@ namespace rocksdb {
 	}
 
 	void TerarkBlockIter::Prev() {
-		printf("---------------- not supported\n");
 		abort(); // not supported
 	}
 
@@ -60,7 +59,6 @@ namespace rocksdb {
 	}
 
 	void TerarkBlockIter::SeekForPrev(const Slice& target) {
-		printf("---------------- not supported\n");
 		abort(); // not supported
 	}
 
@@ -73,7 +71,6 @@ namespace rocksdb {
 	}
 
 	void TerarkBlockIter::SeekToLast() {
-		printf("---------------- not supported\n");
 		abort(); // not supported
 	}
 

@@ -16,7 +16,7 @@
 #include "rocksdb/options.h"
 #include "rocksdb/slice.h"
 
-#include "trk_block_builder.h"
+#include "trk_block.h"
 #include "trk_format.h"
 
 namespace rocksdb {

@@ -15,7 +15,6 @@
 #include <terark/int_vector.hpp>
 // project headers
 #include "terark_chunk_builder.h"
-#include "trk_block_builder.h"
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
 #include "trk_table_properties.h"
