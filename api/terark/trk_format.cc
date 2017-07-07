@@ -285,14 +285,13 @@ namespace rocksdb {
 			return status;
 		}
 
-		compression_type = static_cast<rocksdb::CompressionType>(slice.data()[n]);
 		// page is uncompressed, the buffer either stack or heap provided
 		if (slice.data() != used_buf) {
 			// the slice content is not the buffer provided(mmap read currently)
-			*contents = TerarkBlockContents(Slice(slice.data(), n), false, compression_type);
+			*contents = TerarkBlockContents(Slice(slice.data(), n));
 		} else {
 			// page is uncompressed, the buffer either stack or heap provided
-			*contents = TerarkBlockContents(std::move(heap_buf), n, true, compression_type);
+			*contents = TerarkBlockContents(std::move(heap_buf), n);
 		}
 		return status;
 	}

@@ -43,91 +43,45 @@
 
 namespace rocksdb {
 
-	TerarkBlockBuilder::TerarkBlockBuilder(int block_restart_interval, bool use_delta_encoding)
-		: block_restart_interval_(block_restart_interval),
-		  use_delta_encoding_(use_delta_encoding),
-		  restarts_(),
-		  counter_(0),
-		  finished_(false) {
-		assert(block_restart_interval_ >= 1);
-		restarts_.push_back(0);       // First restart point is at offset 0
-		estimate_ = sizeof(uint32_t) + sizeof(uint32_t);
-	}
-
 	void TerarkBlockBuilder::Reset() {
 		buffer_.clear();
-		restarts_.clear();
-		restarts_.push_back(0);       // First restart point is at offset 0
 		estimate_ = sizeof(uint32_t) + sizeof(uint32_t);
 		counter_ = 0;
 		finished_ = false;
-		last_key_.clear();
 	}
 
-	size_t TerarkBlockBuilder::EstimateSizeAfterKV(const Slice& key, const Slice& value)
+	/*size_t TerarkBlockBuilder::EstimateSizeAfterKV(const Slice& key, const Slice& value)
 		const {
 		size_t estimate = CurrentSizeEstimate();
 		estimate += key.size() + value.size();
-		if (counter_ >= block_restart_interval_) {
-			estimate += sizeof(uint32_t); // a new restart entry.
-		}
-
+	
 		estimate += sizeof(int32_t); // varint for shared prefix length.
 		estimate += VarintLength(key.size()); // varint for key length.
 		estimate += VarintLength(value.size()); // varint for value length.
 
 		return estimate;
-	}
+		}*/
 
 	Slice TerarkBlockBuilder::Finish() {
-		// Append restart array
-		for (size_t i = 0; i < restarts_.size(); i++) {
-			PutFixed32(&buffer_, restarts_[i]);
-		}
-		PutFixed32(&buffer_, static_cast<uint32_t>(restarts_.size()));
+
+		//PutFixed32(&buffer_, static_cast<uint32_t>(restarts_.size()));
 		finished_ = true;
 		return Slice(buffer_);
 	}
 
 	void TerarkBlockBuilder::Add(const Slice& key, const Slice& value) {
 		assert(!finished_);
-		assert(counter_ <= block_restart_interval_);
-		size_t shared = 0;  // number of bytes shared with prev key
-		if (counter_ >= block_restart_interval_) {
-			// Restart compression
-			restarts_.push_back(static_cast<uint32_t>(buffer_.size()));
-			estimate_ += sizeof(uint32_t);
-			counter_ = 0;
 
-			if (use_delta_encoding_) {
-				// Update state
-				last_key_.assign(key.data(), key.size());
-			}
-		} else if (use_delta_encoding_) {
-			Slice last_key_piece(last_key_);
-			// See how much sharing to do with previous string
-			shared = key.difference_offset(last_key_piece);
+		// Add "<key_size><value_size>" to buffer_
+		PutVarint32Varint32(&buffer_, static_cast<uint32_t>(key.size()),
+							static_cast<uint32_t>(value.size()));
 
-			// Update state
-			// We used to just copy the changed data here, but it appears to be
-			// faster to just copy the whole thing.
-			last_key_.assign(key.data(), key.size());
-		}
-
-		const size_t non_shared = key.size() - shared;
-		const size_t curr_size = buffer_.size();
-
-		// Add "<shared><non_shared><value_size>" to buffer_
-		PutVarint32Varint32Varint32(&buffer_, static_cast<uint32_t>(shared),
-									static_cast<uint32_t>(non_shared),
-									static_cast<uint32_t>(value.size()));
-
-		// Add string delta to buffer_ followed by value
-		buffer_.append(key.data() + shared, non_shared);
+		// Add key, value to buffer_
+		buffer_.append(key.data(), key.size());
 		buffer_.append(value.data(), value.size());
 
 		counter_++;
-		estimate_ += buffer_.size() - curr_size;
+		//estimate_ += buffer_.size() - curr_size;
 	}
 
 }  // namespace rocksdb

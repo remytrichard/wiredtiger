@@ -165,29 +165,20 @@ namespace rocksdb {
 
 	struct TerarkBlockContents {
 		Slice data;           // Actual contents of data
-		bool cachable;        // True iff data can be cached
-		CompressionType compression_type;
 		std::unique_ptr<char[]> allocation;
 
-		TerarkBlockContents() : cachable(false), compression_type(kNoCompression) {}
+		TerarkBlockContents() {}
 
-		TerarkBlockContents(const Slice& _data, bool _cachable,
-							CompressionType _compression_type)
-		: data(_data), cachable(_cachable), compression_type(_compression_type) {}
+	TerarkBlockContents(const Slice& _data)	: data(_data) {}
 
-		TerarkBlockContents(std::unique_ptr<char[]>&& _data, size_t _size, bool _cachable,
-							CompressionType _compression_type)
+	TerarkBlockContents(std::unique_ptr<char[]>&& _data, size_t _size)
 		: data(_data.get(), _size),
-			cachable(_cachable),
-			compression_type(_compression_type),
 			allocation(std::move(_data)) {}
 
-		TerarkBlockContents(TerarkBlockContents&& other) ROCKSDB_NOEXCEPT { *this = std::move(other); }
+		TerarkBlockContents(TerarkBlockContents&& other) { *this = std::move(other); }
 
 		TerarkBlockContents& operator=(TerarkBlockContents&& other) {
 			data = std::move(other.data);
-			cachable = other.cachable;
-			compression_type = other.compression_type;
 			allocation = std::move(other.allocation);
 			return *this;
 		}

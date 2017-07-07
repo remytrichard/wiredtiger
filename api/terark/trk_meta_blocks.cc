@@ -17,7 +17,7 @@
 namespace rocksdb {
 
 	TerarkMetaIndexBuilder::TerarkMetaIndexBuilder()
-		: meta_index_block_(new TerarkBlockBuilder(1)) {}
+		: meta_index_block_(new TerarkBlockBuilder()) {}
 
 	void TerarkMetaIndexBuilder::Add(const std::string& key,
 							   const TerarkBlockHandle& handle) {
@@ -34,7 +34,7 @@ namespace rocksdb {
 	}
 
 	TerarkPropertyBlockBuilder::TerarkPropertyBlockBuilder()
-		: properties_block_(new TerarkBlockBuilder(1)) {}
+		: properties_block_(new TerarkBlockBuilder()) {}
 
 	void TerarkPropertyBlockBuilder::Add(const std::string& name,
 								   const std::string& val) {

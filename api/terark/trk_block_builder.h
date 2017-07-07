@@ -20,8 +20,7 @@ namespace rocksdb {
 		TerarkBlockBuilder(const TerarkBlockBuilder&) = delete;
 		void operator=(const TerarkBlockBuilder&) = delete;
 
-		explicit TerarkBlockBuilder(int block_restart_interval,
-								   bool use_delta_encoding = false);
+	    TerarkBlockBuilder() : counter_(0), finished_(false) {}
 
 		// Reset the contents as if the BlockBuilder was just constructed.
 		void Reset();
@@ -37,10 +36,10 @@ namespace rocksdb {
 
 		// Returns an estimate of the current (uncompressed) size of the block
 		// we are building.
-		inline size_t CurrentSizeEstimate() const { return estimate_; }
+		//inline size_t CurrentSizeEstimate() const { return estimate_; }
 
 		// Returns an estimated block size after appending key and value.
-		size_t EstimateSizeAfterKV(const Slice& key, const Slice& value) const;
+		//size_t EstimateSizeAfterKV(const Slice& key, const Slice& value) const;
 
 		// Return true iff no entries have been added since the last Reset()
 		bool empty() const {
@@ -48,15 +47,10 @@ namespace rocksdb {
 		}
 
 	private:
-		const int          block_restart_interval_;
-		const bool         use_delta_encoding_;
-
 		std::string           buffer_;    // Destination buffer
-		std::vector<uint32_t> restarts_;  // Restart points
 		size_t                estimate_;
 		int                   counter_;   // Number of entries emitted since restart
 		bool                  finished_;  // Has Finish() been called?
-		std::string           last_key_;
 	};
 
 }  // namespace rocksdb
