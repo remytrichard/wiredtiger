@@ -86,20 +86,12 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		cursor->reset = trk_reader_cursor_reset;
 		cursor->search = trk_cursor_search;
 		cursor->search_near = trk_cursor_search_near;
-		cursor->get_key = trk_get_key;
-		cursor->get_value = trk_get_value;
-		cursor->set_key = trk_set_key;
-		cursor->set_value = trk_set_value;
 		cursor->close = trk_reader_cursor_close;
 		// read iterator
 		rocksdb::TerarkIterator* iter = chunk_manager->NewIterator(path);
 		chunk_manager->AddIterator(cursor, iter);
 	} else {
 		printf("open cursor for build: %s\n", uri);
-		cursor->get_key = trk_get_key;
-		cursor->get_value = trk_get_value;
-		cursor->set_key = trk_set_key;
-		cursor->set_value = trk_set_value;
 		cursor->reset = trk_builder_cursor_reset;
 		cursor->insert = trk_cursor_insert;
 		cursor->close = trk_builder_cursor_close;
@@ -146,57 +138,9 @@ int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONF
 }
 
 
-/*!
- * TBD(kg): key/value related ops use WT_ITEM currently
- */
-int trk_get_key(WT_CURSOR *cursor, ...) {
-	va_list ap;
-	va_start(ap, cursor);
-	WT_ITEM* key = va_arg(ap, WT_ITEM *);
-	key->data = cursor->key.data;
-	key->size = cursor->key.size;
-	va_end(ap);
-
-	return (0);
-}
-
-int trk_get_value(WT_CURSOR *cursor, ...) {
-	va_list ap;
-	va_start(ap, cursor);
-	WT_ITEM* value = va_arg(ap, WT_ITEM *);
-	value->data = cursor->value.data;
-	value->size = cursor->value.size;
-	va_end(ap);
-
-	return (0);
-}
-
-void trk_set_key(WT_CURSOR *cursor, ...) {
-	WT_ITEM* buf = &cursor->key;
-	va_list ap;
-	va_start(ap, cursor);
-	WT_ITEM* item = va_arg(ap, WT_ITEM *);
-	buf->size = item->size;
-	buf->data = item->data;
-	va_end(ap);
-}
-
-void trk_set_value(WT_CURSOR *cursor, ...) {
-	WT_ITEM* buf = &cursor->key;
-	va_list ap;
-	va_start(ap, cursor);
-	WT_ITEM* item = va_arg(ap, WT_ITEM *);
-	buf->size = item->size;
-	buf->data = item->data;
-	va_end(ap);
-}
-
 int trk_cursor_insert(WT_CURSOR *cursor) {
 	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
-	WT_ITEM value;
-	int ret = cursor->get_value(cursor, &value);
-	assert(ret == 0);
-	builder->Add(rocksdb::Slice((const char*)value.data, value.size));
+	builder->Add(rocksdb::Slice((const char*)cursor->value.data, cursor->value.size));
 
 	return (0);
 }
@@ -331,8 +275,8 @@ int main() {
 		home = NULL;
 
 	chunk_manager = rocksdb::TerarkChunkManager::sharedInstance();
-	ret = wiredtiger_open(home, NULL, "create,verbose=[lsm,lsm_manager]", &conn);
-	//ret = wiredtiger_open(home, NULL, "create", &conn);
+	//ret = wiredtiger_open(home, NULL, "create,verbose=[lsm,lsm_manager]", &conn);
+	ret = wiredtiger_open(home, NULL, "create", &conn);
 	ret = conn->open_session(conn, NULL, NULL, &session);
 
 	//my_data_source_init(conn);
@@ -395,7 +339,9 @@ int main() {
 		{
 			// cursor read ...
 			//c->reset(c);
+			int i = 0;
 			for (auto& di : dict) {
+				//printf("will search %dth key %s\n", i++, di.first.c_str());
 				c->set_key(c, di.first.c_str());
 				int ret = c->search(c);
 				assert(ret == 0);

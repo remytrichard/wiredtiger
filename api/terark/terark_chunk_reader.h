@@ -77,11 +77,8 @@ namespace rocksdb {
 			UnzipIterRecord(iter_->Seek(fstringOf(target)));
 		}
 		void Next();
-		void Prev() {
-			reseted_ = false;
-			assert(iter_->Valid());
-			UnzipIterRecord(iter_->Prev());
-		}
+		void Prev();
+
 		void SetInvalid() { reseted_ = true; }
 		Slice key() const {
 			assert(iter_->Valid());

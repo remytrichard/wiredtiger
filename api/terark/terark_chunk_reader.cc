@@ -63,6 +63,11 @@ namespace rocksdb {
 		}
 	}
 
+	/*
+	 * If the WT_CURSOR::next method is called on a cursor without 
+	 * a position in the data source, it is positioned at the beginning 
+	 * of the data source.
+	 */
 	void TerarkChunkReader::TerarkReaderIterator::Next() {
 		if (reseted_) {
 			SeekToFirst();
@@ -71,6 +76,21 @@ namespace rocksdb {
 		}
 		assert(iter_->Valid());
 		UnzipIterRecord(iter_->Next());
+	}
+
+	/*
+	 * If the WT_CURSOR::prev method is called on a cursor without
+	 * a position in the data source, it is positioned at the end
+	 * of the data source.
+	 */
+	void TerarkChunkReader::TerarkReaderIterator::Prev() {
+		if (reseted_) {
+			SeekToLast();
+			reseted_ = false;
+			return;
+		}
+		assert(iter_->Valid());
+		UnzipIterRecord(iter_->Prev());
 	}
 
 	bool TerarkChunkReader::TerarkReaderIterator::UnzipIterRecord(bool hasRecord) {

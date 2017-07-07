@@ -24,40 +24,6 @@ extern "C" {
 
 	int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config);
 	
-	/*!
-	 * @param ... pointers to hold key fields corresponding to
-	 * WT_CURSOR::key_format.
-	 */
-	int trk_get_key(WT_CURSOR *cursor, ...);
-
-	/*!
-	 * @param ... pointers to hold value fields corresponding to
-	 * WT_CURSOR::value_format.
-	 */
-	int trk_get_value(WT_CURSOR *cursor, ...);
-
-	/*!
-	 * Set the key for the next operation.
-	 *
-	 * @param ... key fields corresponding to WT_CURSOR::key_format.
-	 *
-	 * If an error occurs during this operation, a flag will be set in the
-	 * cursor, and the next operation to access the key will fail.  This
-	 * simplifies error handling in applications.
-	 */
-	void trk_set_key(WT_CURSOR *cursor, ...);
-
-	/*!
-	 * Set the value for the next operation.
-	 *
-	 * @param ... value fields corresponding to WT_CURSOR::value_format.
-	 *
-	 * If an error occurs during this operation, a flag will be set in the
-	 * cursor, and the next operation to access the value will fail.  This
-	 * simplifies error handling in applications.
-	 */
-	void trk_set_value(WT_CURSOR *cursor, ...);
-
 
 	// Return the next record.
 	int trk_cursor_next(WT_CURSOR *cursor);
