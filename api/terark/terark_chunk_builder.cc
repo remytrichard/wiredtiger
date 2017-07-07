@@ -470,7 +470,7 @@ namespace rocksdb {
 		if (index->NeedsReorder()) {
 			terark::UintVecMin0 newToOld(keyStat.numKeys, keyStat.numKeys - 1);
 			index->GetOrderMap(newToOld);
-			tms_[kBZTypeBuildStart] = g_pf.now();
+			tms_[kReorderStart] = tms_[kBZTypeBuildStart] = g_pf.now();
 			try {
 				dataBlock.set_offset(offset_);
 				store->reorder_zip_data(newToOld, std::ref(writeAppend));

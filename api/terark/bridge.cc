@@ -199,7 +199,7 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Prev();
 	if (!iter->Valid()) {
-		return -1;
+		return WT_NOTFOUND;
 	}
 	set_kv(iter, cursor);
 	return (0);
@@ -209,10 +209,9 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 // reset followed by next?
 int trk_reader_cursor_reset(WT_CURSOR *cursor) {
 	//printf("reader reset entered: %s\n", cursor->uri);
-
 	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
 	iter->SetInvalid();
-	//terark_iter->SeekToFirst();
+
 	return (0);
 }
 int trk_builder_cursor_reset(WT_CURSOR *cursor) {
@@ -334,7 +333,7 @@ int main() {
 			c->insert(c);
 		}
 		printf("insert done\n");
-		sleep(30);
+		//sleep(30);
 		printf("start search...\n");
 		{
 			// cursor read ...

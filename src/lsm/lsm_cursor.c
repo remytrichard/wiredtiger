@@ -569,6 +569,11 @@ retry:	if (F_ISSET(clsm, WT_CLSM_MERGE)) {
 				break;
 
 			/* Make sure the checkpoint config matches. */
+			// TBD(kg): our customized ds should be
+			// WT_CURSOR_DATA_SOURCE
+			if (((WT_CURSOR_BTREE*)cursor)->btree == NULL) {
+				continue;
+			}
 			checkpoint = ((WT_CURSOR_BTREE *)cursor)->
 			    btree->dhandle->checkpoint;
 			if (checkpoint == NULL &&
