@@ -7,7 +7,6 @@
  */
 
 #include "wt_internal.h"
-#include "../terark_sst/bridge.h"
 /*
  * Compaction is the place where the underlying block manager becomes visible
  * in the higher engine btree and API layers.  As there is currently only one

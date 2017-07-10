@@ -111,6 +111,7 @@ namespace rocksdb {
 	TerarkChunkReader::~TerarkChunkReader() {
 		index_.reset();
 		store_.reset();
+		file_reader_.reset();
 	}
 	
 	TerarkChunkReader::TerarkReaderIterator*
@@ -129,31 +130,19 @@ namespace rocksdb {
 			return Status::OK();
 		}
 		// prepare chunk file
-		//rocksdb::Options options;
-		//rocksdb::EnvOptions env_options;
-		//env_options.use_mmap_reads = true;
-		//std::unique_ptr<rocksdb::RandomAccessFile> file;
 		file_reader_.reset(new terark::MmapWholeFile(chunk_name_));
-		//Status s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
-		//assert(s.ok());
-		//file_reader_.reset(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
-		uint64_t file_size = file_reader_->size;
-		//Status s = options.env->GetFileSize(chunk_name_, &file_size);
-		//assert(s.ok());
+		size_t file_size = 0;
+		Status s = GetFileSize(chunk_name_, &file_size);
+		assert(s.ok());
 		// read meta data -- properties, index meta, value meta
 		Slice file_data((const char*)file_reader_->base, file_size);
 		TerarkTableProperties* table_props = nullptr;
-		Status s = TerarkReadTableProperties(file_data,file_size,
+		s = TerarkReadTableProperties(file_data, file_size,
 									  kTerarkZipTableMagicNumber, &table_props);
 		if (!s.ok()) {
 			return s;
 		}
 		assert(nullptr != table_props);
-		//Slice file_data;
-		//s = file_reader_->Read(0, file_size, &file_data, nullptr);
-		//if (!s.ok()) {
-		//	return s;
-		//}
 		TerarkBlockContents valueDictBlock, indexBlock;
 		s = TerarkReadMetaBlock(file_data, file_size, kTerarkZipTableMagicNumber,
 			kTerarkZipTableValueDictBlock, &valueDictBlock);
@@ -192,15 +181,15 @@ namespace rocksdb {
 		long long t1 = g_pf.now();
 		index_->BuildCache(table_options_.indexCacheRatio);
 		long long t2 = g_pf.now();
-		/*INFO(ioptions.info_log
-		  , "TerarkChunkReader::Open(): fsize = %zd, entries = %zd keys = %zd indexSize = %zd valueSize=%zd, warm up time = %6.3f'sec, build cache time = %6.3f'sec\n"
-		  , size_t(file_size), size_t(table_properties_->num_entries)
-		  , subReader_.index_->NumKeys()
-		  , size_t(table_properties_->index_size)
-		  , size_t(table_properties_->data_size)
+		//INFO(ioptions.info_log
+		printf("TerarkChunkReader::Open(): fsize = %zd, entries = %zd keys = %zd indexSize = %zd valueSize=%zd, warm up time = %6.3f'sec, build cache time = %6.3f'sec\n"
+		  , size_t(file_size), size_t(table_props->num_entries)
+		  , index_->NumKeys()
+		  , size_t(table_props->index_size)
+		  , size_t(table_props->data_size)
 		  , g_pf.sf(t0, t1)
 		  , g_pf.sf(t1, t2)
-		  );*/
+		  );
 		return Status::OK();
 	}
 

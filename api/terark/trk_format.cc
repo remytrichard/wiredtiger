@@ -149,16 +149,11 @@ namespace rocksdb {
 	Status TerarkReadBlockContents(const Slice& file_data, 
 								   const TerarkBlockHandle& handle, 
 								   TerarkBlockContents* contents) {
-		//Slice slice;
 		size_t n = static_cast<size_t>(handle.size());
 		std::unique_ptr<char[]> heap_buf = std::unique_ptr<char[]>(new char[n + kRocksdbBlockTrailerSize]);
 		char* used_buf = heap_buf.get();
 
 		Slice slice(file_data.data() + handle.offset(), n + kRocksdbBlockTrailerSize);
-		//Status s = file->Read(handle.offset(), n + kRocksdbBlockTrailerSize, &slice, used_buf);
-		//if (!s.ok()) {
-		//	return s;
-		//}
 		if (slice.size() != n + kRocksdbBlockTrailerSize) {
 			return Status::Corruption("truncated block read");
 		}

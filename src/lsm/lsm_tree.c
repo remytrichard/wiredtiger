@@ -209,7 +209,8 @@ __wt_lsm_tree_chunk_name(WT_SESSION_IMPL *session,
 	WT_RET(__wt_scr_alloc(session, 0, &tmp));
 	if (lsm_tree->custom_generation != 0 &&
 		generation >= lsm_tree->custom_generation)
-		WT_ERR(__wt_buf_fmt(session, tmp, "%s:%s-%06" PRIu32 "%s",
+		//WT_ERR(__wt_buf_fmt(session, tmp, "%s:%s-%06" PRIu32 "%s",
+		WT_ERR(__wt_buf_fmt(session, tmp, "%s-%s-%06" PRIu32 "%s",
 							lsm_tree->custom_prefix, lsm_tree->filename, id,
 							lsm_tree->custom_suffix));
 	else
@@ -236,7 +237,7 @@ __wt_lsm_tree_set_chunk_size(
 
 	filename = chunk->uri;
 	if (!WT_PREFIX_SKIP(filename, "file:") &&
-		!WT_PREFIX_MATCH(filename, "terark:"))
+		!WT_PREFIX_MATCH(filename, "terark-"))
 		WT_RET_MSG(session, EINVAL,
 		    "Expected a 'file:' URI: %s", chunk->uri);
 	WT_RET(__wt_fs_size(session, filename, &size));

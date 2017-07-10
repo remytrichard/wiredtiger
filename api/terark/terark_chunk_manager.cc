@@ -175,9 +175,6 @@ namespace rocksdb {
 	// TBD(kg): should we reuse such file_reader?
 	bool TerarkChunkManager::IsChunkExist(const std::string& fname) {
 		// check within reader first ?
-		if (reader_dict_.count(fname) > 0) {
-			return true;
-		}
 		size_t file_size = 0;
 		Status s = GetFileSize(fname, &file_size);
 		if (s.ok() && file_size > 100) {
