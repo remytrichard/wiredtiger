@@ -43,57 +43,21 @@ namespace rocksdb {
 
 	void TerarkPropertyBlockBuilder::Add(const std::string& name, uint64_t val) {
 		assert(props_.find(name) == props_.end());
-
 		std::string dst;
 		PutVarint64(&dst, val);
-
 		Add(name, dst);
 	}
 
 	void TerarkPropertyBlockBuilder::AddTableProperty(const TerarkTableProperties& props) {
-		Add(TerarkTablePropertiesNames::kRawKeySize, props.raw_key_size);
-		Add(TerarkTablePropertiesNames::kRawValueSize, props.raw_value_size);
 		Add(TerarkTablePropertiesNames::kDataSize, props.data_size);
 		Add(TerarkTablePropertiesNames::kIndexSize, props.index_size);
 		Add(TerarkTablePropertiesNames::kNumEntries, props.num_entries);
-		Add(TerarkTablePropertiesNames::kNumDataBlocks, props.num_data_blocks);
-		Add(TerarkTablePropertiesNames::kFilterSize, props.filter_size);
-		Add(TerarkTablePropertiesNames::kFormatVersion, props.format_version);
-		Add(TerarkTablePropertiesNames::kFixedKeyLen, props.fixed_key_len);
-		Add(TerarkTablePropertiesNames::kColumnFamilyId, props.column_family_id);
-
-		if (!props.filter_policy_name.empty()) {
-			Add(TerarkTablePropertiesNames::kFilterPolicy, props.filter_policy_name);
-		}
-		if (!props.comparator_name.empty()) {
-			Add(TerarkTablePropertiesNames::kComparator, props.comparator_name);
-		}
-
-		if (!props.merge_operator_name.empty()) {
-			Add(TerarkTablePropertiesNames::kMergeOperator, props.merge_operator_name);
-		}
-		if (!props.prefix_extractor_name.empty()) {
-			Add(TerarkTablePropertiesNames::kPrefixExtractorName,
-				props.prefix_extractor_name);
-		}
-		if (!props.property_collectors_names.empty()) {
-			Add(TerarkTablePropertiesNames::kPropertyCollectors,
-				props.property_collectors_names);
-		}
-		if (!props.column_family_name.empty()) {
-			Add(TerarkTablePropertiesNames::kColumnFamilyName, props.column_family_name);
-		}
-
-		if (!props.compression_name.empty()) {
-			Add(TerarkTablePropertiesNames::kCompression, props.compression_name);
-		}
 	}
 
 	Slice TerarkPropertyBlockBuilder::Finish() {
 		for (const auto& prop : props_) {
 			properties_block_->Add(prop.first, prop.second);
 		}
-
 		return properties_block_->Finish();
 	}
 
@@ -125,19 +89,7 @@ namespace rocksdb {
 		std::unordered_map<std::string, uint64_t*> predefined_uint64_properties = {
 			{TerarkTablePropertiesNames::kDataSize, &new_table_properties->data_size},
 			{TerarkTablePropertiesNames::kIndexSize, &new_table_properties->index_size},
-			{TerarkTablePropertiesNames::kFilterSize, &new_table_properties->filter_size},
-			{TerarkTablePropertiesNames::kRawKeySize, &new_table_properties->raw_key_size},
-			{TerarkTablePropertiesNames::kRawValueSize,
-			 &new_table_properties->raw_value_size},
-			{TerarkTablePropertiesNames::kNumDataBlocks,
-			 &new_table_properties->num_data_blocks},
 			{TerarkTablePropertiesNames::kNumEntries, &new_table_properties->num_entries},
-			{TerarkTablePropertiesNames::kFormatVersion,
-			 &new_table_properties->format_version},
-			{TerarkTablePropertiesNames::kFixedKeyLen,
-			 &new_table_properties->fixed_key_len},
-			{TerarkTablePropertiesNames::kColumnFamilyId,
-			 &new_table_properties->column_family_id},
 		};
 
 		std::string last_key;
@@ -146,7 +98,6 @@ namespace rocksdb {
 			if (!s.ok()) {
 				break;
 			}
-
 			auto key = iter->key().ToString();
 			// properties block is strictly sorted with no duplicate key.
 			assert(last_key.empty() ||
@@ -155,41 +106,19 @@ namespace rocksdb {
 
 			auto raw_val = iter->value();
 			auto pos = predefined_uint64_properties.find(key);
-
 			//new_table_properties->properties_offsets.insert(
 			//												{key, handle.offset() + iter->ValueOffset()});
 
 			if (pos != predefined_uint64_properties.end()) {
-				// handle predefined rocksdb properties
 				uint64_t val;
 				if (!GetVarint64(&raw_val, &val)) {
-					// skip malformed value
-					auto error_msg =
-						"Detect malformed value in properties meta-block:"
-						"\tkey: " + key + "\tval: " + raw_val.ToString();
-					Log(InfoLogLevel::ERROR_LEVEL, ioptions.info_log, "%s",
-						error_msg.c_str());
+					printf("Detect malformed value in properties meta-block");
 					continue;
 				}
 				*(pos->second) = val;
-			} else if (key == TerarkTablePropertiesNames::kFilterPolicy) {
-				new_table_properties->filter_policy_name = raw_val.ToString();
-			} else if (key == TerarkTablePropertiesNames::kColumnFamilyName) {
-				new_table_properties->column_family_name = raw_val.ToString();
-			} else if (key == TerarkTablePropertiesNames::kComparator) {
-				new_table_properties->comparator_name = raw_val.ToString();
-			} else if (key == TerarkTablePropertiesNames::kMergeOperator) {
-				new_table_properties->merge_operator_name = raw_val.ToString();
-			} else if (key == TerarkTablePropertiesNames::kPrefixExtractorName) {
-				new_table_properties->prefix_extractor_name = raw_val.ToString();
-			} else if (key == TerarkTablePropertiesNames::kPropertyCollectors) {
-				new_table_properties->property_collectors_names = raw_val.ToString();
-			} else if (key == TerarkTablePropertiesNames::kCompression) {
-				new_table_properties->compression_name = raw_val.ToString();
 			} else {
 				// handle user-collected properties
-				new_table_properties->user_collected_properties.insert(
-																	   {key, raw_val.ToString()});
+				new_table_properties->user_collected_properties.insert({key, raw_val.ToString()});
 			}
 		}
 		if (s.ok()) {

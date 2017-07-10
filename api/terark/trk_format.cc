@@ -64,28 +64,6 @@ namespace rocksdb {
 
 	const TerarkBlockHandle TerarkBlockHandle::kNullBlockHandle(0, 0);
 
-	namespace {
-		inline bool IsLegacyFooterFormat(uint64_t magic_number) {
-			return magic_number == kLegacyBlockBasedTableMagicNumber ||
-				magic_number == kLegacyPlainTableMagicNumber;
-		}
-		inline uint64_t UpconvertLegacyFooterFormat(uint64_t magic_number) {
-			if (magic_number == kLegacyBlockBasedTableMagicNumber) {
-				return kBlockBasedTableMagicNumber;
-			}
-			if (magic_number == kLegacyPlainTableMagicNumber) {
-				return kPlainTableMagicNumber;
-			}
-			assert(false);
-			return 0;
-		}
-	}  // namespace
-
-	// legacy footer format:
-	//    metaindex handle (varint64 offset, varint64 size)
-	//    index handle     (varint64 offset, varint64 size)
-	//    <padding> to make the total size 2 * BlockHandle::kMaxEncodedLength
-	//    table_magic_number (8 bytes)
 	// new footer format:
 	//    checksum (char, 1 byte)
 	//    metaindex handle (varint64 offset, varint64 size)
@@ -95,27 +73,15 @@ namespace rocksdb {
 	//    table_magic_number (8 bytes)
 	void TerarkFooter::EncodeTo(std::string* dst) const {
 		assert(HasInitializedTableMagicNumber());
-		if (IsLegacyFooterFormat(table_magic_number())) {
-			// has to be default checksum with legacy footer
-			assert(checksum_ == kCRC32c);
-			const size_t original_size = dst->size();
-			metaindex_handle_.EncodeTo(dst);
-			index_handle_.EncodeTo(dst);
-			dst->resize(original_size + 2 * TerarkBlockHandle::kMaxEncodedLength);  // Padding
-			PutFixed32(dst, static_cast<uint32_t>(table_magic_number() & 0xffffffffu));
-			PutFixed32(dst, static_cast<uint32_t>(table_magic_number() >> 32));
-			assert(dst->size() == original_size + kVersion0EncodedLength);
-		} else {
-			const size_t original_size = dst->size();
-			dst->push_back(static_cast<char>(checksum_));
-			metaindex_handle_.EncodeTo(dst);
-			index_handle_.EncodeTo(dst);
-			dst->resize(original_size + kNewVersionsEncodedLength - 12);  // Padding
-			PutFixed32(dst, version());
-			PutFixed32(dst, static_cast<uint32_t>(table_magic_number() & 0xffffffffu));
-			PutFixed32(dst, static_cast<uint32_t>(table_magic_number() >> 32));
-			assert(dst->size() == original_size + kNewVersionsEncodedLength);
-		}
+		const size_t original_size = dst->size();
+		dst->push_back(static_cast<char>(checksum_));
+		metaindex_handle_.EncodeTo(dst);
+		index_handle_.EncodeTo(dst);
+		dst->resize(original_size + kNewVersionsEncodedLength - 12);  // Padding
+		PutFixed32(dst, version());
+		PutFixed32(dst, static_cast<uint32_t>(table_magic_number() & 0xffffffffu));
+		PutFixed32(dst, static_cast<uint32_t>(table_magic_number() >> 32));
+		assert(dst->size() == original_size + kNewVersionsEncodedLength);
 	}
 
 	TerarkFooter::TerarkFooter(uint64_t _table_magic_number, uint32_t _version)
@@ -123,7 +89,7 @@ namespace rocksdb {
 		  checksum_(kCRC32c),
 		  table_magic_number_(_table_magic_number) {
 		// This should be guaranteed by constructor callers
-		assert(!IsLegacyFooterFormat(_table_magic_number) || version_ == 0);
+		//assert(version_ != 0);
 	}
 
 	Status TerarkFooter::DecodeFrom(Slice* input) {
@@ -138,34 +104,22 @@ namespace rocksdb {
 		uint64_t magic = ((static_cast<uint64_t>(magic_hi) << 32) |
 						  (static_cast<uint64_t>(magic_lo)));
 
-		bool legacy = IsLegacyFooterFormat(magic);
-		if (legacy) {
-			magic = UpconvertLegacyFooterFormat(magic);
-		}
 		set_table_magic_number(magic);
 
-		if (legacy) {
-			// The size is already asserted to be at least kMinEncodedLength
-			// at the beginning of the function
-			input->remove_prefix(input->size() - kVersion0EncodedLength);
-			version_ = 0 /* legacy */;
-			checksum_ = kCRC32c;
+		version_ = DecodeFixed32(magic_ptr - 4);
+		// Footer version 1 and higher will always occupy exactly this many bytes.
+		// It consists of the checksum type, two block handles, padding,
+		// a version number, and a magic number
+		if (input->size() < kNewVersionsEncodedLength) {
+			return Status::Corruption("input is too short to be an sstable");
 		} else {
-			version_ = DecodeFixed32(magic_ptr - 4);
-			// Footer version 1 and higher will always occupy exactly this many bytes.
-			// It consists of the checksum type, two block handles, padding,
-			// a version number, and a magic number
-			if (input->size() < kNewVersionsEncodedLength) {
-				return Status::Corruption("input is too short to be an sstable");
-			} else {
-				input->remove_prefix(input->size() - kNewVersionsEncodedLength);
-			}
-			uint32_t chksum;
-			if (!GetVarint32(input, &chksum)) {
-				return Status::Corruption("bad checksum type");
-			}
-			checksum_ = static_cast<ChecksumType>(chksum);
+			input->remove_prefix(input->size() - kNewVersionsEncodedLength);
 		}
+		uint32_t chksum;
+		if (!GetVarint32(input, &chksum)) {
+			return Status::Corruption("bad checksum type");
+		}
+		checksum_ = static_cast<ChecksumType>(chksum);
 
 		Status result = metaindex_handle_.DecodeFrom(input);
 		if (result.ok()) {
@@ -182,26 +136,17 @@ namespace rocksdb {
 	std::string TerarkFooter::ToString() const {
 		std::string result, handle_;
 		result.reserve(1024);
-
-		bool legacy = IsLegacyFooterFormat(table_magic_number_);
-		if (legacy) {
-			result.append("metaindex handle: " + metaindex_handle_.ToString() + "\n  ");
-			result.append("index handle: " + index_handle_.ToString() + "\n  ");
-			result.append("table_magic_number: " +
-						  rocksdb::ToString(table_magic_number_) + "\n  ");
-		} else {
-			result.append("checksum: " + rocksdb::ToString(checksum_) + "\n  ");
-			result.append("metaindex handle: " + metaindex_handle_.ToString() + "\n  ");
-			result.append("index handle: " + index_handle_.ToString() + "\n  ");
-			result.append("footer version: " + rocksdb::ToString(version_) + "\n  ");
-			result.append("table_magic_number: " +
-						  rocksdb::ToString(table_magic_number_) + "\n  ");
-		}
+		result.append("checksum: " + rocksdb::ToString(checksum_) + "\n  ");
+		result.append("metaindex handle: " + metaindex_handle_.ToString() + "\n  ");
+		result.append("index handle: " + index_handle_.ToString() + "\n  ");
+		result.append("footer version: " + rocksdb::ToString(version_) + "\n  ");
+		result.append("table_magic_number: " +
+					  rocksdb::ToString(table_magic_number_) + "\n  ");
 		return result;
 	}
 
 	Status TerarkReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
-							  TerarkFooter* footer, uint64_t enforce_table_magic_number) {
+									TerarkFooter* footer, uint64_t enforce_table_magic_number) {
 		if (file_size < TerarkFooter::kMinEncodedLength) {
 			return Status::Corruption("file is too short to be an sstable");
 		}

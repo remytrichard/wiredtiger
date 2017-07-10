@@ -11,10 +11,10 @@ INC=-I. -I$(TigerDir) -I$(TerarkDir) -I$(RocksDir)/include -I$(RocksDir)/port -I
 LIB=-L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lrocksdb -lterark-core-d -lterark-fsa-d -lterark-zbs-d
 
 
-OBJS = terark_chunk_reader.o terark_zip_common.o terark_zip_index.o trk_block.o trk_block_builder.o trk_table_properties.o trk_meta_blocks.o trk_format.o terark_chunk_builder.o terark_chunk_manager.o
+OBJS = terark_chunk_reader.o terark_zip_common.o terark_zip_index.o trk_block.o trk_table_properties.o trk_meta_blocks.o trk_format.o terark_chunk_builder.o terark_chunk_manager.o
 
-#all: test_add
-all: bridge
+all: test_add
+#all: bridge
 
 bridge: ${OBJS}
 	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o bridge bridge.cc
@@ -42,9 +42,6 @@ terark_chunk_manager.o: terark_zip_internal.h
 
 trk_block.o: trk_block.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_block.cc
-
-trk_block_builder.o: trk_format.h
-	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_block_builder.cc
 
 trk_table_properties.o: trk_table_properties.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_table_properties.cc
