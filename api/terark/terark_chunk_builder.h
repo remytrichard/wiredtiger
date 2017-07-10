@@ -12,12 +12,11 @@
 #define TERARK_ZIP_TABLE_BUILDER_H_
 
 // std headers
+#include <mutex>
 #include <random>
 #include <vector>
 // wiredtiger headers
 #include "wiredtiger.h"
-// rocksdb headers
-#include <util/arena.h>
 // terark headers
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>

@@ -67,7 +67,6 @@ namespace rocksdb {
 		//          *table_properties will point to a heap-allocated TableProperties
 		//          object, otherwise value of `table_properties` will not be modified.
 		Status TerarkReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
-									const TerarkFooter& footer,
 									TerarkTableProperties** table_properties) {
 			assert(table_properties);
 
@@ -93,6 +92,8 @@ namespace rocksdb {
 			std::unordered_map<std::string, uint64_t*> predefined_uint64_properties = {
 				{TerarkTablePropertiesNames::kDataSize, &new_table_properties->data_size},
 				{TerarkTablePropertiesNames::kIndexSize, &new_table_properties->index_size},
+				{TerarkTablePropertiesNames::kRawKeySize, &new_table_properties->raw_key_size},
+				{TerarkTablePropertiesNames::kRawValueSize, &new_table_properties->raw_value_size},
 				{TerarkTablePropertiesNames::kNumEntries, &new_table_properties->num_entries},
 			};
 
@@ -110,9 +111,6 @@ namespace rocksdb {
 
 				auto raw_val = iter->value();
 				auto pos = predefined_uint64_properties.find(key);
-				//new_table_properties->properties_offsets.insert(
-				//												{key, handle.offset() + iter->ValueOffset()});
-
 				if (pos != predefined_uint64_properties.end()) {
 					uint64_t val;
 					if (!GetVarint64(&raw_val, &val)) {
@@ -159,11 +157,8 @@ namespace rocksdb {
 		if (!s.ok()) {
 			return s;
 		}
-
 		auto metaindex_handle = footer.metaindex_handle();
 		TerarkBlockContents metaindex_contents;
-		TerarkReadOptions read_options;
-		read_options.verify_checksums = false;
 		s = TerarkReadBlockContents(file, metaindex_handle,
 									&metaindex_contents);
 		if (!s.ok()) {
@@ -178,13 +173,12 @@ namespace rocksdb {
 		// -- Read property block
 		TerarkBlockHandle block_handle;
 		s = TerarkFindMetaBlock(meta_iter.get(), kPropertiesBlock, &block_handle);
-		//s = SeekToPropertiesBlock(meta_iter.get(), &found_properties_block);
 		if (!s.ok()) {
 			return s;
 		}
 
 		TerarkTableProperties table_properties;
-		s = TerarkReadProperties(meta_iter->value(), file, footer, properties);
+		s = TerarkReadProperties(meta_iter->value(), file, properties);
 		return s;
 	}
 
@@ -202,8 +196,6 @@ namespace rocksdb {
 		// Reading metaindex block
 		auto metaindex_handle = footer.metaindex_handle();
 		TerarkBlockContents metaindex_contents;
-		TerarkReadOptions read_options;
-		read_options.verify_checksums = false;
 		status = TerarkReadBlockContents(file, metaindex_handle,
 										 &metaindex_contents);
 		if (!status.ok()) {
@@ -212,7 +204,6 @@ namespace rocksdb {
 
 		// Finding metablock
 		TerarkBlock metaindex_block(std::move(metaindex_contents));
-
 		std::unique_ptr<Iterator> meta_iter;
 		meta_iter.reset(metaindex_block.NewIterator(BytewiseComparator()));
 

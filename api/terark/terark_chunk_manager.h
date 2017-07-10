@@ -7,7 +7,6 @@
 // rocksdb headers
 #include <rocksdb/slice.h>
 #include <rocksdb/env.h>
-#include <rocksdb/table.h>
 // wiredtiger headers
 #include "wiredtiger.h"
 // terark headers

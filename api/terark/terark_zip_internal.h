@@ -20,7 +20,6 @@
 // rocksdb headers
 #include <rocksdb/slice.h>
 #include <rocksdb/env.h>
-#include <rocksdb/table.h>
 // terark headers
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>

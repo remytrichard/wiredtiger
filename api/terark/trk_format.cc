@@ -61,7 +61,6 @@ namespace rocksdb {
 	const TerarkBlockHandle TerarkBlockHandle::kNullBlockHandle(0, 0);
 
 	//  footer format:
-	//    checksum (char, 1 byte)
 	//    metaindex handle (varint64 offset, varint64 size)
 	//    index handle     (varint64 offset, varint64 size)
 	//    <padding> to make the total size 2 * BlockHandle::kMaxEncodedLength + 1
@@ -70,7 +69,6 @@ namespace rocksdb {
 	void TerarkFooter::EncodeTo(std::string* dst) const {
 		assert(HasInitializedTableMagicNumber());
 		const size_t original_size = dst->size();
-		dst->push_back(static_cast<char>(checksum_));
 		metaindex_handle_.EncodeTo(dst);
 		index_handle_.EncodeTo(dst);
 		dst->resize(original_size + kNewVersionsEncodedLength - 12);  // Padding
@@ -82,7 +80,6 @@ namespace rocksdb {
 
 	TerarkFooter::TerarkFooter(uint64_t _table_magic_number, uint32_t _version)
 		: version_(_version),
-		  checksum_(kCRC32c),
 		  table_magic_number_(_table_magic_number) {
 	}
 
@@ -102,18 +99,13 @@ namespace rocksdb {
 
 		version_ = DecodeFixed32(magic_ptr - 4);
 		// Footer version 1 and higher will always occupy exactly this many bytes.
-		// It consists of the checksum type, two block handles, padding,
+		// It consists of two block handles, padding,
 		// a version number, and a magic number
 		if (input->size() < kNewVersionsEncodedLength) {
 			return Status::Corruption("input is too short to be an sstable");
 		} else {
 			input->remove_prefix(input->size() - kNewVersionsEncodedLength);
 		}
-		uint32_t chksum;
-		if (!GetVarint32(input, &chksum)) {
-			return Status::Corruption("bad checksum type");
-		}
-		checksum_ = static_cast<ChecksumType>(chksum);
 
 		Status result = metaindex_handle_.DecodeFrom(input);
 		if (result.ok()) {
@@ -130,7 +122,6 @@ namespace rocksdb {
 	std::string TerarkFooter::ToString() const {
 		std::string result, handle_;
 		result.reserve(1024);
-		result.append("checksum: " + rocksdb::ToString(checksum_) + "\n  ");
 		result.append("metaindex handle: " + metaindex_handle_.ToString() + "\n  ");
 		result.append("index handle: " + index_handle_.ToString() + "\n  ");
 		result.append("footer version: " + rocksdb::ToString(version_) + "\n  ");

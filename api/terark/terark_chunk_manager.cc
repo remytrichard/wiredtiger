@@ -12,7 +12,7 @@
 #include <cstdlib>
 #include <cstdint>
 #include <fstream>
-#include <util/arena.h> // for #include <sys/mman.h>
+// for #include <sys/mman.h>
 #ifdef _MSC_VER
 # include <io.h>
 #else
@@ -31,7 +31,6 @@
 #include "file_reader_writer.h"
 #include "rocksdb/env.h"
 #include "rocksdb/options.h"
-#include "rocksdb/table.h"
 // terark headers
 #include <terark/lcast.hpp>
 // project headers

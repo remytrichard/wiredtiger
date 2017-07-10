@@ -88,10 +88,6 @@ namespace rocksdb {
 		// The version of the footer in this file
 		uint32_t version() const { return version_; }
 
-		// The checksum type used in this file
-		ChecksumType checksum() const { return checksum_; }
-		void set_checksum(const ChecksumType c) { checksum_ = c; }
-
 		// The block handle for the metaindex block of the table
 		const TerarkBlockHandle& metaindex_handle() const { return metaindex_handle_; }
 		void set_metaindex_handle(const TerarkBlockHandle& h) { metaindex_handle_ = h; }
@@ -118,9 +114,9 @@ namespace rocksdb {
 		// increased accordingly.
 		enum {
 			// Footer of versions 1 and higher will always occupy exactly this many
-			// bytes. It consists of the checksum type, two block handles, padding,
+			// bytes. It consists of two block handles, padding,
 			// a version number (bigger than 1), and a magic number
-			kNewVersionsEncodedLength = 1 + 2 * TerarkBlockHandle::kMaxEncodedLength + 4 + 8,
+			kNewVersionsEncodedLength = 2 * TerarkBlockHandle::kMaxEncodedLength + 4 + 8,
 			kMinEncodedLength = kNewVersionsEncodedLength,
 			kMaxEncodedLength = kNewVersionsEncodedLength,
 		};
@@ -144,7 +140,6 @@ namespace rocksdb {
 		}
 
 		uint32_t version_;
-		ChecksumType checksum_;
 		TerarkBlockHandle metaindex_handle_;
 		TerarkBlockHandle index_handle_;
 		uint64_t table_magic_number_ = 0;

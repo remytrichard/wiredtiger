@@ -4,7 +4,7 @@
 #include <terark/util/throw.hpp>
 #include <rocksdb/db.h>
 #include <rocksdb/options.h>
-#include <rocksdb/table.h>
+//#include <rocksdb/table.h>
 #ifdef _MSC_VER
 # include <Windows.h>
 # define strcasecmp _stricmp

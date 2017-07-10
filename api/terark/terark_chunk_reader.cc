@@ -1,14 +1,8 @@
 
 // boost headers
 #include <boost/scope_exit.hpp>
-// rocksdb headers
-//#include <table/internal_iterator.h>
-//#include <table/sst_file_writer_collectors.h>
-//#include <table/meta_blocks.h>
-//#include <table/get_context.h>
 // terark headers
 #include <terark/util/crc.hpp>
-
 // project headers
 #include "terark_chunk_reader.h"
 #include "terark_zip_common.h"

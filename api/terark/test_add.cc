@@ -14,7 +14,7 @@
 //#include "file_reader_writer.h"
 // rocksdb headers
 #include "rocksdb/slice.h"
-#include "rocksdb/table.h"
+//#include "rocksdb/table.h"
 #include "rocksdb/env.h"
 // project headers
 #include "terark_zip_internal.h"

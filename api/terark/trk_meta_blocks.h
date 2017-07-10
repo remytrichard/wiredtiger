@@ -9,9 +9,6 @@
 #include <string>
 #include <vector>
 
-//#include "db/builder.h"
-//#include "db/table_properties_collector.h"
-//#include "util/kv_map.h"
 #include "rocksdb/comparator.h"
 #include "rocksdb/slice.h"
 
@@ -21,7 +18,6 @@
 namespace rocksdb {
 
 	class Env;
-	//class Logger;
 	class RandomAccessFile;
 	struct TerarkTableProperties;
 	class TerarkMetaIndexBuilder {
