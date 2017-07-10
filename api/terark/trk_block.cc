@@ -15,7 +15,6 @@
 #include <vector>
 
 #include "port/port.h"
-#include "util/coding.h"
 
 #include "trk_block.h"
 
@@ -24,12 +23,19 @@ namespace rocksdb {
 	static inline const char* DecodeEntry(const char* p, const char* limit,
 										  uint32_t* key_length,
 										  uint32_t* value_length) {
-		if (limit - p < 3) return nullptr;
-		if ((p = GetVarint32Ptr(p, limit, key_length)) == nullptr) return nullptr;
-		if ((p = GetVarint32Ptr(p, limit, value_length)) == nullptr) return nullptr;
+		if (limit - p < 10) return nullptr;
+		*key_length = TerarkDecodeFixed32(p);
+		p += 4;
+		*value_length = TerarkDecodeFixed32(p);
+		p += 4;
 		if (static_cast<uint32_t>(limit - p) < (*key_length + *value_length)) {
 			return nullptr;
 		}
+		/*if ((p = GetVarint32Ptr(p, limit, key_length)) == nullptr) return nullptr;
+		if ((p = GetVarint32Ptr(p, limit, value_length)) == nullptr) return nullptr;
+		if (static_cast<uint32_t>(limit - p) < (*key_length + *value_length)) {
+			return nullptr;
+			}*/
 		return p;
 	}
 

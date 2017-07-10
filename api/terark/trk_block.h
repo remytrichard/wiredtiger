@@ -22,7 +22,6 @@
 
 #include "rocksdb/options.h"
 #include "rocksdb/slice.h"
-#include "util/coding.h"
 
 #include "trk_common.h"
 #include "trk_format.h"
@@ -128,8 +127,10 @@ TIterator* NewIterator(const TComparator* comparator);
 		void Add(const Slice& key, const Slice& value) {
 			assert(!finished_);
 			// Add "<key_size><value_size>" to buffer_
-			PutVarint32Varint32(&buffer_, static_cast<uint32_t>(key.size()),
-								static_cast<uint32_t>(value.size()));
+			//PutVarint32Varint32(&buffer_, static_cast<uint32_t>(key.size()),
+			//					static_cast<uint32_t>(value.size()));
+			TerarkPutFixed32(&buffer_, static_cast<uint32_t>(key.size()));
+			TerarkPutFixed32(&buffer_, static_cast<uint32_t>(value.size()));
 			// Add key, value to buffer_
 			buffer_.append(key.data(), key.size());
 			buffer_.append(value.data(), value.size());

@@ -5,8 +5,6 @@
 #include <map>
 #include <string>
 
-#include "util/coding.h"
-
 #include "trk_block.h"
 #include "trk_common.h"
 #include "trk_format.h"
@@ -43,7 +41,7 @@ namespace rocksdb {
 	void TerarkPropertyBlockBuilder::Add(const std::string& name, uint64_t val) {
 		assert(props_.find(name) == props_.end());
 		std::string dst;
-		PutVarint64(&dst, val);
+		TerarkPutFixed64(&dst, val);
 		Add(name, dst);
 	}
 
@@ -113,7 +111,7 @@ namespace rocksdb {
 				auto pos = predefined_uint64_properties.find(key);
 				if (pos != predefined_uint64_properties.end()) {
 					uint64_t val;
-					if (!GetVarint64(&raw_val, &val)) {
+					if (!TerarkGetFixed64(&raw_val, &val)) {
 						printf("Detect malformed value in properties meta-block");
 						continue;
 					}

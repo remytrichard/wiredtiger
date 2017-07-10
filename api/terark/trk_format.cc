@@ -11,16 +11,10 @@
 #include <inttypes.h>
 
 #include "rocksdb/env.h"
-#include "util/coding.h"
-//#include "util/compression.h"
-#include "util/crc32c.h"
 #include "util/file_reader_writer.h"
-//#include "util/perf_context_imp.h"
 #include "util/string_util.h"
-#include "util/xxhash.h"
-//#include "util/statistics.h"
-//#include "util/stop_watch.h"
 
+#include "trk_common.h"
 #include "trk_format.h"
 
 namespace rocksdb {
@@ -32,12 +26,14 @@ namespace rocksdb {
 		// Sanity check that all fields have been set
 		assert(offset_ != ~static_cast<uint64_t>(0));
 		assert(size_ != ~static_cast<uint64_t>(0));
-		PutVarint64Varint64(dst, offset_, size_);
+		//TerarkPutVarint64Varint64(dst, offset_, size_);
+		TerarkPutFixed64(dst, offset_);
+		TerarkPutFixed64(dst, size_);
 	}
 
 	Status TerarkBlockHandle::DecodeFrom(Slice* input) {
-		if (GetVarint64(input, &offset_) &&
-			GetVarint64(input, &size_)) {
+		if (TerarkGetFixed64(input, &offset_) &&
+			TerarkGetFixed64(input, &size_)) {
 			return Status::OK();
 		} else {
 			// reset in case failure after partially decoding
@@ -61,8 +57,8 @@ namespace rocksdb {
 	const TerarkBlockHandle TerarkBlockHandle::kNullBlockHandle(0, 0);
 
 	//  footer format:
-	//    metaindex handle (varint64 offset, varint64 size)
-	//    index handle     (varint64 offset, varint64 size)
+	//    metaindex handle (fixed64 offset, fixed64 size)
+	//    index handle     (fixed64 offset, fixed64 size)
 	//    <padding> to make the total size 2 * BlockHandle::kMaxEncodedLength + 1
 	//    footer version (4 bytes)
 	//    table_magic_number (8 bytes)
@@ -72,9 +68,9 @@ namespace rocksdb {
 		metaindex_handle_.EncodeTo(dst);
 		index_handle_.EncodeTo(dst);
 		dst->resize(original_size + kNewVersionsEncodedLength - 12);  // Padding
-		PutFixed32(dst, version());
-		PutFixed32(dst, static_cast<uint32_t>(table_magic_number() & 0xffffffffu));
-		PutFixed32(dst, static_cast<uint32_t>(table_magic_number() >> 32));
+		TerarkPutFixed32(dst, version());
+		TerarkPutFixed32(dst, static_cast<uint32_t>(table_magic_number() & 0xffffffffu));
+		TerarkPutFixed32(dst, static_cast<uint32_t>(table_magic_number() >> 32));
 		assert(dst->size() == original_size + kNewVersionsEncodedLength);
 	}
 
@@ -90,14 +86,14 @@ namespace rocksdb {
 
 		const char *magic_ptr =
 			input->data() + input->size() - kRocksdbMagicNumberLengthByte;
-		const uint32_t magic_lo = DecodeFixed32(magic_ptr);
-		const uint32_t magic_hi = DecodeFixed32(magic_ptr + 4);
+		const uint32_t magic_lo = TerarkDecodeFixed32(magic_ptr);
+		const uint32_t magic_hi = TerarkDecodeFixed32(magic_ptr + 4);
 		uint64_t magic = ((static_cast<uint64_t>(magic_hi) << 32) |
 						  (static_cast<uint64_t>(magic_lo)));
 
 		set_table_magic_number(magic);
 
-		version_ = DecodeFixed32(magic_ptr - 4);
+		version_ = TerarkDecodeFixed32(magic_ptr - 4);
 		// Footer version 1 and higher will always occupy exactly this many bytes.
 		// It consists of two block handles, padding,
 		// a version number, and a magic number

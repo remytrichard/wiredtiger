@@ -7,7 +7,6 @@
 // rocksdb headers
 #include "file_reader_writer.h"
 #include "rocksdb/env.h"
-//#include "rocksdb/table.h"
 // wiredtiger headers
 #include "wiredtiger.h"
 // terark headers
@@ -332,7 +331,6 @@ namespace rocksdb {
 			sumWorkingMem += myWorkMem;
 		};
 		// indexing is also slow, run it in parallel
-		//AutoDeleteFile tmpIndexFile{tmpValueFile_.path + ".index"};
 		tmpIndexFile_.fpath = tmpValueFile_.path + ".index";
 		std::future<void> asyncIndexResult = 
 			std::async(std::launch::async, [&]() {
