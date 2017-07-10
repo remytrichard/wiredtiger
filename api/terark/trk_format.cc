@@ -126,29 +126,16 @@ namespace rocksdb {
 		return result;
 	}
 
-	Status TerarkReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
+	Status TerarkReadFooterFromFile(const Slice& file_data, uint64_t file_size,
 									TerarkFooter* footer, uint64_t enforce_table_magic_number) {
 		if (file_size < TerarkFooter::kMinEncodedLength) {
 			return Status::Corruption("file is too short to be an sstable");
 		}
 
 		char footer_space[TerarkFooter::kMaxEncodedLength];
-		Slice footer_input;
-		size_t read_offset =
-			(file_size > TerarkFooter::kMaxEncodedLength)
-			? static_cast<size_t>(file_size - TerarkFooter::kMaxEncodedLength)
-			: 0;
-		Status s = file->Read(read_offset, TerarkFooter::kMaxEncodedLength, &footer_input,
-							  footer_space);
-		if (!s.ok()) return s;
-
-		// Check that we actually read the whole footer from the file. It may be
-		// that size isn't correct.
-		if (footer_input.size() < TerarkFooter::kMinEncodedLength) {
-			return Status::Corruption("file is too short to be an sstable");
-		}
-
-		s = footer->DecodeFrom(&footer_input);
+		size_t read_offset = static_cast<size_t>(file_size - TerarkFooter::kMaxEncodedLength);
+		Slice footer_input(file_data.data() + read_offset, TerarkFooter::kMaxEncodedLength);
+		Status s = footer->DecodeFrom(&footer_input);
 		if (!s.ok()) {
 			return s;
 		}
@@ -159,18 +146,19 @@ namespace rocksdb {
 		return Status::OK();
 	}
 
-	Status TerarkReadBlockContents(RandomAccessFileReader* file, 
+	Status TerarkReadBlockContents(const Slice& file_data, 
 								   const TerarkBlockHandle& handle, 
 								   TerarkBlockContents* contents) {
-		Slice slice;
+		//Slice slice;
 		size_t n = static_cast<size_t>(handle.size());
 		std::unique_ptr<char[]> heap_buf = std::unique_ptr<char[]>(new char[n + kRocksdbBlockTrailerSize]);
 		char* used_buf = heap_buf.get();
 
-		Status s = file->Read(handle.offset(), n + kRocksdbBlockTrailerSize, &slice, used_buf);
-		if (!s.ok()) {
-			return s;
-		}
+		Slice slice(file_data.data() + handle.offset(), n + kRocksdbBlockTrailerSize);
+		//Status s = file->Read(handle.offset(), n + kRocksdbBlockTrailerSize, &slice, used_buf);
+		//if (!s.ok()) {
+		//	return s;
+		//}
 		if (slice.size() != n + kRocksdbBlockTrailerSize) {
 			return Status::Corruption("truncated block read");
 		}
@@ -180,7 +168,7 @@ namespace rocksdb {
 		} else {
 			*contents = TerarkBlockContents(std::move(heap_buf), n);
 		}
-		return s;
+		return Status::OK();
 	}
 
 }  // namespace rocksdb

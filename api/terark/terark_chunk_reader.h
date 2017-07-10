@@ -10,7 +10,7 @@
 // rocksdb headers
 #include "file_reader_writer.h"
 #include "rocksdb/env.h"
-#include "rocksdb/iterator.h"
+//#include "rocksdb/iterator.h"
 // terark headers
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>
@@ -21,6 +21,7 @@
 #include <terark/zbs/dict_zip_blob_store.hpp>
 #include <terark/bitfield_array.hpp>
 #include <terark/util/fstrvec.hpp>
+#include <terark/util/mmap.hpp>
 // project headers
 #include "terark_zip_config.h"
 #include "terark_zip_internal.h"
@@ -111,7 +112,8 @@ namespace rocksdb {
 
 	std::unique_ptr<TerarkIndex> index_;
 	std::unique_ptr<terark::BlobStore> store_;
-	std::unique_ptr<rocksdb::RandomAccessFileReader> file_reader_;
+	std::unique_ptr<terark::MmapWholeFile> file_reader_;
+	//std::unique_ptr<rocksdb::RandomAccessFileReader> file_reader_;
 	};
 
 

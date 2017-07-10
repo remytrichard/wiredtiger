@@ -46,6 +46,7 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	std::unique_ptr<rocksdb::WritableFile> file;
 	// TBD(kg): need more settings on env
 	std::string path(std::string(home) + "/" + uri);
+	std::replace(path.begin(), path.end(), ':', '-');
 	rocksdb::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
 
@@ -79,6 +80,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 
 	// set cursor-ops based on builder/reader
 	std::string path(std::string(home) + "/" + uri);
+	std::replace(path.begin(), path.end(), ':', '-');
 	if (chunk_manager->IsChunkExist(path)) {
 		printf("open cursor for read: %s\n", uri);
 		cursor->next = trk_cursor_next;
@@ -133,6 +135,7 @@ int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONF
 	printf("enter drop: %s\n", uri);
 	
 	std::string path(std::string(home) + "/" + uri);
+	std::replace(path.begin(), path.end(), ':', '-');
 	::remove(path.c_str());
 	return (0);
 }

@@ -62,14 +62,14 @@ namespace rocksdb {
 	// @returns a status to indicate if the operation succeeded. On success,
 	//          *table_properties will point to a heap-allocated TableProperties
 	//          object, otherwise value of `table_properties` will not be modified.
-	Status TerarkReadTableProperties(RandomAccessFileReader* file, uint64_t file_size,
+	Status TerarkReadTableProperties(const Slice& file_data, uint64_t file_size,
 									 uint64_t table_magic_number,
 									 TerarkTableProperties** properties);
 
 	// Read the specified meta block with name meta_block_name
 	// from `file` and initialize `contents` with contents of this block.
 	// Return Status::OK in case of success.
-	Status TerarkReadMetaBlock(RandomAccessFileReader* file, uint64_t file_size,
+	Status TerarkReadMetaBlock(const Slice& file_data, uint64_t file_size,
 						 uint64_t table_magic_number,
 						 const std::string& meta_block_name,
 						 TerarkBlockContents* contents);

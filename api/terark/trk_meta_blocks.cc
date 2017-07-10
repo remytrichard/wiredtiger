@@ -64,7 +64,7 @@ namespace rocksdb {
 		// @returns a status to indicate if the operation succeeded. On success,
 		//          *table_properties will point to a heap-allocated TableProperties
 		//          object, otherwise value of `table_properties` will not be modified.
-		Status TerarkReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
+		Status TerarkReadProperties(const Slice& handle_value, const Slice& file,
 									TerarkTableProperties** table_properties) {
 			assert(table_properties);
 
@@ -146,18 +146,18 @@ namespace rocksdb {
 	}
 
 
-	Status TerarkReadTableProperties(RandomAccessFileReader* file, uint64_t file_size,
+	Status TerarkReadTableProperties(const Slice& file_data, uint64_t file_size,
 							   uint64_t table_magic_number,
 							   TerarkTableProperties** properties) {
 		// -- Read metaindex block
 		TerarkFooter footer;
-		auto s = TerarkReadFooterFromFile(file, file_size, &footer, table_magic_number);
+		auto s = TerarkReadFooterFromFile(file_data, file_size, &footer, table_magic_number);
 		if (!s.ok()) {
 			return s;
 		}
 		auto metaindex_handle = footer.metaindex_handle();
 		TerarkBlockContents metaindex_contents;
-		s = TerarkReadBlockContents(file, metaindex_handle,
+		s = TerarkReadBlockContents(file_data, metaindex_handle,
 									&metaindex_contents);
 		if (!s.ok()) {
 			return s;
@@ -176,17 +176,17 @@ namespace rocksdb {
 		}
 
 		TerarkTableProperties table_properties;
-		s = TerarkReadProperties(meta_iter->value(), file, properties);
+		s = TerarkReadProperties(meta_iter->value(), file_data, properties);
 		return s;
 	}
 
-	Status TerarkReadMetaBlock(RandomAccessFileReader* file, uint64_t file_size,
+	Status TerarkReadMetaBlock(const Slice& file_data, uint64_t file_size,
 		uint64_t table_magic_number,
 		const std::string& meta_block_name,
 		TerarkBlockContents* contents) {
 		Status status;
 		TerarkFooter footer;
-		status = TerarkReadFooterFromFile(file, file_size, &footer, table_magic_number);
+		status = TerarkReadFooterFromFile(file_data, file_size, &footer, table_magic_number);
 		if (!status.ok()) {
 			return status;
 		}
@@ -194,7 +194,7 @@ namespace rocksdb {
 		// Reading metaindex block
 		auto metaindex_handle = footer.metaindex_handle();
 		TerarkBlockContents metaindex_contents;
-		status = TerarkReadBlockContents(file, metaindex_handle,
+		status = TerarkReadBlockContents(file_data, metaindex_handle,
 										 &metaindex_contents);
 		if (!status.ok()) {
 			return status;
@@ -213,7 +213,7 @@ namespace rocksdb {
 		}
 
 		// Reading metablock
-		return TerarkReadBlockContents(file, 
+		return TerarkReadBlockContents(file_data, 
 			block_handle, contents);
 	}
 

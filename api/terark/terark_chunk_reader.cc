@@ -108,6 +108,10 @@ namespace rocksdb {
 	}
 
 
+	TerarkChunkReader::~TerarkChunkReader() {
+		index_.reset();
+		store_.reset();
+	}
 	
 	TerarkChunkReader::TerarkReaderIterator*
 	TerarkChunkReader::NewIterator() {
@@ -125,36 +129,38 @@ namespace rocksdb {
 			return Status::OK();
 		}
 		// prepare chunk file
-		rocksdb::Options options;
-		rocksdb::EnvOptions env_options;
-		env_options.use_mmap_reads = true;
-		std::unique_ptr<rocksdb::RandomAccessFile> file;
-		Status s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
-		assert(s.ok());
-		file_reader_.reset(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
-		uint64_t file_size = 0;
-		s = options.env->GetFileSize(chunk_name_, &file_size);
-		assert(s.ok());
+		//rocksdb::Options options;
+		//rocksdb::EnvOptions env_options;
+		//env_options.use_mmap_reads = true;
+		//std::unique_ptr<rocksdb::RandomAccessFile> file;
+		file_reader_.reset(new terark::MmapWholeFile(chunk_name_));
+		//Status s = options.env->NewRandomAccessFile(chunk_name_, &file, env_options);
+		//assert(s.ok());
+		//file_reader_.reset(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
+		uint64_t file_size = file_reader_->size;
+		//Status s = options.env->GetFileSize(chunk_name_, &file_size);
+		//assert(s.ok());
 		// read meta data -- properties, index meta, value meta
+		Slice file_data((const char*)file_reader_->base, file_size);
 		TerarkTableProperties* table_props = nullptr;
-		s = TerarkReadTableProperties(file_reader_.get(), file_size,
-			kTerarkZipTableMagicNumber, &table_props);
+		Status s = TerarkReadTableProperties(file_data,file_size,
+									  kTerarkZipTableMagicNumber, &table_props);
 		if (!s.ok()) {
 			return s;
 		}
 		assert(nullptr != table_props);
-		Slice file_data;
-		s = file_reader_->Read(0, file_size, &file_data, nullptr);
-		if (!s.ok()) {
-			return s;
-		}
+		//Slice file_data;
+		//s = file_reader_->Read(0, file_size, &file_data, nullptr);
+		//if (!s.ok()) {
+		//	return s;
+		//}
 		TerarkBlockContents valueDictBlock, indexBlock;
-		s = TerarkReadMetaBlock(file_reader_.get(), file_size, kTerarkZipTableMagicNumber,
+		s = TerarkReadMetaBlock(file_data, file_size, kTerarkZipTableMagicNumber,
 			kTerarkZipTableValueDictBlock, &valueDictBlock);
 		if (!s.ok()) {
 			return s;
 		}
-		s = TerarkReadMetaBlock(file_reader_.get(), file_size, kTerarkZipTableMagicNumber,
+		s = TerarkReadMetaBlock(file_data, file_size, kTerarkZipTableMagicNumber,
 			kTerarkZipTableIndexBlock, &indexBlock);
 		if (!s.ok()) {
 			return s;

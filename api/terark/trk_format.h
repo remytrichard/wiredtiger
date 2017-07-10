@@ -146,7 +146,7 @@ namespace rocksdb {
 	// Read the footer from file
 	// If enforce_table_magic_number != 0, ReadFooterFromFile() will return
 	// corruption if table_magic number is not equal to enforce_table_magic_number
-	Status TerarkReadFooterFromFile(RandomAccessFileReader* file, uint64_t file_size,
+	Status TerarkReadFooterFromFile(const Slice& file_data, uint64_t file_size,
 									TerarkFooter* footer,
 									uint64_t enforce_table_magic_number = 0);
 
@@ -176,7 +176,7 @@ namespace rocksdb {
 
 	// Read the block identified by "handle" from "file".  On failure
 	// return non-OK.  On success fill *result and return OK.
-	extern Status TerarkReadBlockContents(RandomAccessFileReader* file,
+	extern Status TerarkReadBlockContents(const Slice& file_data,
 										  const TerarkBlockHandle& handle,
 										  TerarkBlockContents* contents);
 

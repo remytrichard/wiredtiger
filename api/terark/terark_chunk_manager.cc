@@ -33,6 +33,7 @@
 #include "rocksdb/options.h"
 // terark headers
 #include <terark/lcast.hpp>
+#include <terark/util/mmap.hpp>
 // project headers
 #include "terark_zip_index.h"
 #include "terark_zip_internal.h"
@@ -174,21 +175,18 @@ namespace rocksdb {
 	// TBD(kg): should we reuse such file_reader?
 	bool TerarkChunkManager::IsChunkExist(const std::string& fname) {
 		// check within reader first ?
-
-		rocksdb::Options options;
-		rocksdb::EnvOptions env_options;
-		env_options.use_mmap_reads = true;
-		uint64_t file_size = 0;
-		rocksdb::Status s = options.env->GetFileSize(fname, &file_size);
+		if (reader_dict_.count(fname) > 0) {
+			return true;
+		}
+		size_t file_size = 0;
+		Status s = GetFileSize(fname, &file_size);
 		if (s.ok() && file_size > 100) {
-			std::unique_ptr<rocksdb::RandomAccessFile> file;
-			rocksdb::Status s = options.env->NewRandomAccessFile(fname, &file, env_options);
-			assert(s.ok());
-			std::unique_ptr<rocksdb::RandomAccessFileReader>
-				reader(new rocksdb::RandomAccessFileReader(std::move(file), options.env));
+			std::unique_ptr<terark::MmapWholeFile> 
+				file_reader(new terark::MmapWholeFile(fname));
 			// check footer
+			Slice slice((const char*)file_reader->base, file_reader->size);
 			TerarkTableProperties* table_props = nullptr;
-			s = TerarkReadTableProperties(reader.get(), file_size,
+			Status s = TerarkReadTableProperties(slice, file_reader->size,
 										  kTerarkZipTableMagicNumber, &table_props);
 			if (s.ok()) {
 				//file_reader_.reset(reader.release());
