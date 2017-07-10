@@ -9,9 +9,9 @@
 #include <string>
 #include <vector>
 
-#include "rocksdb/comparator.h"
 #include "rocksdb/slice.h"
 
+#include "trk_common.h"
 #include "trk_block.h"
 #include "trk_format.h"
 

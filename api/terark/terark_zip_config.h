@@ -10,9 +10,10 @@
 #include <string>
 #include <vector>
 
-#include "rocksdb/comparator.h"
 #include "rocksdb/env.h"
 #include "rocksdb/options.h"
+
+#include "trk_common.h"
 
 namespace rocksdb {
 
@@ -96,7 +97,7 @@ namespace rocksdb {
 
 	class TerarkTableBuilderOptions {
 	public:
-	TerarkTableBuilderOptions(const rocksdb::Comparator& comp) : internal_comparator(comp) {
+	TerarkTableBuilderOptions(const rocksdb::TComparator& comp) : internal_comparator(comp) {
 			//info_log = new StdoutLogger();
 		}
 			
@@ -111,7 +112,7 @@ namespace rocksdb {
 		//  int_tbl_prop_collector_factories;
 		CompressionType compression_type;
 
-		const Comparator& internal_comparator;
+		const TComparator& internal_comparator;
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
 	};

@@ -15,11 +15,7 @@
 #include <vector>
 
 #include "port/port.h"
-#include "port/stack_trace.h"
-#include "rocksdb/comparator.h"
 #include "util/coding.h"
-#include "util/logging.h"
-#include "util/perf_context_imp.h"
 
 #include "trk_block.h"
 
@@ -52,7 +48,7 @@ namespace rocksdb {
 		}
 		value_ = Slice(data_, 0);
 		while (true) {
-			if (!ParseNextKey() || Compare(key_.GetKey(), target) >= 0) {
+			if (!ParseNextKey() || Compare(key_, target) >= 0) {
 				return;
 			}
 		}
@@ -77,7 +73,7 @@ namespace rocksdb {
 	void TerarkBlockIter::CorruptionError() {
 		current_ = size_;
 		status_ = Status::Corruption("bad entry in block");
-		key_.Clear();
+		key_.clear();
 		value_.clear();
 	}
 
@@ -97,7 +93,7 @@ namespace rocksdb {
 			CorruptionError();
 			return false;
 		} else {
-			key_.SetKey(Slice(p, key_length), false /* copy */);
+			key_ = Slice(p, key_length);
 			value_ = Slice(p + key_length, value_length);
 			return true;
 		}
@@ -112,7 +108,7 @@ namespace rocksdb {
 		}
 	}
 
-	Iterator* TerarkBlock::NewIterator(const Comparator* cmp) {
+	TIterator* TerarkBlock::NewIterator(const TComparator* cmp) {
 		if (size_ < 2 * sizeof(uint32_t)) {
 			return nullptr;
 		} else {

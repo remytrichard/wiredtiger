@@ -134,25 +134,8 @@ namespace rocksdb {
 			return true;
 		}
 
-		bool IsBytewiseComparator(const Comparator* cmp) {
-#if 1
-			const fstring name = cmp->Name();
-			if (name.startsWith("RocksDB_SE_")) {
-				return true;
-			}
-			if (name.startsWith("rev:RocksDB_SE_")) {
-				// reverse bytewise compare, needs reverse in iterator
-				return true;
-			}
-# if defined(TERARK_SUPPORT_UINT64_COMPARATOR)
-			if (name == "rocksdb.Uint64Comparator") {
-				return true;
-			}
-# endif
-			return name == "leveldb.BytewiseComparator";
-#else
-			return BytewiseComparator() == cmp;
-#endif
+		bool IsBytewiseComparator(const TComparator* cmp) {
+			return cmp->Name() == std::string("leveldb.BytewiseComparator");
 		}
 
 	} // namespace
@@ -220,7 +203,7 @@ namespace rocksdb {
 	TerarkChunkBuilder*
 	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 		const std::string& fname) {
-		const rocksdb::Comparator* userCmp = &table_builder_options.internal_comparator;
+		const rocksdb::TComparator* userCmp = &table_builder_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			THROW_STD(invalid_argument,
 				"TerarkChunkManager::NewTableBuilder(): "
@@ -232,12 +215,9 @@ namespace rocksdb {
 		if (minlevel < 0) {
 			minlevel = numlevel - 1;
 		}
-#if 1
 		//INFO(table_builder_options.ioptions.info_log
-		//	 , "nth_newtable{ terark = %3zd fallback = %3zd } curlevel = %d minlevel = %d numlevel = %d fallback = %p\n"
-		//	 , nth_new_terark_table_, nth_new_fallback_table_, curlevel, minlevel, numlevel, fallback_factory_
-		//	 );
-#endif
+		printf("nth_newtable{ terark = %3zd fallback = %3zd } curlevel = %d minlevel = %d numlevel = %d\n"
+			   , nth_new_terark_table_, nth_new_fallback_table_, curlevel, minlevel, numlevel);
 		if (0 == nth_new_terark_table_) {
 			g_lastTime = g_pf.now();
 		}

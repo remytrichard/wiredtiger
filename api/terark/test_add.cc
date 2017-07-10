@@ -22,6 +22,7 @@
 #include "terark_chunk_manager.h"
 #include "terark_chunk_builder.h"
 #include "terark_chunk_reader.h"
+#include "trk_common.h"
 
 static const char *home;
 static const char* sst_path = "./data/0001.sst";
@@ -51,7 +52,7 @@ int main() {
 	rocksdb::EnvOptions env_options;
 	env_options.use_mmap_reads = env_options.use_mmap_writes = true;
 	{
-		const rocksdb::Comparator* comparator = rocksdb::BytewiseComparator();
+		const rocksdb::TComparator* comparator = rocksdb::GetBytewiseComparator();
 		rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
 		
 		rocksdb::TerarkChunkBuilder* builder = 

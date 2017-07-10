@@ -22,8 +22,6 @@ namespace rocksdb {
 
 	class TerarkBlock;
 	class RandomAccessFile;
-	class TerarkReadOptions;
-
 	extern bool ShouldReportDetailedTime(Env* env, Statistics* stats);
 
 	// the length of the magic number in bytes.

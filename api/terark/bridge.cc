@@ -40,7 +40,7 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 
 	// TBD(kg): make sure such file is not exist, remove it anyway
 	rocksdb::Options options;
-	const rocksdb::Comparator* comparator = rocksdb::BytewiseComparator();
+	const rocksdb::TComparator* comparator = rocksdb::GetBytewiseComparator();
 	rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
 
 	std::unique_ptr<rocksdb::WritableFile> file;

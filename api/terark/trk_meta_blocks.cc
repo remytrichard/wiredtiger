@@ -8,8 +8,8 @@
 #include "util/coding.h"
 
 #include "trk_block.h"
+#include "trk_common.h"
 #include "trk_format.h"
-#include "trk_iter_key.h"
 #include "trk_meta_blocks.h"
 #include "trk_table_properties.h"
 
@@ -83,7 +83,7 @@ namespace rocksdb {
 			}
 
 			TerarkBlock properties_block(std::move(block_contents));
-			std::unique_ptr<Iterator> iter(properties_block.NewIterator(BytewiseComparator()));
+			std::unique_ptr<TIterator> iter(properties_block.NewIterator(GetBytewiseComparator()));
 			//TerarkBlockIter iter;
 			//properties_block.NewIterator(BytewiseComparator(), &iter);
 
@@ -106,7 +106,7 @@ namespace rocksdb {
 				auto key = iter->key().ToString();
 				// properties block is strictly sorted with no duplicate key.
 				assert(last_key.empty() ||
-					   BytewiseComparator()->Compare(key, last_key) > 0);
+					   GetBytewiseComparator()->Compare(key, last_key) > 0);
 				last_key = key;
 
 				auto raw_val = iter->value();
@@ -132,7 +132,7 @@ namespace rocksdb {
 			return s;
 		}
 
-		Status TerarkFindMetaBlock(Iterator* meta_index_iter,
+		Status TerarkFindMetaBlock(TIterator* meta_index_iter,
 								   const std::string& meta_block_name,
 								   TerarkBlockHandle* block_handle) {
 			meta_index_iter->Seek(meta_block_name);
@@ -165,7 +165,7 @@ namespace rocksdb {
 			return s;
 		}
 		TerarkBlock metaindex_block(std::move(metaindex_contents));
-		std::unique_ptr<Iterator> meta_iter(metaindex_block.NewIterator(BytewiseComparator()));
+		std::unique_ptr<TIterator> meta_iter(metaindex_block.NewIterator(GetBytewiseComparator()));
 		if (meta_iter.get() == nullptr) {
 			return Status::Corruption("bad block handle");
 		}
@@ -204,8 +204,8 @@ namespace rocksdb {
 
 		// Finding metablock
 		TerarkBlock metaindex_block(std::move(metaindex_contents));
-		std::unique_ptr<Iterator> meta_iter;
-		meta_iter.reset(metaindex_block.NewIterator(BytewiseComparator()));
+		std::unique_ptr<TIterator> meta_iter;
+		meta_iter.reset(metaindex_block.NewIterator(GetBytewiseComparator()));
 
 		TerarkBlockHandle block_handle;
 		status = TerarkFindMetaBlock(meta_iter.get(), meta_block_name, &block_handle);

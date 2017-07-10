@@ -20,24 +20,16 @@
 #endif
 #endif
 
-#include "rocksdb/comparator.h"
-#include "rocksdb/iterator.h"
 #include "rocksdb/options.h"
-#include "rocksdb/statistics.h"
 #include "rocksdb/slice.h"
 #include "util/coding.h"
 
+#include "trk_common.h"
 #include "trk_format.h"
-#include "trk_iter_key.h"
 
 namespace rocksdb {
 
 	class TerarkBlockIter;
-	class TerarkReadOptions {
-	public:
-		bool verify_checksums = false;
-	};
-
 	class TerarkBlock {
 	public:
 		// Initialize the block with the specified contents.
@@ -47,7 +39,7 @@ namespace rocksdb {
 		size_t size() const { return size_; }
 		const char* data() const { return data_; }
 
-		Iterator* NewIterator(const Comparator* comparator);
+TIterator* NewIterator(const TComparator* comparator);
 		
 	private:
 		TerarkBlockContents contents_;
@@ -59,7 +51,7 @@ namespace rocksdb {
 		void operator=(const TerarkBlock&);
 	};
 
-	class TerarkBlockIter : public Iterator {
+	class TerarkBlockIter : public TIterator {
 	public:
 	TerarkBlockIter()
 		: comparator_(nullptr),
@@ -67,7 +59,7 @@ namespace rocksdb {
 			current_(0),
 			status_(Status::OK()) {}
 		
-	TerarkBlockIter(const Comparator* comparator, const char* data, size_t size)
+	TerarkBlockIter(const TComparator* comparator, const char* data, size_t size)
 		: TerarkBlockIter() {
 			assert(data_ == nullptr);           // Ensure it is called only once
 			comparator_ = comparator;
@@ -81,7 +73,7 @@ namespace rocksdb {
 		virtual Status status() const override { return status_; }
 		virtual Slice key() const override {
 			assert(Valid());
-			return key_.GetKey();
+			return key_;
 		}
 		virtual Slice value() const override {
 			assert(Valid());
@@ -102,13 +94,13 @@ namespace rocksdb {
 		}
 
 	private:
-		const Comparator* comparator_;
+		const TComparator* comparator_;
 		const char* data_;       // underlying block contents
 
-		// current_ is offset in data_ of current entry.  >= restarts_ if !Valid
+		// current_ is offset in data_ of current entry.
 		uint32_t current_;
 		size_t size_;
-		TerarkIterKey key_;
+		Slice key_;
 		Slice value_;
 		Status status_;
 
