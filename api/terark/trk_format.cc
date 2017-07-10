@@ -12,24 +12,20 @@
 
 #include "rocksdb/env.h"
 #include "util/coding.h"
-#include "util/compression.h"
+//#include "util/compression.h"
 #include "util/crc32c.h"
 #include "util/file_reader_writer.h"
-#include "util/perf_context_imp.h"
+//#include "util/perf_context_imp.h"
 #include "util/string_util.h"
 #include "util/xxhash.h"
-#include "util/statistics.h"
-#include "util/stop_watch.h"
+//#include "util/statistics.h"
+//#include "util/stop_watch.h"
 
 #include "trk_format.h"
 
 namespace rocksdb {
 
-	extern const uint64_t kLegacyBlockBasedTableMagicNumber;
 	extern const uint64_t kBlockBasedTableMagicNumber;
-
-	extern const uint64_t kLegacyPlainTableMagicNumber;
-	extern const uint64_t kPlainTableMagicNumber;
 	const uint32_t DefaultStackBufferSize = 5000;
 
 	void TerarkBlockHandle::EncodeTo(std::string* dst) const {
@@ -64,7 +60,7 @@ namespace rocksdb {
 
 	const TerarkBlockHandle TerarkBlockHandle::kNullBlockHandle(0, 0);
 
-	// new footer format:
+	//  footer format:
 	//    checksum (char, 1 byte)
 	//    metaindex handle (varint64 offset, varint64 size)
 	//    index handle     (varint64 offset, varint64 size)
@@ -88,8 +84,6 @@ namespace rocksdb {
 		: version_(_version),
 		  checksum_(kCRC32c),
 		  table_magic_number_(_table_magic_number) {
-		// This should be guaranteed by constructor callers
-		//assert(version_ != 0);
 	}
 
 	Status TerarkFooter::DecodeFrom(Slice* input) {
@@ -178,56 +172,28 @@ namespace rocksdb {
 		return Status::OK();
 	}
 
-	// Without anonymous namespace here, we fail the warning -Wmissing-prototypes
-	namespace {
-
-		// Read a block and check its CRC
-		// contents is the result of reading.
-		// According to the implementation of file->Read, contents may not point to buf
-		Status TerarkReadBlock(RandomAccessFileReader* file, const TerarkFooter& footer,
-							   const TerarkBlockHandle& handle,
-							   Slice* contents, /* result of reading */ char* buf) {
-			size_t n = static_cast<size_t>(handle.size());
-			Status s = file->Read(handle.offset(), n + kRocksdbBlockTrailerSize, contents, buf);
-			if (!s.ok()) {
-				return s;
-			}
-			if (contents->size() != n + kRocksdbBlockTrailerSize) {
-				return Status::Corruption("truncated block read");
-			}
-			return s;
-		}
-
-	}  // namespace
-
 	Status TerarkReadBlockContents(RandomAccessFileReader* file, 
-		const TerarkFooter& footer,
-		const TerarkBlockHandle& handle, 
-		TerarkBlockContents* contents,
-		const Options &ioptions) {
-		Status status;
+								   const TerarkBlockHandle& handle, 
+								   TerarkBlockContents* contents) {
 		Slice slice;
 		size_t n = static_cast<size_t>(handle.size());
-		std::unique_ptr<char[]> heap_buf;
-		char* used_buf = nullptr;
-		rocksdb::CompressionType compression_type;
+		std::unique_ptr<char[]> heap_buf = std::unique_ptr<char[]>(new char[n + kRocksdbBlockTrailerSize]);
+		char* used_buf = heap_buf.get();
 
-		heap_buf = std::unique_ptr<char[]>(new char[n + kRocksdbBlockTrailerSize]);
-		used_buf = heap_buf.get();
-		status = TerarkReadBlock(file, footer, handle, &slice, used_buf);
-		if (!status.ok()) {
-			return status;
+		Status s = file->Read(handle.offset(), n + kRocksdbBlockTrailerSize, &slice, used_buf);
+		if (!s.ok()) {
+			return s;
 		}
-
-		// page is uncompressed, the buffer either stack or heap provided
+		if (slice.size() != n + kRocksdbBlockTrailerSize) {
+			return Status::Corruption("truncated block read");
+		}
 		if (slice.data() != used_buf) {
 			// the slice content is not the buffer provided(mmap read currently)
 			*contents = TerarkBlockContents(Slice(slice.data(), n));
 		} else {
-			// page is uncompressed, the buffer either stack or heap provided
 			*contents = TerarkBlockContents(std::move(heap_buf), n);
 		}
-		return status;
+		return s;
 	}
 
 }  // namespace rocksdb

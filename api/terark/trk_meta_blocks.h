@@ -11,9 +11,8 @@
 
 //#include "db/builder.h"
 //#include "db/table_properties_collector.h"
-#include "util/kv_map.h"
+//#include "util/kv_map.h"
 #include "rocksdb/comparator.h"
-#include "rocksdb/options.h"
 #include "rocksdb/slice.h"
 
 #include "trk_block.h"
@@ -22,7 +21,7 @@
 namespace rocksdb {
 
 	class Env;
-	class Logger;
+	//class Logger;
 	class RandomAccessFile;
 	struct TerarkTableProperties;
 	class TerarkMetaIndexBuilder {
@@ -39,7 +38,7 @@ namespace rocksdb {
 
 	private:
 		// store the sorted key/handle of the metablocks.
-		stl_wrappers::KVMap meta_block_handles_;
+		std::map<std::string, std::string> meta_block_handles_;
 		std::unique_ptr<TerarkBlockBuilder> meta_index_block_;
 	};
 
@@ -59,25 +58,16 @@ namespace rocksdb {
 
 	private:
 		std::unique_ptr<TerarkBlockBuilder> properties_block_;
-		stl_wrappers::KVMap props_;
+		std::map<std::string, std::string> props_;
 	};
 
-
-	// Read the properties from the table.
-	// @returns a status to indicate if the operation succeeded. On success,
-	//          *table_properties will point to a heap-allocated TableProperties
-	//          object, otherwise value of `table_properties` will not be modified.
-	Status TerarkReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
-								const TerarkFooter& footer, const Options &ioptions,
-								TerarkTableProperties** table_properties);
 
 	// Directly read the properties from the properties block of a plain table.
 	// @returns a status to indicate if the operation succeeded. On success,
 	//          *table_properties will point to a heap-allocated TableProperties
 	//          object, otherwise value of `table_properties` will not be modified.
 	Status TerarkReadTableProperties(RandomAccessFileReader* file, uint64_t file_size,
-							   uint64_t table_magic_number,
-							   const Options &ioptions,
+									 uint64_t table_magic_number,
 									 TerarkTableProperties** properties);
 
 	// Read the specified meta block with name meta_block_name
@@ -85,7 +75,6 @@ namespace rocksdb {
 	// Return Status::OK in case of success.
 	Status TerarkReadMetaBlock(RandomAccessFileReader* file, uint64_t file_size,
 						 uint64_t table_magic_number,
-						 const Options &ioptions,
 						 const std::string& meta_block_name,
 						 TerarkBlockContents* contents);
 

@@ -117,14 +117,11 @@ namespace rocksdb {
 		// the version number should be incremented and kMaxEncodedLength should be
 		// increased accordingly.
 		enum {
-			// Footer version 0 (legacy) will always occupy exactly this many bytes.
-			// It consists of two block handles, padding, and a magic number.
-			kVersion0EncodedLength = 2 * TerarkBlockHandle::kMaxEncodedLength + 8,
 			// Footer of versions 1 and higher will always occupy exactly this many
 			// bytes. It consists of the checksum type, two block handles, padding,
 			// a version number (bigger than 1), and a magic number
 			kNewVersionsEncodedLength = 1 + 2 * TerarkBlockHandle::kMaxEncodedLength + 4 + 8,
-			kMinEncodedLength = kVersion0EncodedLength,
+			kMinEncodedLength = kNewVersionsEncodedLength,
 			kMaxEncodedLength = kNewVersionsEncodedLength,
 		};
 
@@ -186,11 +183,9 @@ namespace rocksdb {
 
 	// Read the block identified by "handle" from "file".  On failure
 	// return non-OK.  On success fill *result and return OK.
-	extern Status TerarkReadBlockContents(RandomAccessFileReader* file, const TerarkFooter& footer,
+	extern Status TerarkReadBlockContents(RandomAccessFileReader* file,
 										  const TerarkBlockHandle& handle,
-										  TerarkBlockContents* contents, const Options &ioptions);
-
-	// Implementation details follow.  Clients should ignore,
+										  TerarkBlockContents* contents);
 
 	// TODO(andrewkr): we should prefer one way of representing a null/uninitialized
 	// TerarkBlockHandle. Currently we use zeros for null and use negation-of-zeros for

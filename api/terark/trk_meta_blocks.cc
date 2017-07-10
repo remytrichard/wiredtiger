@@ -5,7 +5,6 @@
 #include <map>
 #include <string>
 
-//#include "rocksdb/table.h"
 #include "util/coding.h"
 
 #include "trk_block.h"
@@ -20,10 +19,10 @@ namespace rocksdb {
 		: meta_index_block_(new TerarkBlockBuilder()) {}
 
 	void TerarkMetaIndexBuilder::Add(const std::string& key,
-							   const TerarkBlockHandle& handle) {
+									 const TerarkBlockHandle& handle) {
 		std::string handle_encoding;
 		handle.EncodeTo(&handle_encoding);
-		meta_block_handles_.insert({key, handle_encoding});
+		meta_block_handles_[key] = handle_encoding;
 	}
 
 	Slice TerarkMetaIndexBuilder::Finish() {
@@ -38,7 +37,7 @@ namespace rocksdb {
 
 	void TerarkPropertyBlockBuilder::Add(const std::string& name,
 								   const std::string& val) {
-		props_.insert({name, val});
+		props_[name] = val;
 	}
 
 	void TerarkPropertyBlockBuilder::Add(const std::string& name, uint64_t val) {
@@ -62,90 +61,97 @@ namespace rocksdb {
 	}
 
 
-	Status TerarkReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
-								const TerarkFooter& footer, const Options& ioptions,
-								TerarkTableProperties** table_properties) {
-		assert(table_properties);
+	namespace {
+		// Read the properties from the table.
+		// @returns a status to indicate if the operation succeeded. On success,
+		//          *table_properties will point to a heap-allocated TableProperties
+		//          object, otherwise value of `table_properties` will not be modified.
+		Status TerarkReadProperties(const Slice& handle_value, RandomAccessFileReader* file,
+									const TerarkFooter& footer,
+									TerarkTableProperties** table_properties) {
+			assert(table_properties);
 
-		Slice v = handle_value;
-		TerarkBlockHandle handle;
-		if (!handle.DecodeFrom(&v).ok()) {
-			return Status::InvalidArgument("Failed to decode properties block handle");
-		}
+			Slice v = handle_value;
+			TerarkBlockHandle handle;
+			if (!handle.DecodeFrom(&v).ok()) {
+				return Status::InvalidArgument("Failed to decode properties block handle");
+			}
 
-		TerarkBlockContents block_contents;
-		Status s = TerarkReadBlockContents(file, footer, handle, &block_contents, ioptions);
-		if (!s.ok()) {
+			TerarkBlockContents block_contents;
+			Status s = TerarkReadBlockContents(file, handle, &block_contents);
+			if (!s.ok()) {
+				return s;
+			}
+
+			TerarkBlock properties_block(std::move(block_contents));
+			std::unique_ptr<Iterator> iter(properties_block.NewIterator(BytewiseComparator()));
+			//TerarkBlockIter iter;
+			//properties_block.NewIterator(BytewiseComparator(), &iter);
+
+			auto new_table_properties = new TerarkTableProperties();
+			// All pre-defined properties of type uint64_t
+			std::unordered_map<std::string, uint64_t*> predefined_uint64_properties = {
+				{TerarkTablePropertiesNames::kDataSize, &new_table_properties->data_size},
+				{TerarkTablePropertiesNames::kIndexSize, &new_table_properties->index_size},
+				{TerarkTablePropertiesNames::kNumEntries, &new_table_properties->num_entries},
+			};
+
+			std::string last_key;
+			for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
+				s = iter->status();
+				if (!s.ok()) {
+					break;
+				}
+				auto key = iter->key().ToString();
+				// properties block is strictly sorted with no duplicate key.
+				assert(last_key.empty() ||
+					   BytewiseComparator()->Compare(key, last_key) > 0);
+				last_key = key;
+
+				auto raw_val = iter->value();
+				auto pos = predefined_uint64_properties.find(key);
+				//new_table_properties->properties_offsets.insert(
+				//												{key, handle.offset() + iter->ValueOffset()});
+
+				if (pos != predefined_uint64_properties.end()) {
+					uint64_t val;
+					if (!GetVarint64(&raw_val, &val)) {
+						printf("Detect malformed value in properties meta-block");
+						continue;
+					}
+					*(pos->second) = val;
+				} else {
+					// handle user-collected properties
+					new_table_properties->user_collected_properties.insert({key, raw_val.ToString()});
+				}
+			}
+			if (s.ok()) {
+				*table_properties = new_table_properties;
+			} else {
+				delete new_table_properties;
+			}
+
 			return s;
 		}
 
-		TerarkBlock properties_block(std::move(block_contents));
-		std::unique_ptr<Iterator> iter(properties_block.NewIterator(BytewiseComparator()));
-		//TerarkBlockIter iter;
-		//properties_block.NewIterator(BytewiseComparator(), &iter);
-
-		auto new_table_properties = new TerarkTableProperties();
-		// All pre-defined properties of type uint64_t
-		std::unordered_map<std::string, uint64_t*> predefined_uint64_properties = {
-			{TerarkTablePropertiesNames::kDataSize, &new_table_properties->data_size},
-			{TerarkTablePropertiesNames::kIndexSize, &new_table_properties->index_size},
-			{TerarkTablePropertiesNames::kNumEntries, &new_table_properties->num_entries},
-		};
-
-		std::string last_key;
-		for (iter->SeekToFirst(); iter->Valid(); iter->Next()) {
-			s = iter->status();
-			if (!s.ok()) {
-				break;
-			}
-			auto key = iter->key().ToString();
-			// properties block is strictly sorted with no duplicate key.
-			assert(last_key.empty() ||
-				   BytewiseComparator()->Compare(key, last_key) > 0);
-			last_key = key;
-
-			auto raw_val = iter->value();
-			auto pos = predefined_uint64_properties.find(key);
-			//new_table_properties->properties_offsets.insert(
-			//												{key, handle.offset() + iter->ValueOffset()});
-
-			if (pos != predefined_uint64_properties.end()) {
-				uint64_t val;
-				if (!GetVarint64(&raw_val, &val)) {
-					printf("Detect malformed value in properties meta-block");
-					continue;
-				}
-				*(pos->second) = val;
+		Status TerarkFindMetaBlock(Iterator* meta_index_iter,
+								   const std::string& meta_block_name,
+								   TerarkBlockHandle* block_handle) {
+			meta_index_iter->Seek(meta_block_name);
+			if (meta_index_iter->status().ok() && meta_index_iter->Valid() &&
+				meta_index_iter->key() == meta_block_name) {
+				Slice v = meta_index_iter->value();
+				return block_handle->DecodeFrom(&v);
 			} else {
-				// handle user-collected properties
-				new_table_properties->user_collected_properties.insert({key, raw_val.ToString()});
+				return Status::Corruption("Cannot find the meta block", meta_block_name);
 			}
 		}
-		if (s.ok()) {
-			*table_properties = new_table_properties;
-		} else {
-			delete new_table_properties;
-		}
 
-		return s;
 	}
 
-	Status TerarkFindMetaBlock(Iterator* meta_index_iter,
-							   const std::string& meta_block_name,
-							   TerarkBlockHandle* block_handle) {
-		meta_index_iter->Seek(meta_block_name);
-		if (meta_index_iter->status().ok() && meta_index_iter->Valid() &&
-			meta_index_iter->key() == meta_block_name) {
-			Slice v = meta_index_iter->value();
-			return block_handle->DecodeFrom(&v);
-		} else {
-			return Status::Corruption("Cannot find the meta block", meta_block_name);
-		}
-	}
 
 	Status TerarkReadTableProperties(RandomAccessFileReader* file, uint64_t file_size,
 							   uint64_t table_magic_number,
-							   const Options &ioptions,
 							   TerarkTableProperties** properties) {
 		// -- Read metaindex block
 		TerarkFooter footer;
@@ -158,8 +164,8 @@ namespace rocksdb {
 		TerarkBlockContents metaindex_contents;
 		TerarkReadOptions read_options;
 		read_options.verify_checksums = false;
-		s = TerarkReadBlockContents(file, footer, metaindex_handle,
-							  &metaindex_contents, ioptions);
+		s = TerarkReadBlockContents(file, metaindex_handle,
+									&metaindex_contents);
 		if (!s.ok()) {
 			return s;
 		}
@@ -178,13 +184,12 @@ namespace rocksdb {
 		}
 
 		TerarkTableProperties table_properties;
-		s = TerarkReadProperties(meta_iter->value(), file, footer, ioptions, properties);
+		s = TerarkReadProperties(meta_iter->value(), file, footer, properties);
 		return s;
 	}
 
 	Status TerarkReadMetaBlock(RandomAccessFileReader* file, uint64_t file_size,
 		uint64_t table_magic_number,
-		const Options &ioptions,
 		const std::string& meta_block_name,
 		TerarkBlockContents* contents) {
 		Status status;
@@ -199,8 +204,8 @@ namespace rocksdb {
 		TerarkBlockContents metaindex_contents;
 		TerarkReadOptions read_options;
 		read_options.verify_checksums = false;
-		status = TerarkReadBlockContents(file, footer, metaindex_handle,
-			&metaindex_contents, ioptions);
+		status = TerarkReadBlockContents(file, metaindex_handle,
+										 &metaindex_contents);
 		if (!status.ok()) {
 			return status;
 		}
@@ -219,8 +224,8 @@ namespace rocksdb {
 		}
 
 		// Reading metablock
-		return TerarkReadBlockContents(file, footer, 
-			block_handle, contents, ioptions);
+		return TerarkReadBlockContents(file, 
+			block_handle, contents);
 	}
 
 }

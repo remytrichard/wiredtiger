@@ -207,7 +207,7 @@ namespace rocksdb {
 			// check footer
 			TerarkTableProperties* table_props = nullptr;
 			s = TerarkReadTableProperties(reader.get(), file_size,
-										  kTerarkZipTableMagicNumber, options, &table_props);
+										  kTerarkZipTableMagicNumber, &table_props);
 			if (s.ok()) {
 				//file_reader_.reset(reader.release());
 				return true;

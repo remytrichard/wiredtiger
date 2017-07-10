@@ -144,7 +144,7 @@ namespace rocksdb {
 		// read meta data -- properties, index meta, value meta
 		TerarkTableProperties* table_props = nullptr;
 		s = TerarkReadTableProperties(file_reader_.get(), file_size,
-			kTerarkZipTableMagicNumber, options, &table_props);
+			kTerarkZipTableMagicNumber, &table_props);
 		if (!s.ok()) {
 			return s;
 		}
@@ -155,12 +155,12 @@ namespace rocksdb {
 			return s;
 		}
 		TerarkBlockContents valueDictBlock, indexBlock;
-		s = TerarkReadMetaBlock(file_reader_.get(), file_size, kTerarkZipTableMagicNumber, options,
+		s = TerarkReadMetaBlock(file_reader_.get(), file_size, kTerarkZipTableMagicNumber,
 			kTerarkZipTableValueDictBlock, &valueDictBlock);
 		if (!s.ok()) {
 			return s;
 		}
-		s = TerarkReadMetaBlock(file_reader_.get(), file_size, kTerarkZipTableMagicNumber, options,
+		s = TerarkReadMetaBlock(file_reader_.get(), file_size, kTerarkZipTableMagicNumber,
 			kTerarkZipTableIndexBlock, &indexBlock);
 		if (!s.ok()) {
 			return s;
