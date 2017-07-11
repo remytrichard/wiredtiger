@@ -7,19 +7,16 @@
 # include <fcntl.h>
 # include <cxxabi.h>
 #endif
-
 #include <stdio.h>
 #include <fstream>
 #include <iostream>
 #include <memory>
-#include "bridge.h"
 
 #include "wiredtiger.h"
 #include "wiredtiger_ext.h"
 
-//#include "file_reader_writer.h"
-#include "rocksdb/env.h"
-
+// project header
+#include "bridge.h"
 #include "terark_zip_internal.h"
 #include "terark_chunk_manager.h"
 #include "terark_zip_config.h"
@@ -39,7 +36,6 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	(void)config;
 
 	// TBD(kg): make sure such file is not exist, remove it anyway
-	rocksdb::Options options;
 	const rocksdb::TComparator* comparator = rocksdb::GetBytewiseComparator();
 	rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
 

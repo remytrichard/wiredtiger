@@ -10,9 +10,6 @@
 #include <string>
 #include <vector>
 
-#include "rocksdb/env.h"
-#include "rocksdb/options.h"
-
 #include "trk_common.h"
 
 namespace rocksdb {
@@ -97,44 +94,21 @@ namespace rocksdb {
 
 	class TerarkTableBuilderOptions {
 	public:
-	TerarkTableBuilderOptions(const rocksdb::TComparator& comp) : internal_comparator(comp) {
-			//info_log = new StdoutLogger();
-		}
-			
-		// replace ImmutableCFOptions with Options
-		rocksdb::Options ioptions;
-		//
-		std::string column_family_name;
-
-		//rocksdb::Logger* info_log;
-
-		//const std::vector<std::unique_ptr<IntTblPropCollectorFactory>>*
-		//  int_tbl_prop_collector_factories;
-		CompressionType compression_type;
+	TerarkTableBuilderOptions(const rocksdb::TComparator& comp) 
+		: internal_comparator(comp) {}
 
 		const TComparator& internal_comparator;
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
+		int num_levels;
 	};
 
 	class TerarkTableReaderOptions {
 	public:
-	TerarkTableReaderOptions(const rocksdb::Comparator& comp) : internal_comparator(comp) {
-		}
-			
-		// replace ImmutableCFOptions with Options
-		rocksdb::Options ioptions;
+	TerarkTableReaderOptions(const rocksdb::TComparator& comp) 
+		: internal_comparator(comp) {}
 
-		rocksdb::EnvOptions env_options;
-
-		//const std::vector<std::unique_ptr<IntTblPropCollectorFactory>>*
-		//  int_tbl_prop_collector_factories;
-		CompressionType compression_type;
-
-		const Comparator& internal_comparator;
-
-		// This is only used for BlockBasedTable (reader)
-		bool skip_filters;
+		const TComparator& internal_comparator;
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
 	};

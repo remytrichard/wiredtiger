@@ -10,10 +10,6 @@
 #include <string>
 #include <inttypes.h>
 
-#include "rocksdb/env.h"
-#include "util/file_reader_writer.h"
-#include "util/string_util.h"
-
 #include "trk_common.h"
 #include "trk_format.h"
 
@@ -120,9 +116,9 @@ namespace rocksdb {
 		result.reserve(1024);
 		result.append("metaindex handle: " + metaindex_handle_.ToString() + "\n  ");
 		result.append("index handle: " + index_handle_.ToString() + "\n  ");
-		result.append("footer version: " + rocksdb::ToString(version_) + "\n  ");
+		result.append("footer version: " + std::to_string(version_) + "\n  ");
 		result.append("table_magic_number: " +
-					  rocksdb::ToString(table_magic_number_) + "\n  ");
+					  std::to_string(table_magic_number_) + "\n  ");
 		return result;
 	}
 

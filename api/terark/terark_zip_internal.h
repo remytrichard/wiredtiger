@@ -10,27 +10,23 @@
 #ifndef TERARK_ZIP_INTERNAL_H_
 #define TERARK_ZIP_INTERNAL_H_
 
-// project headers
-#include "terark_zip_common.h"
-#include "terark_zip_config.h"
-#include "terark_chunk_builder.h"
 // std headers
 #include <memory>
 #include <mutex>
 // rocksdb headers
 #include <rocksdb/slice.h>
-#include <rocksdb/env.h>
 // terark headers
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>
 #include <terark/stdtypes.hpp>
 #include <terark/util/profiling.hpp>
-
+// project headers
+#include "terark_zip_common.h"
+#include "terark_zip_config.h"
+#include "terark_chunk_builder.h"
 
 //#define TERARK_SUPPORT_UINT64_COMPARATOR
 //#define DEBUG_TWO_PASS_ITER
-
-
 
 namespace rocksdb {
 

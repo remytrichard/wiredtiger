@@ -6,17 +6,14 @@
 #include <map>
 #include <random>
 #include <string>
-#include "bridge.h"
 
 #include "wiredtiger.h"
 #include "wiredtiger_ext.h"
 
-//#include "file_reader_writer.h"
 // rocksdb headers
 #include "rocksdb/slice.h"
-//#include "rocksdb/table.h"
-#include "rocksdb/env.h"
 // project headers
+#include "bridge.h"
 #include "terark_zip_internal.h"
 #include "terark_zip_config.h"
 #include "terark_chunk_manager.h"
@@ -48,9 +45,6 @@ int main() {
 	std::string fname(sst_path);
 
 	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
-	rocksdb::Options options;
-	rocksdb::EnvOptions env_options;
-	env_options.use_mmap_reads = env_options.use_mmap_writes = true;
 	{
 		const rocksdb::TComparator* comparator = rocksdb::GetBytewiseComparator();
 		rocksdb::TerarkTableBuilderOptions builder_options(*comparator);

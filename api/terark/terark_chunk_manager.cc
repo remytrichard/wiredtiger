@@ -27,10 +27,6 @@
 #   error Unsupported endian !
 # endif
 #endif
-// rocksdb headers
-#include "file_reader_writer.h"
-#include "rocksdb/env.h"
-#include "rocksdb/options.h"
 // terark headers
 #include <terark/lcast.hpp>
 #include <terark/util/mmap.hpp>
@@ -205,7 +201,7 @@ namespace rocksdb {
 				"user comparator must be 'leveldb.BytewiseComparator'");
 		}
 		int curlevel = table_builder_options.level;
-		int numlevel = table_builder_options.ioptions.num_levels;
+		int numlevel = table_builder_options.num_levels;
 		int minlevel = table_options_.terarkZipMinLevel;
 		if (minlevel < 0) {
 			minlevel = numlevel - 1;

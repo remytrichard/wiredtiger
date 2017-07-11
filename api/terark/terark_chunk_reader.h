@@ -7,10 +7,6 @@
 #include <vector>
 // wiredtiger headers
 #include "wiredtiger.h"
-// rocksdb headers
-#include "file_reader_writer.h"
-#include "rocksdb/env.h"
-//#include "rocksdb/iterator.h"
 // terark headers
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>

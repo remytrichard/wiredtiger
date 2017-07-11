@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 
-#include "rocksdb/env.h"
 #include "rocksdb/options.h"
 
 namespace rocksdb {
