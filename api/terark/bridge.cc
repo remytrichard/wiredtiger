@@ -26,7 +26,7 @@
 
 static const char *home;
 static WT_CONNECTION *conn;
-static rocksdb::TerarkChunkManager* chunk_manager;
+static terark::TerarkChunkManager* chunk_manager;
 
 // TBD(kg): parse config as well
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
@@ -36,13 +36,13 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	(void)config;
 
 	// TBD(kg): make sure such file is not exist, remove it anyway
-	const rocksdb::TComparator* comparator = rocksdb::GetBytewiseComparator();
-	rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
+	const terark::TComparator* comparator = terark::GetBytewiseComparator();
+	terark::TerarkTableBuilderOptions builder_options(*comparator);
 
 	// TBD(kg): need more settings on env
 	std::string path(std::string(home) + "/" + uri);
 	std::replace(path.begin(), path.end(), ':', '-');
-	rocksdb::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
+	terark::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
 
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
@@ -85,7 +85,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		cursor->search_near = trk_cursor_search_near;
 		cursor->close = trk_reader_cursor_close;
 		// read iterator
-		rocksdb::TerarkIterator* iter = chunk_manager->NewIterator(path);
+		terark::TerarkIterator* iter = chunk_manager->NewIterator(path);
 		chunk_manager->AddIterator(cursor, iter);
 	} else {
 		printf("open cursor for build: %s\n", uri);
@@ -110,15 +110,15 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 	if (cursor->uri) {
 		printf("src is %s\n", cursor->uri);
 	}
-	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(dest->uri);
+	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(dest->uri);
 
 	int ret = 0;
 	WT_ITEM key, value;
 	while ((ret = cursor->next(cursor)) == 0) {
 		ret = cursor->get_key(cursor, &key);
 		ret = cursor->get_value(cursor, &value);
-		builder->Add(rocksdb::Slice((const char*)key.data, key.size), 
-				   rocksdb::Slice((const char*)value.data, value.size));
+		builder->Add(terark::Slice((const char*)key.data, key.size), 
+				   terark::Slice((const char*)value.data, value.size));
 	}
 	builder->Finish1stPass();
 	printf("trk_pre_merge done\n");
@@ -137,8 +137,8 @@ int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONF
 
 
 int trk_cursor_insert(WT_CURSOR *cursor) {
-	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
-	builder->Add(rocksdb::Slice((const char*)cursor->value.data, cursor->value.size));
+	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
+	builder->Add(terark::Slice((const char*)cursor->value.data, cursor->value.size));
 
 	return (0);
 }
@@ -146,7 +146,7 @@ int trk_cursor_insert(WT_CURSOR *cursor) {
 
 int trk_builder_cursor_close(WT_CURSOR *cursor) {
 	printf("builder close entered: %s\n", cursor->uri);
-	rocksdb::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
+	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	builder->Finish2ndPass();
 
 	// TBD(kg): remove/delete builder from manager
@@ -158,22 +158,22 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 int trk_reader_cursor_close(WT_CURSOR *cursor) {
 	// TBD(kg): remove/delete builder from manager
 	printf("reader close entered: %s\n", cursor->uri);
-	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
+	terark::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
 	chunk_manager->RemoveIterator(cursor);
 	delete iter;
 	return (0);
 }
 
-static inline void set_kv(rocksdb::TerarkIterator* iter, WT_CURSOR* cursor) {
+static inline void set_kv(terark::TerarkIterator* iter, WT_CURSOR* cursor) {
 	{
 		WT_ITEM* buf = &cursor->key;
-		rocksdb::Slice key = iter->key();
+		terark::Slice key = iter->key();
 		buf->size = key.size();
 		buf->data = key.data();
 	}
 	{
 		WT_ITEM* buf = &cursor->value;
-		rocksdb::Slice value = iter->value();
+		terark::Slice value = iter->value();
 		buf->size = value.size();
 		buf->data = value.data();
 	}
@@ -182,7 +182,7 @@ static inline void set_kv(rocksdb::TerarkIterator* iter, WT_CURSOR* cursor) {
 // only reader will use the following cursor-ops
 int trk_cursor_next(WT_CURSOR *cursor) {
 	//printf("next entered: %s\n", cursor->uri);
-	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
+	terark::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Next();
 	if (!iter->Valid()) {
 		printf("to the end: %s\n", cursor->uri);
@@ -194,7 +194,7 @@ int trk_cursor_next(WT_CURSOR *cursor) {
 
 int trk_cursor_prev(WT_CURSOR *cursor) {
 	printf("prev entered: %s\n", cursor->uri);
-	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
+	terark::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Prev();
 	if (!iter->Valid()) {
 		return WT_NOTFOUND;
@@ -207,7 +207,7 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 // reset followed by next?
 int trk_reader_cursor_reset(WT_CURSOR *cursor) {
 	//printf("reader reset entered: %s\n", cursor->uri);
-	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
+	terark::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
 	iter->SetInvalid();
 
 	return (0);
@@ -219,18 +219,18 @@ int trk_builder_cursor_reset(WT_CURSOR *cursor) {
 
 int trk_cursor_search(WT_CURSOR *cursor) {
 	//printf("search entered: %s\n", cursor->uri);
-	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
-	iter->Seek(rocksdb::Slice((const char*)cursor->key.data, cursor->key.size));
+	terark::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
+	iter->Seek(terark::Slice((const char*)cursor->key.data, cursor->key.size));
 	if (!iter->Valid()) {
 		return WT_NOTFOUND;
 	}
-	rocksdb::Slice key = iter->key();
+	terark::Slice key = iter->key();
 	WT_ITEM* kbuf = &cursor->key;
 	if (key.size() != kbuf->size ||
 		memcmp(key.data(), kbuf->data, key.size())) {
 		return WT_NOTFOUND;
 	}
-	rocksdb::Slice value = iter->value();
+	terark::Slice value = iter->value();
 	WT_ITEM* vbuf = &cursor->value;
 	vbuf->size = value.size();
 	vbuf->data = value.data();
@@ -243,11 +243,11 @@ int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	(void)cursor;
 	(void)exactp;
 
-	rocksdb::Slice key = iter->key();
+	terark::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
+	terark::Slice key = iter->key();
 	WT_ITEM* kbuf = &cursor->key;
 	WT_ITEM* vbuf = &cursor->value;
-	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
-	iter->Seek(rocksdb::Slice((const char*)kbuf->data, kbuf->size));
+	iter->Seek(terark::Slice((const char*)kbuf->data, kbuf->size));
 	if (!iter->Valid()) { // target > last elem
 		iter->SeekToLast();
 		*exactp = -1;
@@ -257,8 +257,8 @@ int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	} else {
 		*exactp = 1;
 	}
-	vbuf->size = iter->value.size();
-	vbuf->data = iter->value.data();
+	vbuf->size = iter->value().size();
+	vbuf->data = iter->value().data();
 
 	return (0);
 }
@@ -288,7 +288,7 @@ int main() {
     } else
 		home = NULL;
 
-	chunk_manager = rocksdb::TerarkChunkManager::sharedInstance();
+	chunk_manager = terark::TerarkChunkManager::sharedInstance();
 	//ret = wiredtiger_open(home, NULL, "create,verbose=[lsm,lsm_manager]", &conn);
 	ret = wiredtiger_open(home, NULL, "create", &conn);
 	ret = conn->open_session(conn, NULL, NULL, &session);

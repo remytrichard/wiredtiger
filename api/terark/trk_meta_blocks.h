@@ -15,10 +15,8 @@
 #include "trk_block.h"
 #include "trk_format.h"
 
-namespace rocksdb {
+namespace terark {
 
-	class Env;
-	class RandomAccessFile;
 	struct TerarkTableProperties;
 	class TerarkMetaIndexBuilder {
 	public:
@@ -74,4 +72,4 @@ namespace rocksdb {
 						 const std::string& meta_block_name,
 						 TerarkBlockContents* contents);
 
-}  // namespace rocksdb
+}  // namespace

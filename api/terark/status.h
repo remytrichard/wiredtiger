@@ -20,7 +20,7 @@
 #include <string>
 #include "slice.h"
 
-namespace rocksdb {
+namespace terark {
 
 class Status {
  public:
@@ -302,6 +302,6 @@ inline bool Status::operator!=(const Status& rhs) const {
   return !(*this == rhs);
 }
 
-}  // namespace rocksdb
+}  // namespace
 
 #endif  // STORAGE_ROCKSDB_INCLUDE_STATUS_H_

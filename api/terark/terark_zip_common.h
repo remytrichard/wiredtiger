@@ -4,7 +4,7 @@
 #include <terark/io/FileStream.hpp>
 #include <terark/io/StreamBuffer.hpp>
 
-namespace rocksdb {
+namespace terark {
 
 #if defined(IOS_CROSS_COMPILE) || defined(__DARWIN_C_LEVEL)
 #define MY_THREAD_LOCAL(Type, Var)  Type Var
@@ -92,4 +92,4 @@ namespace rocksdb {
 		void close();
 	};
 
-} // namespace rocksdb
+} // namespace

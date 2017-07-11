@@ -45,12 +45,12 @@ int main() {
 	std::string fname(sst_path);
 
 	system("rm -rf data && mkdir data");
-	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
+	terark::TerarkChunkManager* manager = terark::TerarkChunkManager::sharedInstance();
 	{
-		const rocksdb::TComparator* comparator = rocksdb::GetBytewiseComparator();
-		rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
+		const terark::TComparator* comparator = terark::GetBytewiseComparator();
+		terark::TerarkTableBuilderOptions builder_options(*comparator);
 		
-		rocksdb::TerarkChunkBuilder* builder = 
+		terark::TerarkChunkBuilder* builder = 
 			manager->NewTableBuilder(builder_options, fname);
 		manager->AddBuilder(fname, builder);
 		
@@ -58,7 +58,7 @@ int main() {
 		for (auto& iter : dict) {
 			builder->Add(iter.first, iter.second);
 		}
-		rocksdb::Status s = builder->Finish1stPass();
+		terark::Status s = builder->Finish1stPass();
 		assert(s.ok());
 		// 2nd pass
 		for (auto& iter : dict) {
@@ -68,7 +68,7 @@ int main() {
 		assert(s.ok());
 	}
 	{		
-		rocksdb::TIterator* iter = manager->NewIterator(fname);
+		terark::TIterator* iter = manager->NewIterator(fname);
 		assert(iter != nullptr);
 
 		for (auto& di : dict) {

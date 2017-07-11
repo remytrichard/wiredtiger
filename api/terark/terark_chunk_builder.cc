@@ -15,7 +15,7 @@
 #include "trk_meta_blocks.h"
 #include "trk_table_properties.h"
 
-namespace rocksdb {
+namespace terark {
 
 #ifdef TERARK_ZIP_TRIAL_VERSION
 	const char g_trail_rand_delete[] = "TERARK_ZIP_TRIAL_VERSION random deleted this row";
@@ -32,26 +32,10 @@ namespace rocksdb {
 	size_t g_sumEntryNum = 0;
 	long long g_lastTime = g_pf.now();
 
-
-#if defined(DEBUG_TWO_PASS_ITER) && !defined(NDEBUG)
-
-	void DEBUG_PRINT_KEY(const char* first_or_second, rocksdb::Slice key) {
-		rocksdb::ParsedInternalKey ikey;
-		rocksdb::ParseInternalKey(key, &ikey);
-		fprintf(stderr, "DEBUG: %s pass => %s\n", first_or_second, ikey.DebugString(true).c_str());
-	}
-
-#define DEBUG_PRINT_1ST_PASS_KEY(key) DEBUG_PRINT_KEY("1st", key);
-#define DEBUG_PRINT_2ND_PASS_KEY(key) DEBUG_PRINT_KEY("2nd", key);
-
-#else
-
 	void DEBUG_PRINT_KEY(...) {}
 
 #define DEBUG_PRINT_1ST_PASS_KEY(...) DEBUG_PRINT_KEY(__VA_ARGS__);
 #define DEBUG_PRINT_2ND_PASS_KEY(...) DEBUG_PRINT_KEY(__VA_ARGS__);
-
-#endif
 
 	template<class ByteArray>
 	static

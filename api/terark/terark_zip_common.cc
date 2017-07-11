@@ -13,7 +13,7 @@
 # include <cxxabi.h>
 #endif
 
-namespace rocksdb {
+namespace terark {
 
 	uint64_t ReadUint64(const byte_t* beg, const byte_t* end) {
 		assert(end - beg <= 8);

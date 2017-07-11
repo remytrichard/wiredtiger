@@ -8,9 +8,6 @@
 
 #pragma once
 
-#ifndef TERARK_ZIP_TABLE_BUILDER_H_
-#define TERARK_ZIP_TABLE_BUILDER_H_
-
 // std headers
 #include <mutex>
 #include <random>
@@ -36,7 +33,7 @@
 #include "trk_format.h"
 #include "trk_table_properties.h"
 
-namespace rocksdb {
+namespace terark {
 
 	using terark::fstring;
 	using terark::fstrvec;
@@ -129,7 +126,6 @@ namespace rocksdb {
 		std::mt19937_64 randomGenerator_;
 		uint64_t sampleUpperBound_;
 		size_t sampleLenSum_ = 0;
-		//std::unique_ptr<rocksdb::WritableFileWriter> file_writer_;
 		uint64_t offset_ = 0;
 		Status status_;
 		TerarkTableProperties properties_;
@@ -163,6 +159,5 @@ namespace rocksdb {
 	};
 
 
-}  // namespace rocksdb
+}  // namespace
 
-#endif /* TERARK_ZIP_TABLE_BUILDER_H_ */

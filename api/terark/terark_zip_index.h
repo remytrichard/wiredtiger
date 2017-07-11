@@ -9,7 +9,7 @@
 #include <boost/intrusive_ptr.hpp>
 #include <memory>
 
-namespace rocksdb {
+namespace terark {
 
 	using terark::fstring;
 	using terark::valvec;

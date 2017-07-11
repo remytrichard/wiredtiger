@@ -8,7 +8,7 @@
 #include <terark/util/mmap.hpp>
 #include <terark/util/sortable_strvec.hpp>
 
-namespace rocksdb {
+namespace terark {
 
 	using terark::initial_state;
 	using terark::BaseDFA;
@@ -262,4 +262,4 @@ namespace rocksdb {
 		return factory->LoadMemory(mem);
 	}
 
-} // namespace rocksdb
+} // namespace

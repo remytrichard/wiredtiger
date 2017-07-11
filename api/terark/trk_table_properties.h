@@ -5,7 +5,7 @@
 #include <string>
 #include <vector>
 
-namespace rocksdb {
+namespace terark {
 
 	// table properties' human-readable names in the property block.
 	struct TerarkTablePropertiesNames {
@@ -98,5 +98,5 @@ namespace rocksdb {
 		void Add(const TerarkTableProperties& tp) {}
 	};
 
-}  // namespace rocksdb
+}  // namespace
 

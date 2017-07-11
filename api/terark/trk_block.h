@@ -25,7 +25,7 @@
 #include "trk_common.h"
 #include "trk_format.h"
 
-namespace rocksdb {
+namespace terark {
 
 	class TerarkBlockIter;
 	class TerarkBlock {
@@ -154,4 +154,4 @@ TIterator* NewIterator(const TComparator* comparator);
 	};
 
 
-}  // namespace rocksdb
+}  // namespace

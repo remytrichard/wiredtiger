@@ -25,7 +25,7 @@
 #include <string.h>
 #include <string>
 
-namespace rocksdb {
+namespace terark {
 
 class Slice {
  public:
@@ -157,6 +157,6 @@ inline size_t Slice::difference_offset(const Slice& b) const {
   return off;
 }
 
-}  // namespace rocksdb
+}  // namespace
 
 #endif  // STORAGE_ROCKSDB_INCLUDE_SLICE_H_

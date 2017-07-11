@@ -15,7 +15,7 @@ namespace terark {
 	void DictZipBlobStore_setZipThreads(int zipThreads);
 }
 
-namespace rocksdb {
+namespace terark {
 
 	//terark::profiling g_pf;
 

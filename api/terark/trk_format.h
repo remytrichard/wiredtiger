@@ -16,7 +16,7 @@
 #include "slice.h"
 #include "status.h"
 
-namespace rocksdb {
+namespace terark {
 
 	class TerarkBlock;
 	class RandomAccessFile;
@@ -189,4 +189,4 @@ namespace rocksdb {
 	inline TerarkBlockHandle::TerarkBlockHandle(uint64_t _offset, uint64_t _size)
 		: offset_(_offset), size_(_size) {}
 
-}  // namespace rocksdb
+}  // namespace 

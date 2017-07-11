@@ -4,7 +4,7 @@
 #include "slice.h"
 #include "status.h"
 
-namespace rocksdb {
+namespace terark {
 
 	class TIterator {
 	public:

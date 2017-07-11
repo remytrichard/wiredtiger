@@ -39,7 +39,7 @@
 #include "trk_meta_blocks.h"
 #include "trk_table_properties.h"
 
-namespace rocksdb {
+namespace terark {
 	
 	terark::profiling g_pf;
 
@@ -195,7 +195,7 @@ namespace rocksdb {
 	TerarkChunkBuilder*
 	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 		const std::string& fname) {
-		const rocksdb::TComparator* userCmp = &table_builder_options.internal_comparator;
+		const terark::TComparator* userCmp = &table_builder_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			THROW_STD(invalid_argument,
 				"TerarkChunkManager::NewTableBuilder(): "
@@ -222,7 +222,7 @@ namespace rocksdb {
 
 	TerarkIterator*
 	TerarkChunkManager::NewIterator(const std::string& fname) {
-		rocksdb::TerarkChunkReader* reader = GetReader(fname);
+		terark::TerarkChunkReader* reader = GetReader(fname);
 		if (!reader) {
 			reader = new TerarkChunkReader(table_options_, fname);
 			AddReader(fname, reader);

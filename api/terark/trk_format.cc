@@ -13,7 +13,7 @@
 #include "trk_common.h"
 #include "trk_format.h"
 
-namespace rocksdb {
+namespace terark {
 
 	extern const uint64_t kBlockBasedTableMagicNumber;
 	const uint32_t DefaultStackBufferSize = 5000;

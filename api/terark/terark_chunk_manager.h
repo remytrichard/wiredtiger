@@ -20,7 +20,7 @@
 #include "terark_chunk_reader.h"
 
 
-namespace rocksdb {
+namespace terark {
 
 	using terark::fstring;
 	using terark::valvec;
@@ -113,4 +113,4 @@ namespace rocksdb {
 	};
 
 
-}  // namespace rocksdb
+}  // namespace

@@ -14,11 +14,9 @@
 #include <unordered_map>
 #include <vector>
 
-//#include "port/port.h"
-
 #include "trk_block.h"
 
-namespace rocksdb {
+namespace terark {
 
 	static inline const char* DecodeEntry(const char* p, const char* limit,
 										  uint32_t* key_length,
@@ -31,11 +29,6 @@ namespace rocksdb {
 		if (static_cast<uint32_t>(limit - p) < (*key_length + *value_length)) {
 			return nullptr;
 		}
-		/*if ((p = GetVarint32Ptr(p, limit, key_length)) == nullptr) return nullptr;
-		if ((p = GetVarint32Ptr(p, limit, value_length)) == nullptr) return nullptr;
-		if (static_cast<uint32_t>(limit - p) < (*key_length + *value_length)) {
-			return nullptr;
-			}*/
 		return p;
 	}
 
@@ -122,4 +115,4 @@ namespace rocksdb {
 		}
 	}
 
-}  // namespace rocksdb
+}  // namespace

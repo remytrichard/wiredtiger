@@ -12,7 +12,7 @@
 
 #include "trk_common.h"
 
-namespace rocksdb {
+namespace terark {
 
 	struct TerarkZipTableOptions {
 		// copy of DictZipBlobStore::Options::EntropyAlgo
@@ -94,7 +94,7 @@ namespace rocksdb {
 
 	class TerarkTableBuilderOptions {
 	public:
-	TerarkTableBuilderOptions(const rocksdb::TComparator& comp) 
+	TerarkTableBuilderOptions(const TComparator& comp) 
 		: internal_comparator(comp) {}
 
 		const TComparator& internal_comparator;
@@ -105,7 +105,7 @@ namespace rocksdb {
 
 	class TerarkTableReaderOptions {
 	public:
-	TerarkTableReaderOptions(const rocksdb::TComparator& comp) 
+	TerarkTableReaderOptions(const TComparator& comp) 
 		: internal_comparator(comp) {}
 
 		const TComparator& internal_comparator;

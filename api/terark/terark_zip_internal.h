@@ -28,7 +28,7 @@
 //#define TERARK_SUPPORT_UINT64_COMPARATOR
 //#define DEBUG_TWO_PASS_ITER
 
-namespace rocksdb {
+namespace terark {
 
 	using terark::fstring;
 	using terark::valvec;
@@ -72,6 +72,6 @@ namespace rocksdb {
 			};
 	//const size_t kZipValueTypeBits = 2;
 
-}  // namespace rocksdb
+}  // namespace
 
 #endif /* TERARK_ZIP_INTERNAL_H_ */

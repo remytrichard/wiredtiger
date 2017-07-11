@@ -27,7 +27,7 @@
 #include "trk_format.h"
 #include "trk_table_properties.h"
 
-namespace rocksdb {
+namespace terark {
 
 	using terark::fstring;
 	using terark::fstrvec;
@@ -112,5 +112,5 @@ namespace rocksdb {
 	};
 
 
-}  // namespace rocksdb
+}  // namespace
 

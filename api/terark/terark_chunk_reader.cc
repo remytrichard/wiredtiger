@@ -11,8 +11,7 @@
 #include "trk_table_properties.h"
 
 
-namespace {
-	using namespace rocksdb;
+namespace terark {
 
 	static void MmapWarmUpBytes(const void* addr, size_t len) {
 		auto base = (const byte_t*)(uintptr_t(addr) & uintptr_t(~4095));
@@ -40,7 +39,7 @@ namespace {
 }
 
 
-namespace rocksdb {
+namespace terark {
 
 	using terark::BadCrc32cException;
 	using terark::byte_swap;

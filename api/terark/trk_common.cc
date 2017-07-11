@@ -5,7 +5,7 @@
 
 #include "trk_common.h"
 
-namespace rocksdb {
+namespace terark {
 
 	TComparator* GetBytewiseComparator() {
 		static TBytewiseComparator* comparator_;

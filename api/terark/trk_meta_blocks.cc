@@ -13,7 +13,7 @@
 #include "trk_meta_blocks.h"
 #include "trk_table_properties.h"
 
-namespace rocksdb {
+namespace terark {
 
 	TerarkMetaIndexBuilder::TerarkMetaIndexBuilder()
 		: meta_index_block_(new TerarkBlockBuilder()) {}
