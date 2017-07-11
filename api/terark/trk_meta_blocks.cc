@@ -4,7 +4,9 @@
 //  of patent rights can be found in the PATENTS file in the same directory.
 #include <map>
 #include <string>
+#include <unordered_map>
 
+#include "terark_zip_internal.h"
 #include "trk_block.h"
 #include "trk_common.h"
 #include "trk_format.h"
@@ -118,7 +120,7 @@ namespace rocksdb {
 					*(pos->second) = val;
 				} else {
 					// handle user-collected properties
-					new_table_properties->user_collected_properties.insert({key, raw_val.ToString()});
+					//new_table_properties->user_collected_properties.insert({key, raw_val.ToString()});
 				}
 			}
 			if (s.ok()) {
@@ -170,7 +172,7 @@ namespace rocksdb {
 
 		// -- Read property block
 		TerarkBlockHandle block_handle;
-		s = TerarkFindMetaBlock(meta_iter.get(), kPropertiesBlock, &block_handle);
+		s = TerarkFindMetaBlock(meta_iter.get(), kTerarkPropertiesBlock, &block_handle);
 		if (!s.ok()) {
 			return s;
 		}

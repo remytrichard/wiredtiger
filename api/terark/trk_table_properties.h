@@ -1,10 +1,9 @@
 
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
-
-#include "rocksdb/options.h"
 
 namespace rocksdb {
 
@@ -83,8 +82,8 @@ namespace rocksdb {
 		std::string compression_name;
 
 		// user collected properties
-		UserCollectedProperties user_collected_properties;
-		UserCollectedProperties readable_properties;
+		//UserCollectedProperties user_collected_properties;
+		//UserCollectedProperties readable_properties;
 
 		// The offset of the value of each property in the file.
 		std::map<std::string, uint64_t> properties_offsets;

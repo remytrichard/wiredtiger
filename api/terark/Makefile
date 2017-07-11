@@ -6,15 +6,17 @@ TigerDir=/newssd1/zzz/wiredtiger
 RocksDir=/newssd1/zzz/rocksdb
 CXX=g++
 CFLAGS=-g -std=c++11 -DROCKSDB_PLATFORM_POSIX
-INC=-I. -I$(TigerDir) -I$(TerarkDir) -I$(RocksDir)/include -I$(RocksDir)/port -I$(RocksDir) -I$(RocksDir)/util
+#INC=-I. -I$(TigerDir) -I$(TerarkDir) -I$(RocksDir)/include -I$(RocksDir)/port -I$(RocksDir) -I$(RocksDir)/util
+INC=-I. -I$(TigerDir) -I$(TerarkDir)
 # don't use terark-zip-rocksdb any more
-LIB=-L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lrocksdb -lterark-core-d -lterark-fsa-d -lterark-zbs-d
+#LIB=-L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lrocksdb -lterark-core-d -lterark-fsa-d -lterark-zbs-d
+LIB=-L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lterark-core-d -lterark-fsa-d -lterark-zbs-d
 
 
 OBJS = terark_chunk_reader.o terark_zip_common.o terark_zip_index.o trk_block.o trk_common.o trk_table_properties.o trk_meta_blocks.o trk_format.o terark_chunk_builder.o terark_chunk_manager.o
 
-#all: test_add
-all: bridge
+all: test_add
+#all: bridge
 
 bridge: ${OBJS}
 	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o bridge bridge.cc

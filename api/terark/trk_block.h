@@ -20,8 +20,7 @@
 #endif
 #endif
 
-#include "rocksdb/options.h"
-#include "rocksdb/slice.h"
+#include "slice.h"
 
 #include "trk_common.h"
 #include "trk_format.h"

@@ -14,7 +14,7 @@
 #include <memory>
 #include <mutex>
 // rocksdb headers
-#include <rocksdb/slice.h>
+#include "slice.h"
 // terark headers
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>
@@ -45,7 +45,7 @@ namespace rocksdb {
 	extern const std::string kTerarkZipTableOffsetBlock;
 	extern const std::string kTerarkZipTableCommonPrefixBlock;
 	extern const std::string kTerarkEmptyTableKey;
-
+	extern const std::string kTerarkPropertiesBlock;
 
 	template<class ByteArray>
 		inline Slice SliceOf(const ByteArray& ba) {

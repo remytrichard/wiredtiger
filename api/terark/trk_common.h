@@ -1,8 +1,8 @@
 
 #pragma once
 
-#include "rocksdb/slice.h"
-#include "rocksdb/status.h"
+#include "slice.h"
+#include "status.h"
 
 namespace rocksdb {
 

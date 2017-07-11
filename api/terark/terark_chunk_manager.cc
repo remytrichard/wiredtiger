@@ -51,6 +51,7 @@ namespace rocksdb {
 	const std::string kTerarkZipTableOffsetBlock       = "TerarkZipTableOffsetBlock";
 	const std::string kTerarkZipTableCommonPrefixBlock = "TerarkZipTableCommonPrefixBlock";
 	const std::string kTerarkEmptyTableKey             = "ThisIsAnEmptyTable";
+	const std::string kTerarkPropertiesBlock           = "TerarkPropertyBlock";
 
 	namespace {
 

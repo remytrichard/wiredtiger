@@ -11,7 +11,7 @@
 #include "wiredtiger_ext.h"
 
 // rocksdb headers
-#include "rocksdb/slice.h"
+#include "slice.h"
 // project headers
 #include "bridge.h"
 #include "terark_zip_internal.h"
@@ -68,7 +68,7 @@ int main() {
 		assert(s.ok());
 	}
 	{		
-		rocksdb::Iterator* iter = manager->NewIterator(fname);
+		rocksdb::TIterator* iter = manager->NewIterator(fname);
 		assert(iter != nullptr);
 
 		for (auto& di : dict) {

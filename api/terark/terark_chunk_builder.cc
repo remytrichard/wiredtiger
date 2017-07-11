@@ -4,9 +4,6 @@
 #include <cfloat>
 // boost headers
 #include <boost/scope_exit.hpp>
-// rocksdb headers
-#include "file_reader_writer.h"
-#include "rocksdb/env.h"
 // wiredtiger headers
 #include "wiredtiger.h"
 // terark headers
@@ -631,7 +628,7 @@ namespace rocksdb {
 			if (!s.ok()) {
 				return s;
 			}
-			metaindexBuiler.Add(kPropertiesBlock, propBlock);
+			metaindexBuiler.Add(kTerarkPropertiesBlock, propBlock);
 		}
 		TerarkBlockHandle metaindexBlock;
 		Status s = WriteBlock(metaindexBuiler.Finish(), file_writer_, &offset_, &metaindexBlock);

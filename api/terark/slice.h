@@ -80,7 +80,9 @@ class Slice {
 
   // Return a string that contains the copy of the referenced data.
   // when hex is true, returns a string of twice the length hex encoded (0-9A-F)
-  std::string ToString(bool hex = false) const;
+  std::string ToString(bool hex = false) const {
+	  return std::string(data_, size_);
+  }
 
   // Decodes the current slice interpreted as an hexadecimal string into result,
   // if successful returns true, if this isn't a valid hex string

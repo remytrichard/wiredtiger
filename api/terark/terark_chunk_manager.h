@@ -5,7 +5,7 @@
 #include <memory>
 #include <mutex>
 // rocksdb headers
-#include <rocksdb/slice.h>
+#include "slice.h"
 // wiredtiger headers
 #include "wiredtiger.h"
 // terark headers

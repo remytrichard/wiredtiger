@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "rocksdb/slice.h"
+#include "slice.h"
 
 #include "trk_common.h"
 #include "trk_block.h"

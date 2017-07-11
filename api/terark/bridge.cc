@@ -39,7 +39,6 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	const rocksdb::TComparator* comparator = rocksdb::GetBytewiseComparator();
 	rocksdb::TerarkTableBuilderOptions builder_options(*comparator);
 
-	std::unique_ptr<rocksdb::WritableFile> file;
 	// TBD(kg): need more settings on env
 	std::string path(std::string(home) + "/" + uri);
 	std::replace(path.begin(), path.end(), ':', '-');
@@ -243,6 +242,23 @@ int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	printf("search near entered: %s\n", cursor->uri);
 	(void)cursor;
 	(void)exactp;
+
+	rocksdb::Slice key = iter->key();
+	WT_ITEM* kbuf = &cursor->key;
+	WT_ITEM* vbuf = &cursor->value;
+	rocksdb::TerarkIterator* iter = chunk_manager->GetIterator(cursor);
+	iter->Seek(rocksdb::Slice((const char*)kbuf->data, kbuf->size));
+	if (!iter->Valid()) { // target > last elem
+		iter->SeekToLast();
+		*exactp = -1;
+	} else if (key.size() == kbuf->size &&
+			memcmp(key.data(), kbuf->data, key.size()) == 0) {
+		*exactp = 0;
+	} else {
+		*exactp = 1;
+	}
+	vbuf->size = iter->value.size();
+	vbuf->data = iter->value.data();
 
 	return (0);
 }

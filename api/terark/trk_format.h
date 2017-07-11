@@ -11,18 +11,16 @@
 
 #include <string>
 #include <stdint.h>
-#include "rocksdb/slice.h"
-#include "rocksdb/status.h"
-#include "rocksdb/options.h"
-#include "rocksdb/table.h"
+#include <memory>
 
-#include "port/port.h"  // noexcept
+#include "slice.h"
+#include "status.h"
 
 namespace rocksdb {
 
 	class TerarkBlock;
 	class RandomAccessFile;
-	extern bool ShouldReportDetailedTime(Env* env, Statistics* stats);
+	//extern bool ShouldReportDetailedTime(Env* env, Statistics* stats);
 
 	// the length of the magic number in bytes.
 	const int kRocksdbMagicNumberLengthByte = 8;
