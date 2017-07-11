@@ -58,15 +58,13 @@ namespace rocksdb {
 
 	template<class ByteArray>
 	static
-	Status WriteBlock(const ByteArray& blockData, WritableFileWriter* file,
+	Status WriteBlock(const ByteArray& blockData, FileWriter& file, //WritableFileWriter* file,
 					  uint64_t* offset, TerarkBlockHandle* block_handle) {
 		block_handle->set_offset(*offset);
 		block_handle->set_size(blockData.size());
-		Status s = file->Append(SliceOf(blockData));
-		if (s.ok()) {
-			*offset += blockData.size();
-		}
-		return s;
+		file.writer.ensureWrite(blockData.data(), blockData.size());
+		*offset += blockData.size();
+		return Status::OK();
 	}
 
 	namespace {
@@ -104,16 +102,8 @@ namespace rocksdb {
 		properties_.property_collectors_names = "[]";
 
 		// temp mmap files
-		rocksdb::Options options;
-		rocksdb::EnvOptions env_options;
-		env_options.use_mmap_writes = true;
-		std::unique_ptr<rocksdb::WritableFile> file;
-		Status s = options.env->NewWritableFile(fname, &file, env_options);
-		assert(s.ok());
-		file_writer_.reset(new rocksdb::WritableFileWriter(std::move(file), env_options));
 		sampleUpperBound_ = randomGenerator_.max() * table_options_.sampleRatio;
 		tmpValueFile_.path = tzto.localTempDir + "/Terark-XXXXXX";
-		//tmpValueFile_.open_temp();
 		tmpKeyFile_.path = tmpValueFile_.path + ".keydata";
 		tmpKeyFile_.open();
 		tmpSampleFile_.path = tmpValueFile_.path + ".sample";
@@ -121,6 +111,8 @@ namespace rocksdb {
 		if (table_options_.debugLevel == 4) {
 			tmpDumpFile_.open(tmpValueFile_.path + ".dump", "wb+");
 		}
+		file_writer_.path = fname;
+		file_writer_.open();
 		// blob store builder
 		DictZipBlobStore::Options dzopt;
 		dzopt.entropyAlgo = DictZipBlobStore::Options::EntropyAlgo(table_options_.entropyAlgo);
@@ -170,7 +162,7 @@ namespace rocksdb {
 		printf("TerarkChunkBuilder::EmptyFinish():this=%p\n", this);
 		offset_ = 0;
 		TerarkBlockHandle emptyTableBH;
-		Status s = WriteBlock(Slice("Empty"), file_writer_.get(), &offset_, &emptyTableBH);
+		Status s = WriteBlock(Slice("Empty"), file_writer_, &offset_, &emptyTableBH);
 		if (!s.ok()) {
 			return s;
 		}
@@ -504,22 +496,9 @@ namespace rocksdb {
 		Status s;
 		TerarkBlockHandle dataBlock, dictBlock, indexBlock, zvTypeBlock(0, 0);
 		TerarkBlockHandle commonPrefixBlock;
-		{
-			size_t real_size = index->Memory().size() + zstore->mem_size();
-			size_t block_size, last_allocated_block;
-			file_writer_->writable_file()->GetPreallocationStatus(&block_size, &last_allocated_block);
-			//INFO(table_build_options_.info_log
-			printf("TerarkChunkBuilder::Finish():this=%p: old prealloc_size = %zd, real_size = %zd\n"
-				 , this, block_size, real_size
-				 );
-			file_writer_->writable_file()->SetPreallocationBlockSize(1 * 1024 * 1024 + real_size);
-		}
 		offset_ = 0;
 		auto writeAppend = [&](const void* data, size_t size) {
-			s = file_writer_->Append(Slice((const char*)data, size));
-			if (!s.ok()) {
-				throw s;
-			}
+			file_writer_.writer.ensureWrite(data, size);
 			offset_ += size;
 		};
 		s = WriteStore(index.get(), zstore, kvs, writeAppend, dataBlock);
@@ -531,15 +510,15 @@ namespace rocksdb {
 		commonPrefix.reserve(keyStat.commonPrefixLen);
 		commonPrefix.append(kvs.prefix.data(), kvs.prefix.size());
 		commonPrefix.append((const char*)prevUserKey_.data(), keyStat.commonPrefixLen);
-		WriteBlock(commonPrefix, file_writer_.get(), &offset_, &commonPrefixBlock);
+		WriteBlock(commonPrefix, file_writer_, &offset_, &commonPrefixBlock);
 		properties_.data_size = dataBlock.size();
 
-		s = WriteBlock(dict.memory, file_writer_.get(), &offset_, &dictBlock);
+		s = WriteBlock(dict.memory, file_writer_, &offset_, &dictBlock);
 		if (!s.ok()) {
 			return s;
 		}
 
-		s = WriteBlock(index->Memory(), file_writer_.get(), &offset_, &indexBlock);
+		s = WriteBlock(index->Memory(), file_writer_, &offset_, &indexBlock);
 		if (!s.ok()) {
 			return s;
 		}
@@ -633,7 +612,7 @@ namespace rocksdb {
 
 		tmpIndexFile_.Delete();
 		tmpStoreFile_.Delete();
-		file_writer_.reset();
+		file_writer_.close();
 		return s;
 	}
 
@@ -648,14 +627,14 @@ namespace rocksdb {
 			TerarkPropertyBlockBuilder propBlockBuilder;
 			propBlockBuilder.AddTableProperty(properties_);
 			TerarkBlockHandle propBlock;
-			Status s = WriteBlock(propBlockBuilder.Finish(), file_writer_.get(), &offset_, &propBlock);
+			Status s = WriteBlock(propBlockBuilder.Finish(), file_writer_, &offset_, &propBlock);
 			if (!s.ok()) {
 				return s;
 			}
 			metaindexBuiler.Add(kPropertiesBlock, propBlock);
 		}
 		TerarkBlockHandle metaindexBlock;
-		Status s = WriteBlock(metaindexBuiler.Finish(), file_writer_.get(), &offset_, &metaindexBlock);
+		Status s = WriteBlock(metaindexBuiler.Finish(), file_writer_, &offset_, &metaindexBlock);
 		if (!s.ok()) {
 			return s;
 		}
@@ -664,10 +643,8 @@ namespace rocksdb {
 		footer.set_index_handle(TerarkBlockHandle::NullBlockHandle());
 		std::string footer_encoding;
 		footer.EncodeTo(&footer_encoding);
-		s = file_writer_->Append(footer_encoding);
-		if (s.ok()) {
-			offset_ += footer_encoding.size();
-		}
+		file_writer_.writer.ensureWrite(footer_encoding.c_str(), footer_encoding.size());
+		offset_ += footer_encoding.size();
 		return s;
 	}
 

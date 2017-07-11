@@ -7,11 +7,11 @@
 namespace rocksdb {
 
 #if defined(IOS_CROSS_COMPILE) || defined(__DARWIN_C_LEVEL)
-  #define MY_THREAD_LOCAL(Type, Var)  Type Var
-//#elif defined(_WIN32)
-//  #define MY_THREAD_LOCAL(Type, Var)  static __declspec(thread) Type Var
+#define MY_THREAD_LOCAL(Type, Var)  Type Var
+	//#elif defined(_WIN32)
+	//  #define MY_THREAD_LOCAL(Type, Var)  static __declspec(thread) Type Var
 #else
-  #define MY_THREAD_LOCAL(Type, Var)  static thread_local Type Var
+#define MY_THREAD_LOCAL(Type, Var)  static thread_local Type Var
 #endif
 
 #define STD_INFO(format, ...) fprintf(stderr, "%s INFO: " format, StrDateTimeNow(), ##__VA_ARGS__)
@@ -27,59 +27,69 @@ namespace rocksdb {
 # define WARN(logger, format, ...) STD_WARN(format, ##__VA_ARGS__)
 #endif
 
-using std::string;
-using std::unique_ptr;
+	using std::string;
+	using std::unique_ptr;
 
-using terark::byte_t;
-using terark::fstring;
-using terark::valvec;
-using terark::valvec_no_init;
-using terark::valvec_reserve;
+	using terark::byte_t;
+	using terark::fstring;
+	using terark::valvec;
+	using terark::valvec_no_init;
+	using terark::valvec_reserve;
 
-using terark::FileStream;
-using terark::InputBuffer;
-using terark::OutputBuffer;
-using terark::LittleEndianDataInput;
-using terark::LittleEndianDataOutput;
+	using terark::FileStream;
+	using terark::InputBuffer;
+	using terark::OutputBuffer;
+	using terark::LittleEndianDataInput;
+	using terark::LittleEndianDataOutput;
 
-template<class T>
-inline unique_ptr<T> UniquePtrOf(T* p) { return unique_ptr<T>(p); }
+	template<class T>
+		inline unique_ptr<T> UniquePtrOf(T* p) { return unique_ptr<T>(p); }
 
-uint64_t ReadUint64(const byte_t* beg, const byte_t* end);
-uint64_t ReadUint64Aligned(const byte_t* beg, const byte_t* end);
-void AssignUint64(byte_t* beg, byte_t* end, uint64_t value);
+	uint64_t ReadUint64(const byte_t* beg, const byte_t* end);
+	uint64_t ReadUint64Aligned(const byte_t* beg, const byte_t* end);
+	void AssignUint64(byte_t* beg, byte_t* end, uint64_t value);
 
-const char* StrDateTimeNow();
-std::string demangle(const char* name);
+	const char* StrDateTimeNow();
+	std::string demangle(const char* name);
 
-template<class T>
-inline std::string ClassName() {
-  return demangle(typeid(T).name());
-}
-template<class T>
-inline std::string ClassName(const T& x) {
-  return demangle(typeid(x).name());
-}
+	template<class T>
+		inline std::string ClassName() {
+		return demangle(typeid(T).name());
+	}
+	template<class T>
+		inline std::string ClassName(const T& x) {
+		return demangle(typeid(x).name());
+	}
 
-class AutoDeleteFile {
-public:
-  std::string fpath;
-  operator fstring() const { return fpath; }
-  void Delete();
-  ~AutoDeleteFile();
-};
+	class AutoDeleteFile {
+	public:
+		std::string fpath;
+		operator fstring() const { return fpath; }
+		void Delete();
+		~AutoDeleteFile();
+	};
 
-class TempFileDeleteOnClose {
-public:
-  std::string path;
-  FileStream  fp;
-  NativeDataOutput<OutputBuffer> writer;
-  ~TempFileDeleteOnClose();
-  void open_temp();
-  void open();
-  void dopen(int fd);
-  void close();
-  void complete_write();
-};
+	class TempFileDeleteOnClose {
+	public:
+		std::string path;
+		FileStream  fp;
+		NativeDataOutput<OutputBuffer> writer;
+		~TempFileDeleteOnClose();
+		void open_temp();
+		void open();
+		void dopen(int fd);
+		void close();
+		void complete_write();
+	};
+
+	class FileWriter {
+	public:
+		std::string path;
+		FileStream  fp;
+		NativeDataOutput<OutputBuffer> writer;
+		~FileWriter();
+		void open();
+		void close();
+	};
 
 } // namespace rocksdb

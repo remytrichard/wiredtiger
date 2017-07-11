@@ -44,6 +44,7 @@ int main() {
 	std::string test = "123";
 	std::string fname(sst_path);
 
+	system("rm -rf data && mkdir data");
 	rocksdb::TerarkChunkManager* manager = rocksdb::TerarkChunkManager::sharedInstance();
 	{
 		const rocksdb::TComparator* comparator = rocksdb::GetBytewiseComparator();

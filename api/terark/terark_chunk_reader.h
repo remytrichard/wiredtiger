@@ -109,7 +109,6 @@ namespace rocksdb {
 	std::unique_ptr<TerarkIndex> index_;
 	std::unique_ptr<terark::BlobStore> store_;
 	std::unique_ptr<terark::MmapWholeFile> file_reader_;
-	//std::unique_ptr<rocksdb::RandomAccessFileReader> file_reader_;
 	};
 
 

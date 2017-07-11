@@ -114,6 +114,7 @@ namespace rocksdb {
 		const TerarkZipTableOptions& table_options_;
 		const TerarkTableBuilderOptions& table_build_options_; // replace ImmutableCFOptions with TerarkTBOptions
 
+		//std::unique_ptr<terark::MmapWholeFile> file_writer_;
 		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem
 		valvec<byte_t> prevUserKey_;
@@ -121,13 +122,14 @@ namespace rocksdb {
 		TempFileDeleteOnClose tmpKeyFile_;
 		TempFileDeleteOnClose tmpValueFile_;
 		TempFileDeleteOnClose tmpSampleFile_;
+		FileWriter file_writer_;
 		FileStream tmpDumpFile_;
 		AutoDeleteFile tmpIndexFile_;
 		AutoDeleteFile tmpStoreFile_;
 		std::mt19937_64 randomGenerator_;
 		uint64_t sampleUpperBound_;
 		size_t sampleLenSum_ = 0;
-		std::unique_ptr<rocksdb::WritableFileWriter> file_writer_;
+		//std::unique_ptr<rocksdb::WritableFileWriter> file_writer_;
 		uint64_t offset_ = 0;
 		Status status_;
 		TerarkTableProperties properties_;
