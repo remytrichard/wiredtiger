@@ -32,8 +32,12 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
 	(void)dsrc;
 	(void)session;
-	(void)config;
 
+	if (!chunk_manager) {
+		// lock
+		const char* input = ((const char**)config)[0];
+		chunk_manager = new terark::TerarkChunkManager(input);
+	}
 	// TBD(kg): make sure such file is not exist, remove it anyway
 	const terark::Comparator* comparator = terark::GetBytewiseComparator();
 	terark::TerarkTableBuilderOptions builder_options(*comparator);
@@ -260,6 +264,29 @@ int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	return (0);
 }
 
+
+void configure_method(WT_CONNECTION *conn) {
+	int ret = 0;
+	conn->configure_method(conn, "WT_SESSION.create", NULL,
+						   "trk_localTempDir=./temp", "string", NULL);
+	conn->configure_method(conn, "WT_SESSION.create", NULL,
+						   "trk_indexNestLevel=2", "string", NULL);
+	conn->configure_method(conn, "WT_SESSION.create", NULL,
+						   "trk_indexCacheRatio=0.005", "string", NULL);
+	conn->configure_method(conn, "WT_SESSION.create", NULL,
+						   "trk_smallTaskMemory=1G", "string", NULL);
+	conn->configure_method(conn, "WT_SESSION.create", NULL,
+						   "trk_softZipWorkingMemLimit=16G", "string", NULL);
+	conn->configure_method(conn, "WT_SESSION.create", NULL,
+						   "trk_hardZipWorkingMemLimit=32G", "string", NULL);
+	conn->configure_method(conn, "WT_SESSION.create", NULL,
+						   "trk_minDictZipValueSize=1024", "string", NULL);
+	conn->configure_method(conn, "WT_SESSION.create", NULL,
+						   "trk_offsetArrayBlockUnits=128", "string", NULL);
+	conn->configure_method(conn, "WT_SESSION.create", NULL,
+						   "trk_max_background_flushes=4", "string", NULL);
+}
+
 std::map<std::string, std::string> dict;
 void InitDict() {
 	std::ifstream fi("./samples_large.txt");
@@ -285,7 +312,7 @@ int main() {
     } else
 		home = NULL;
 
-	chunk_manager = terark::TerarkChunkManager::sharedInstance();
+	//chunk_manager = terark::TerarkChunkManager::sharedInstance();
 	//ret = wiredtiger_open(home, NULL, "create,verbose=[lsm,lsm_manager]", &conn);
 	ret = wiredtiger_open(home, NULL, "create", &conn);
 	ret = conn->open_session(conn, NULL, NULL, &session);
@@ -316,13 +343,7 @@ int main() {
 
 	ret = conn->configure_method(conn,
 								 "WT_SESSION.open_cursor", NULL, "collator=", "string", NULL);
-
-	// TBD(kg): make sure start_generation is set as 1
-	// just set it in config_def right now.
-	//ret = conn->configure_method(conn,
-	//  "WT_SESSION.create", NULL, "start_generation=1", "int", NULL);
-	
-	/*! [WT_DATA_SOURCE register] */
+	configure_method(conn);
 
 	{
 		WT_CURSOR *c;
@@ -331,10 +352,6 @@ int main() {
 						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2),chunk_size=2MB),"
 						"key_format=S,value_format=S");
 		
-		/*session->create(session, "table:bucket", 
-						"type=lsm,lsm=(merge_min=2,chunk_size=2MB),"
-						"key_format=S,value_format=S");
-		*/
 		session->open_cursor(session, "table:bucket", NULL, NULL, &c);
 
 		printf("start insert...\n");

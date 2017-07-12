@@ -44,113 +44,35 @@ namespace terark {
 
 	namespace {
 
-		bool TerarkZipOptionsFromEnv(TerarkZipTableOptions& tzo) {
-			const char* localTempDir = getenv("TerarkZipTable_localTempDir");
-			if (!localTempDir) {
-				STD_INFO("TerarkZipConfigFromEnv(dbo, cfo) failed because env TerarkZipTable_localTempDir is not defined\n");
-				return false;
-			}
-			if (!*localTempDir) {
-				THROW_STD(invalid_argument,
-						  "If env TerarkZipTable_localTempDir is defined, it must not be empty");
-			}
-			tzo.localTempDir = localTempDir;
-			if (const char* algo = getenv("TerarkZipTable_entropyAlgo")) {
-				if (strcasecmp(algo, "NoEntropy") == 0) {
-					tzo.entropyAlgo = tzo.kNoEntropy;
-				} else if (strcasecmp(algo, "FSE") == 0) {
-					tzo.entropyAlgo = tzo.kFSE;
-				} else if (strcasecmp(algo, "huf") == 0) {
-					tzo.entropyAlgo = tzo.kHuffman;
-				} else if (strcasecmp(algo, "huff") == 0) {
-					tzo.entropyAlgo = tzo.kHuffman;
-				} else if (strcasecmp(algo, "huffman") == 0) {
-					tzo.entropyAlgo = tzo.kHuffman;
-				} else {
-					tzo.entropyAlgo = tzo.kNoEntropy;
-					STD_WARN("bad env TerarkZipTable_entropyAlgo=%s, must be one of {NoEntropy, FSE, huf}, reset to default 'NoEntropy'\n"
-							 , algo);
-				}
-			}
-			if (const char* env = getenv("TerarkZipTable_indexType")) {
-				tzo.indexType = env;
-			}
-
-#define MyGetInt(obj, name, Default)									\
-			obj.name = (int)terark::getEnvLong("TerarkZipTable_" #name, Default)
-#define MyGetBool(obj, name, Default)									\
-			obj.name = terark::getEnvBool("TerarkZipTable_" #name, Default)
-#define MyGetDouble(obj, name, Default)									\
-			obj.name = terark::getEnvDouble("TerarkZipTable_" #name, Default)
-#define MyGetXiB(obj, name)											\
-			if (const char* env = getenv("TerarkZipTable_" #name))	\
-				obj.name = terark::ParseSizeXiB(env)
-
-			MyGetInt   (tzo, checksumLevel           , 3    );
-			MyGetInt   (tzo, indexNestLevel          , 3    );
-			MyGetInt   (tzo, terarkZipMinLevel       , 0    );
-			MyGetInt   (tzo, debugLevel              , 0    );
-			MyGetInt   (tzo, keyPrefixLen            , 0    );
-			MyGetBool  (tzo, useSuffixArrayLocalMatch, false);
-			MyGetBool  (tzo, warmUpIndexOnOpen       , true );
-			MyGetBool  (tzo, warmUpValueOnOpen       , false);
-			MyGetBool  (tzo, disableSecondPassIter   , true);
-
-			{   // TBD(kg):...
-				size_t page_num  = sysconf(_SC_PHYS_PAGES);
-				size_t page_size = sysconf(_SC_PAGE_SIZE);
-				size_t memBytesLimit = page_num * page_size;
-
-				tzo.softZipWorkingMemLimit = memBytesLimit * 7 / 8;
-				tzo.hardZipWorkingMemLimit = tzo.softZipWorkingMemLimit;
-				tzo.smallTaskMemory = memBytesLimit / 16;
-				tzo.indexNestLevel = 2;
-			}
-
-			MyGetDouble(tzo, estimateCompressionRatio, 0.20 );
-			MyGetDouble(tzo, sampleRatio             , 0.03 );
-			MyGetDouble(tzo, indexCacheRatio         , 0.00 );
-
-			MyGetXiB(tzo, softZipWorkingMemLimit);
-			MyGetXiB(tzo, hardZipWorkingMemLimit);
-			MyGetXiB(tzo, smallTaskMemory);
-
-			if (tzo.debugLevel) {
-				STD_INFO("TerarkZipConfigFromEnv(dbo, cfo) successed\n");
-			}
-			return true;
-		}
-
 		bool TerarkZipOptionsFromConfigString(const std::string& config, 
 											  TerarkZipTableOptions& tzo) {
 			using namespace boost::algorithm;
 			std::vector<std::string> settings;
-            split(settings, config, is_any_of("\n"), token_compress_on);
-            // erase blank lines
-            settings.erase(std::remove_if(settings.begin(), settings.end(), [](const std::string& iter) {
-                        return iter.find_first_not_of("\t \n") == std::string::npos;
-                    }));
+            split(settings, config, is_any_of(","), token_compress_on);
+
 			std::map<std::string, std::string> dict;
 			for (auto& str : settings) {
 				size_t pos = str.find('=');
+				std::string key = str.substr(0, pos);
+				std::string val = str.substr(pos + 1);
+				printf("str: %s\t key %s\t val %s\t\n", str.c_str(), key.c_str(), val.c_str());
 				if (pos != std::string::npos) {
 					dict[str.substr(0, pos)] = str.substr(pos + 1);
 				}
+				
 			}
             if (dict.empty()) {
 				STD_INFO("TerarkZipConfigFromConfigString() failed because config is empty\n");
 				return false;
             }
-			//
-			const std::string localTempDir = dict["localTempDir"];
+			const std::string localTempDir = dict["trk_localTempDir"];
 			if (localTempDir.empty()) {
 				STD_INFO("TerarkZipConfigFromConfigString() failed because localTempDir is not defined\n");
 				return false;
 			}
 			tzo.localTempDir = localTempDir;
-			//
-			if (dict.count("entropyAlgo") > 0) {
-				std::string algo = dict["entropyAlgo"];
+			if (dict.count("trk_entropyAlgo") > 0) {
+				std::string algo = dict["trk_entropyAlgo"];
 				if (algo == "NoEntropy") {
 					tzo.entropyAlgo = tzo.kNoEntropy;
 				} else if (algo == "FSE") {
@@ -167,8 +89,8 @@ namespace terark {
 							 , algo);
 				}
 			}
-			if (dict.count("indexType") > 0) {
-				tzo.indexType = dict["indexType"];
+			if (dict.count("trk_indexType") > 0) {
+				tzo.indexType = dict["trk_indexType"];
 			}
 
 			auto GetInt = [&](const std::string& name, int default_val) {
@@ -178,15 +100,15 @@ namespace terark {
 				return dict.count(name) > 0 ? atof(dict[name].c_str()) : default_val;
 			};
 
-			tzo.checksumLevel = GetInt("checksumLevel", 3);
-			tzo.indexNestLevel = GetInt("indexNestLevel", 3);
-			tzo.terarkZipMinLevel = GetInt("terarkZipMinLevel", 0);
-			tzo.debugLevel = GetInt("debugLevel", 0);
-			tzo.keyPrefixLen = GetInt("keyPrefixLen", 0);
-			tzo.useSuffixArrayLocalMatch = GetInt("useSuffixArrayLocalMatch", 0);
-			tzo.warmUpIndexOnOpen = GetInt("warmUpIndexOnOpen", 1);
-			tzo.warmUpValueOnOpen = GetInt("warmUpValueOnOpen", 0);
-			tzo.disableSecondPassIter = GetInt("disableSecondPassIter", 1);
+			tzo.checksumLevel = GetInt("trk_checksumLevel", 3);
+			tzo.indexNestLevel = GetInt("trk_indexNestLevel", 3);
+			tzo.terarkZipMinLevel = GetInt("trk_terarkZipMinLevel", 0);
+			tzo.debugLevel = GetInt("trk_debugLevel", 0);
+			tzo.keyPrefixLen = GetInt("trk_keyPrefixLen", 0);
+			tzo.useSuffixArrayLocalMatch = GetInt("trk_useSuffixArrayLocalMatch", 0);
+			tzo.warmUpIndexOnOpen = GetInt("trk_warmUpIndexOnOpen", 1);
+			tzo.warmUpValueOnOpen = GetInt("trk_warmUpValueOnOpen", 0);
+			tzo.disableSecondPassIter = GetInt("trk_disableSecondPassIter", 1);
 			{   // TBD(kg):...
 				size_t page_num  = sysconf(_SC_PHYS_PAGES);
 				size_t page_size = sysconf(_SC_PAGE_SIZE);
@@ -197,19 +119,19 @@ namespace terark {
 				tzo.smallTaskMemory = memBytesLimit / 16;
 				tzo.indexNestLevel = 2;
 			}
-			tzo.estimateCompressionRatio = GetDouble("estimateCompressionRatio", 0.20);
-			tzo.sampleRatio = GetDouble("sampleRatio", 0.03);
-			tzo.indexCacheRatio = GetDouble("indexCacheRatio", 0.00);
+			tzo.estimateCompressionRatio = GetDouble("trk_estimateCompressionRatio", 0.20);
+			tzo.sampleRatio = GetDouble("trk_sampleRatio", 0.03);
+			tzo.indexCacheRatio = GetDouble("trk_indexCacheRatio", 0.00);
 
-			std::string name = "softZipWorkingMemLimit";
+			std::string name = "trk_softZipWorkingMemLimit";
 			if (dict.count(name) > 0) {
 				tzo.softZipWorkingMemLimit = terark::ParseSizeXiB(dict[name].c_str());
 			}
-			name = "hardZipWorkingMemLimit";
+			name = "trk_hardZipWorkingMemLimit";
 			if (dict.count(name) > 0) {
 				tzo.hardZipWorkingMemLimit = terark::ParseSizeXiB(dict[name].c_str());
 			}
-			name = "smallTaskMemory";
+			name = "trk_smallTaskMemory";
 			if (dict.count(name) > 0) {
 				tzo.smallTaskMemory = terark::ParseSizeXiB(dict[name].c_str());
 			}
@@ -228,35 +150,30 @@ namespace terark {
 
 	} // namespace
 
-	TerarkChunkManager* TerarkChunkManager::_instance = nullptr;
-	TerarkChunkManager* 
-	TerarkChunkManager::sharedInstance() {
-		if (!_instance) {
-			TerarkZipTableOptions tzo;
-			if (!TerarkZipOptionsFromEnv(tzo)) {
-				abort();
-			}
-			int err = 0;
-			try {
-				TempFileDeleteOnClose test;
-				test.path = tzo.localTempDir + "/Terark-XXXXXX";
-				test.open_temp();
-				test.writer << "Terark";
-				test.complete_write();
-			} catch (...) {
-				fprintf(stderr
-						, "ERROR: bad localTempDir %s %s\n"
-						, tzo.localTempDir, err ? strerror(err) : "");
-				abort();
-			}
-			_instance = new TerarkChunkManager;
-			_instance->table_options_ = tzo;
-			/*if (tzo.debugLevel < 0) {
-				STD_INFO("NewTerarkChunkManager(\n%s)\n",
-						 _instance->GetPrintableTableOptions().c_str());
-						 }*/
+
+	TerarkChunkManager::TerarkChunkManager(const std::string& config)
+		: reader_cache_(5) {
+		TerarkZipTableOptions& tzo = table_options_;
+		if (!TerarkZipOptionsFromConfigString(config, tzo)) {
+			abort();
 		}
-		return _instance;
+		int err = 0;
+		try {
+			TempFileDeleteOnClose test;
+			test.path = tzo.localTempDir + "/Terark-XXXXXX";
+			test.open_temp();
+			test.writer << "Terark";
+			test.complete_write();
+		} catch (...) {
+			fprintf(stderr
+					, "ERROR: bad localTempDir %s %s\n"
+					, tzo.localTempDir, err ? strerror(err) : "");
+			abort();
+		}
+		/*if (tzo.debugLevel < 0) {
+		  STD_INFO("NewTerarkChunkManager(\n%s)\n",
+		  _instance->GetPrintableTableOptions().c_str());
+		  }*/
 	}
 
 	// TBD(kg): should we reuse such file_reader?

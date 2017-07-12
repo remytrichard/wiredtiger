@@ -39,15 +39,16 @@ namespace terark {
 	extern const std::string kTerarkEmptyTableKey;
 
 	class TerarkChunkManager : boost::noncopyable {
-	private:
-		static TerarkChunkManager* _instance;
+	public:
+		//static TerarkChunkManager* _instance;
 	 
-	TerarkChunkManager() 
-		: reader_cache_(5) {}
+		TerarkChunkManager(const std::string& config);
+		//: reader_cache_(5) {}
+	private:
 		~TerarkChunkManager() {}
 
 	public:
-		static TerarkChunkManager* sharedInstance();
+		//static TerarkChunkManager* sharedInstance();
 		const char* Name() const { return "TerarkChunkManager"; }
 
 	public:
