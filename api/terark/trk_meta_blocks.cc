@@ -6,12 +6,11 @@
 #include <string>
 #include <unordered_map>
 
-#include "terark_zip_internal.h"
+#include "terark_zip_config.h"
 #include "trk_block.h"
 #include "trk_common.h"
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
-#include "trk_table_properties.h"
 
 namespace terark {
 

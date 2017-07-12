@@ -20,12 +20,9 @@
 #include <terark/util/mmap.hpp>
 // project headers
 #include "terark_zip_config.h"
-#include "terark_zip_internal.h"
 #include "terark_zip_common.h"
 #include "terark_zip_index.h"
-//#include "trk_block.h"
 #include "trk_format.h"
-#include "trk_table_properties.h"
 
 namespace terark {
 

@@ -11,9 +11,9 @@
 #include <terark/int_vector.hpp>
 // project headers
 #include "terark_chunk_builder.h"
+#include "terark_zip_config.h"
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
-#include "trk_table_properties.h"
 
 namespace terark {
 
@@ -71,17 +71,6 @@ namespace terark {
 		: table_options_(tzto)
 		, table_build_options_(tbo)
 		, chunk_name_(fname) {
-		properties_.fixed_key_len = 0;
-		properties_.num_data_blocks = 1;
-		properties_.column_family_id = 0;
-		properties_.column_family_name = "nullptr";
-		properties_.comparator_name = table_build_options_.internal_comparator.Name() ?
-			tbo.internal_comparator.Name() : "nullptr";
-		properties_.merge_operator_name = "nullptr";
-		properties_.compression_name = "nullptr";
-		properties_.prefix_extractor_name = "nullptr";
-		properties_.property_collectors_names = "[]";
-
 		// temp mmap files
 		sampleUpperBound_ = randomGenerator_.max() * table_options_.sampleRatio;
 		tmpValueFile_.path = tzto.localTempDir + "/Terark-XXXXXX";

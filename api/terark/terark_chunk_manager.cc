@@ -32,18 +32,17 @@
 #include <terark/util/mmap.hpp>
 // project headers
 #include "terark_zip_index.h"
-#include "terark_zip_internal.h"
+#include "terark_zip_config.h"
 #include "terark_chunk_manager.h"
 
 #include "trk_format.h"
 #include "trk_meta_blocks.h"
-#include "trk_table_properties.h"
 
 namespace terark {
 	
 	terark::profiling g_pf;
 
-	const uint64_t kTerarkZipTableMagicNumber = 0x1122334455667788;
+	/*const uint64_t kTerarkZipTableMagicNumber = 0x1122334455667788;
 
 	const std::string kTerarkZipTableIndexBlock        = "TerarkZipTableIndexBlock";
 	const std::string kTerarkZipTableValueTypeBlock    = "TerarkZipTableValueTypeBlock";
@@ -52,6 +51,7 @@ namespace terark {
 	const std::string kTerarkZipTableCommonPrefixBlock = "TerarkZipTableCommonPrefixBlock";
 	const std::string kTerarkEmptyTableKey             = "ThisIsAnEmptyTable";
 	const std::string kTerarkPropertiesBlock           = "TerarkPropertyBlock";
+	*/
 
 	namespace {
 

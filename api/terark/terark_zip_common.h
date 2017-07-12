@@ -3,6 +3,7 @@
 #include <terark/io/DataIO.hpp>
 #include <terark/io/FileStream.hpp>
 #include <terark/io/StreamBuffer.hpp>
+#include "slice.h"
 
 namespace terark {
 
@@ -59,6 +60,22 @@ namespace terark {
 	template<class T>
 		inline std::string ClassName(const T& x) {
 		return demangle(typeid(x).name());
+	}
+
+	template<class ByteArray>
+		inline Slice SliceOf(const ByteArray& ba) {
+		BOOST_STATIC_ASSERT(sizeof(ba[0] == 1));
+		return Slice((const char*)ba.data(), ba.size());
+	}
+
+	inline static fstring fstringOf(const Slice& x) {
+		return fstring(x.data(), x.size());
+	}
+
+	template<class ByteArrayView>
+		inline ByteArrayView SubStr(const ByteArrayView& x, size_t pos) {
+		assert(pos <= x.size());
+		return ByteArrayView(x.data() + pos, x.size() - pos);
 	}
 
 	class AutoDeleteFile {

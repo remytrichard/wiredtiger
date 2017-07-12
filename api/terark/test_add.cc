@@ -14,7 +14,6 @@
 #include "slice.h"
 // project headers
 #include "bridge.h"
-#include "terark_zip_internal.h"
 #include "terark_zip_config.h"
 #include "terark_chunk_manager.h"
 #include "terark_chunk_builder.h"

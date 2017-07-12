@@ -10,9 +10,33 @@
 #include <string>
 #include <vector>
 
+// rocksdb headers
+#include "slice.h"
+// terark headers
+#include <terark/fstring.hpp>
+#include <terark/valvec.hpp>
+#include <terark/stdtypes.hpp>
+#include <terark/util/profiling.hpp>
+
 #include "trk_common.h"
 
 namespace terark {
+	
+	using terark::fstring;
+	using terark::valvec;
+	using terark::byte_t;
+
+	extern terark::profiling g_pf;
+
+	extern const uint64_t kTerarkZipTableMagicNumber;
+
+	extern const std::string kTerarkZipTableIndexBlock;
+	extern const std::string kTerarkZipTableValueTypeBlock;
+	extern const std::string kTerarkZipTableValueDictBlock;
+	extern const std::string kTerarkZipTableOffsetBlock;
+	extern const std::string kTerarkZipTableCommonPrefixBlock;
+	extern const std::string kTerarkEmptyTableKey;
+	extern const std::string kTerarkPropertiesBlock;
 
 	struct TerarkZipTableOptions {
 		// copy of DictZipBlobStore::Options::EntropyAlgo
@@ -111,6 +135,40 @@ namespace terark {
 		const Comparator& internal_comparator;
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
+	};
+
+	// table properties' human-readable names in the property block.
+	struct TerarkTablePropertiesNames {
+		static const std::string kDataSize;
+		static const std::string kIndexSize;
+		static const std::string kRawKeySize;
+		static const std::string kRawValueSize;
+		static const std::string kNumEntries;
+	};
+
+	// TableProperties contains a bunch of read-only properties of its associated
+	// table.
+	struct TerarkTableProperties {
+	public:
+		// the total size of all data blocks.
+		uint64_t data_size = 0;
+		// the size of index block.
+		uint64_t index_size = 0;
+		// total raw key size
+		uint64_t raw_key_size = 0;
+		// total raw value size
+		uint64_t raw_value_size = 0;
+		// the number of entries in this table
+		uint64_t num_entries = 0;
+
+		// convert this object to a human readable form
+		//   @prop_delim: delimiter for each property.
+		std::string ToString(const std::string& prop_delim = "; ",
+							 const std::string& kv_delim = "=") const {}
+
+		// Aggregate the numerical member variables of the specified
+		// TableProperties.
+		void Add(const TerarkTableProperties& tp) {}
 	};
 
 

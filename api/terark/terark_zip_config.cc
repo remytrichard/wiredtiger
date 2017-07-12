@@ -29,6 +29,17 @@ namespace terark {
 	const std::string kTerarkEmptyTableKey             = "ThisIsAnEmptyTable";
 	const std::string kTerarkPropertiesBlock           = "TerarkPropertyBlock";
 
+	const std::string TerarkTablePropertiesNames::kDataSize  =
+		"terark.data.size";
+	const std::string TerarkTablePropertiesNames::kIndexSize =
+		"terark.index.size";
+	const std::string TerarkTablePropertiesNames::kRawKeySize =
+		"terark.raw.key.size";
+	const std::string TerarkTablePropertiesNames::kRawValueSize =
+		"terark.raw.value.size";
+	const std::string TerarkTablePropertiesNames::kNumEntries =
+		"terark.num.entries";
+
 	static
 	int ComputeFileSizeMultiplier(double diskLimit, double minVal, int levels) {
 		if (diskLimit > 0) {
@@ -101,7 +112,7 @@ namespace terark {
 		{   // TBD(kg):...
 			size_t page_num  = sysconf(_SC_PHYS_PAGES);
 			size_t page_size = sysconf(_SC_PAGE_SIZE);
-			memBytesLimit = page_num * page_size;
+			size_t memBytesLimit = page_num * page_size;
 
 			tzo.softZipWorkingMemLimit = memBytesLimit * 7 / 8;
 			tzo.hardZipWorkingMemLimit = tzo.softZipWorkingMemLimit;
