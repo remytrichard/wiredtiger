@@ -119,7 +119,7 @@ namespace terark {
 	/*
 	 *  First Pass: After all key-value Added, create 2 task: one for index build, one for sample build.
 	 *      Put them into task-pool, picked to start based on their Memory Rating.
-	 *      Exist once sample build task done.
+	 *      Exit once sample build task done.
 	 */
 	void TerarkChunkBuilder::Add(const Slice& key, const Slice& value) {
 		if (table_options_.debugLevel == 4) {

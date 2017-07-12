@@ -19,6 +19,7 @@
 # include <sys/mman.h>
 #endif
 // boost headers
+#include <boost/algorithm/string.hpp>
 #include <boost/predef/other/endian.h>
 // 3rd-party headers
 #ifdef TERARK_SUPPORT_UINT64_COMPARATOR
@@ -119,6 +120,107 @@ namespace terark {
 			}
 			return true;
 		}
+
+		bool TerarkZipOptionsFromConfigString(const std::string& config, 
+											  TerarkZipTableOptions& tzo) {
+			using namespace boost::algorithm;
+			std::vector<std::string> settings;
+            split(settings, config, is_any_of("\n"), token_compress_on);
+            // erase blank lines
+            settings.erase(std::remove_if(settings.begin(), settings.end(), [](const std::string& iter) {
+                        return iter.find_first_not_of("\t \n") == std::string::npos;
+                    }));
+			std::map<std::string, std::string> dict;
+			for (auto& str : settings) {
+				size_t pos = str.find('=');
+				if (pos != std::string::npos) {
+					dict[str.substr(0, pos)] = str.substr(pos + 1);
+				}
+			}
+            if (dict.empty()) {
+				STD_INFO("TerarkZipConfigFromConfigString() failed because config is empty\n");
+				return false;
+            }
+			//
+			const std::string localTempDir = dict["localTempDir"];
+			if (localTempDir.empty()) {
+				STD_INFO("TerarkZipConfigFromConfigString() failed because localTempDir is not defined\n");
+				return false;
+			}
+			tzo.localTempDir = localTempDir;
+			//
+			if (dict.count("entropyAlgo") > 0) {
+				std::string algo = dict["entropyAlgo"];
+				if (algo == "NoEntropy") {
+					tzo.entropyAlgo = tzo.kNoEntropy;
+				} else if (algo == "FSE") {
+					tzo.entropyAlgo = tzo.kFSE;
+				} else if (algo == "huf") {
+					tzo.entropyAlgo = tzo.kHuffman;
+				} else if (algo == "huff") {
+					tzo.entropyAlgo = tzo.kHuffman;
+				} else if (algo == "huffman") {
+					tzo.entropyAlgo = tzo.kHuffman;
+				} else {
+					tzo.entropyAlgo = tzo.kNoEntropy;
+					STD_WARN("bad env entropyAlgo=%s, must be one of {NoEntropy, FSE, huf}, reset to default 'NoEntropy'\n"
+							 , algo);
+				}
+			}
+			if (dict.count("indexType") > 0) {
+				tzo.indexType = dict["indexType"];
+			}
+
+			auto GetInt = [&](const std::string& name, int default_val) {
+				return dict.count(name) > 0 ? atoi(dict[name].c_str()) : default_val;
+			};
+			auto GetDouble = [&](const std::string& name, double default_val) {
+				return dict.count(name) > 0 ? atof(dict[name].c_str()) : default_val;
+			};
+
+			tzo.checksumLevel = GetInt("checksumLevel", 3);
+			tzo.indexNestLevel = GetInt("indexNestLevel", 3);
+			tzo.terarkZipMinLevel = GetInt("terarkZipMinLevel", 0);
+			tzo.debugLevel = GetInt("debugLevel", 0);
+			tzo.keyPrefixLen = GetInt("keyPrefixLen", 0);
+			tzo.useSuffixArrayLocalMatch = GetInt("useSuffixArrayLocalMatch", 0);
+			tzo.warmUpIndexOnOpen = GetInt("warmUpIndexOnOpen", 1);
+			tzo.warmUpValueOnOpen = GetInt("warmUpValueOnOpen", 0);
+			tzo.disableSecondPassIter = GetInt("disableSecondPassIter", 1);
+			{   // TBD(kg):...
+				size_t page_num  = sysconf(_SC_PHYS_PAGES);
+				size_t page_size = sysconf(_SC_PAGE_SIZE);
+				size_t memBytesLimit = page_num * page_size;
+
+				tzo.softZipWorkingMemLimit = memBytesLimit * 7 / 8;
+				tzo.hardZipWorkingMemLimit = tzo.softZipWorkingMemLimit;
+				tzo.smallTaskMemory = memBytesLimit / 16;
+				tzo.indexNestLevel = 2;
+			}
+			tzo.estimateCompressionRatio = GetDouble("estimateCompressionRatio", 0.20);
+			tzo.sampleRatio = GetDouble("sampleRatio", 0.03);
+			tzo.indexCacheRatio = GetDouble("indexCacheRatio", 0.00);
+
+			std::string name = "softZipWorkingMemLimit";
+			if (dict.count(name) > 0) {
+				tzo.softZipWorkingMemLimit = terark::ParseSizeXiB(dict[name].c_str());
+			}
+			name = "hardZipWorkingMemLimit";
+			if (dict.count(name) > 0) {
+				tzo.hardZipWorkingMemLimit = terark::ParseSizeXiB(dict[name].c_str());
+			}
+			name = "smallTaskMemory";
+			if (dict.count(name) > 0) {
+				tzo.smallTaskMemory = terark::ParseSizeXiB(dict[name].c_str());
+			}
+
+			if (tzo.debugLevel) {
+				STD_INFO("TerarkZipConfigFromConfigString(dbo, cfo) successed\n");
+			}
+			return true;
+		}
+
+
 
 		bool IsBytewiseComparator(const Comparator* cmp) {
 			return cmp->Name() == std::string("leveldb.BytewiseComparator");
