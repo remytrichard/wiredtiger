@@ -94,10 +94,10 @@ namespace terark {
 
 	class TerarkTableBuilderOptions {
 	public:
-	TerarkTableBuilderOptions(const TComparator& comp) 
+	TerarkTableBuilderOptions(const Comparator& comp) 
 		: internal_comparator(comp) {}
 
-		const TComparator& internal_comparator;
+		const Comparator& internal_comparator;
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
 		int num_levels;
@@ -105,10 +105,10 @@ namespace terark {
 
 	class TerarkTableReaderOptions {
 	public:
-	TerarkTableReaderOptions(const TComparator& comp) 
+	TerarkTableReaderOptions(const Comparator& comp) 
 		: internal_comparator(comp) {}
 
-		const TComparator& internal_comparator;
+		const Comparator& internal_comparator;
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
 	};

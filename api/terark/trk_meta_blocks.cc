@@ -83,7 +83,7 @@ namespace terark {
 			}
 
 			TerarkBlock properties_block(std::move(block_contents));
-			std::unique_ptr<TIterator> iter(properties_block.NewIterator(GetBytewiseComparator()));
+			std::unique_ptr<Iterator> iter(properties_block.NewIterator(GetBytewiseComparator()));
 			//TerarkBlockIter iter;
 			//properties_block.NewIterator(BytewiseComparator(), &iter);
 
@@ -132,7 +132,7 @@ namespace terark {
 			return s;
 		}
 
-		Status TerarkFindMetaBlock(TIterator* meta_index_iter,
+		Status TerarkFindMetaBlock(Iterator* meta_index_iter,
 								   const std::string& meta_block_name,
 								   TerarkBlockHandle* block_handle) {
 			meta_index_iter->Seek(meta_block_name);
@@ -165,7 +165,7 @@ namespace terark {
 			return s;
 		}
 		TerarkBlock metaindex_block(std::move(metaindex_contents));
-		std::unique_ptr<TIterator> meta_iter(metaindex_block.NewIterator(GetBytewiseComparator()));
+		std::unique_ptr<Iterator> meta_iter(metaindex_block.NewIterator(GetBytewiseComparator()));
 		if (meta_iter.get() == nullptr) {
 			return Status::Corruption("bad block handle");
 		}
@@ -204,7 +204,7 @@ namespace terark {
 
 		// Finding metablock
 		TerarkBlock metaindex_block(std::move(metaindex_contents));
-		std::unique_ptr<TIterator> meta_iter;
+		std::unique_ptr<Iterator> meta_iter;
 		meta_iter.reset(metaindex_block.NewIterator(GetBytewiseComparator()));
 
 		TerarkBlockHandle block_handle;

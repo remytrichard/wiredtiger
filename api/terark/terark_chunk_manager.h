@@ -38,7 +38,6 @@ namespace terark {
 	extern const std::string kTerarkZipTableCommonPrefixBlock;
 	extern const std::string kTerarkEmptyTableKey;
 
-	typedef typename TerarkChunkReader::TerarkReaderIterator TerarkIterator;
 	class TerarkChunkManager : boost::noncopyable {
 	private:
 		static TerarkChunkManager* _instance;
@@ -68,14 +67,14 @@ namespace terark {
 			return reader_dict_[fname];
 		}
 
-		void AddIterator(WT_CURSOR* cursor, TerarkIterator* iter) {
+		void AddIterator(WT_CURSOR* cursor, Iterator* iter) {
 			assert(cursor != nullptr);
 			cursor_dict_[cursor] = iter;
 		}
 		void RemoveIterator(WT_CURSOR* cursor) {
 			cursor_dict_.erase(cursor);
 		}
-		TerarkIterator* GetIterator(WT_CURSOR* cursor) {
+		Iterator* GetIterator(WT_CURSOR* cursor) {
 			assert(cursor != nullptr);
 			return cursor_dict_[cursor];
 		}
@@ -87,7 +86,7 @@ namespace terark {
 			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 							const std::string& fname);
 		
-		TerarkIterator* 
+		Iterator* 
 			NewIterator(const std::string& fname);
 
 		std::string GetPrintableTableOptions() const;
@@ -109,7 +108,7 @@ namespace terark {
 		// should replace name of TerarkChunkBuilder with TerarkChunk
 		std::map<std::string, TerarkChunkBuilder*> builder_dict_;
 		std::map<std::string, TerarkChunkReader*>  reader_dict_;
-		std::map<WT_CURSOR*, TerarkIterator*>      cursor_dict_;
+		std::map<WT_CURSOR*, Iterator*>      cursor_dict_;
 	};
 
 

@@ -46,7 +46,7 @@ namespace terark {
 		~TerarkChunkReader();
 
 	public:
-		class TerarkReaderIterator : public TIterator, boost::noncopyable {
+		class TerarkReaderIterator : public Iterator, boost::noncopyable {
 	public:
 	TerarkReaderIterator(TerarkChunkReader* chunk, bool isTest = false)
 		: chunk_(chunk) {
@@ -86,13 +86,10 @@ namespace terark {
 		Status status() const { return status_; }
 		bool UnzipIterRecord(bool);
 		
-	public:
-		// TBD(kg): ...
-		TerarkChunkReader* chunk_;
-
 	protected:
-		bool  reseted_;
+		TerarkChunkReader* chunk_;
 		std::unique_ptr<TerarkIndex::Iterator> iter_;
+		bool  reseted_;
 		valvec<byte_t>          keyBuf_;
 		valvec<byte_t>          valueBuf_;
 		Status                  status_;

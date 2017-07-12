@@ -6,10 +6,10 @@
 
 namespace terark {
 
-	class TIterator {
+	class Iterator {
 	public:
-		TIterator() {}
-		virtual ~TIterator() {}
+		Iterator() {}
+		virtual ~Iterator() {}
 
 		// An iterator is either positioned at a key/value pair, or
 		// not valid.  This method returns true iff the iterator is valid.
@@ -43,6 +43,7 @@ namespace terark {
 		// REQUIRES: Valid()
 		virtual void Prev() = 0;
 
+		virtual void SetInvalid() {}
 		// Return the key for the current entry.  The underlying storage for
 		// the returned slice is valid only until the next modification of
 		// the iterator.
@@ -62,8 +63,8 @@ namespace terark {
 
 	private:
 		// No copying allowed
-		TIterator(const TIterator&);
-		void operator=(const TIterator&);
+		Iterator(const Iterator&);
+		void operator=(const Iterator&);
 	};
 
 
@@ -71,10 +72,10 @@ namespace terark {
 	// used as keys in an sstable or a database.  A Comparator implementation
 	// must be thread-safe since rocksdb may invoke its methods concurrently
 	// from multiple threads.
-	class TComparator {
+	class Comparator {
 	public:
-		TComparator() {}
-		virtual ~TComparator() {}
+		Comparator() {}
+		virtual ~Comparator() {}
 
 		// Three-way comparison.  Returns value:
 		//   < 0 iff "a" < "b",
@@ -88,10 +89,10 @@ namespace terark {
 		virtual const char* Name() const = 0;
 	};
 
-	class TBytewiseComparator : public TComparator {
+	class BytewiseComparator : public Comparator {
 	public:
-		TBytewiseComparator() { }
-		~TBytewiseComparator() { }
+		BytewiseComparator() { }
+		~BytewiseComparator() { }
 
 		virtual const char* Name() const override {
 			return "leveldb.BytewiseComparator";
@@ -102,7 +103,7 @@ namespace terark {
 		}
 	};
 
-	extern TComparator* GetBytewiseComparator();
+	extern Comparator* GetBytewiseComparator();
 	extern Status GetFileSize(const std::string& fname,
 							  uint64_t* size);
 

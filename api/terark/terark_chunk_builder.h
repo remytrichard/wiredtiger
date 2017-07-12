@@ -72,10 +72,8 @@ namespace terark {
 		}
 		Status Finish2ndPass();
 
-		//Status status() const { return status_; }
+
 		void Abandon();
-		uint64_t NumEntries() const { return properties_.num_entries; }
-		uint64_t FileSize() const;
 		
 	private:
 		struct KeyValueStatus {
@@ -111,11 +109,9 @@ namespace terark {
 		const TerarkZipTableOptions& table_options_;
 		const TerarkTableBuilderOptions& table_build_options_; // replace ImmutableCFOptions with TerarkTBOptions
 
-		//std::unique_ptr<terark::MmapWholeFile> file_writer_;
 		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem
 		valvec<byte_t> prevUserKey_;
-		//valvec<byte_b> value_;
 		TempFileDeleteOnClose tmpKeyFile_;
 		TempFileDeleteOnClose tmpValueFile_;
 		TempFileDeleteOnClose tmpSampleFile_;
@@ -129,7 +125,6 @@ namespace terark {
 		uint64_t offset_ = 0;
 		Status status_;
 		TerarkTableProperties properties_;
-		terark::fstrvec valueBuf_;
 		bool closed_ = false;  // Either Finish() or Abandon() has been called.
 
 	public:
@@ -143,7 +138,7 @@ namespace terark {
 			kBZTypeBuildStart = 6,
 			kReorderStart = 7,
 			kBuildFinish = 8
-				};
+		};
 	private:
 		std::vector<long long> tms_;
 

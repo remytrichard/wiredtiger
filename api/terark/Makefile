@@ -15,8 +15,8 @@ LIB=-L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lterark-core
 
 OBJS = terark_chunk_reader.o terark_zip_common.o terark_zip_index.o trk_block.o trk_common.o trk_table_properties.o trk_meta_blocks.o trk_format.o terark_chunk_builder.o terark_chunk_manager.o
 
-#all: test_add
-all: bridge
+all: test_add
+#all: bridge
 
 bridge: ${OBJS}
 	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o bridge bridge.cc

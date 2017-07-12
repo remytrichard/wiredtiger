@@ -47,7 +47,7 @@ int main() {
 	system("rm -rf data && mkdir data");
 	terark::TerarkChunkManager* manager = terark::TerarkChunkManager::sharedInstance();
 	{
-		const terark::TComparator* comparator = terark::GetBytewiseComparator();
+		const terark::Comparator* comparator = terark::GetBytewiseComparator();
 		terark::TerarkTableBuilderOptions builder_options(*comparator);
 		
 		terark::TerarkChunkBuilder* builder = 
@@ -68,7 +68,7 @@ int main() {
 		assert(s.ok());
 	}
 	{		
-		terark::TIterator* iter = manager->NewIterator(fname);
+		terark::Iterator* iter = manager->NewIterator(fname);
 		assert(iter != nullptr);
 
 		for (auto& di : dict) {

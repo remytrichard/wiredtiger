@@ -37,7 +37,7 @@ namespace terark {
 		size_t size() const { return size_; }
 		const char* data() const { return data_; }
 
-TIterator* NewIterator(const TComparator* comparator);
+		Iterator* NewIterator(const Comparator* comparator);
 		
 	private:
 		TerarkBlockContents contents_;
@@ -49,7 +49,7 @@ TIterator* NewIterator(const TComparator* comparator);
 		void operator=(const TerarkBlock&);
 	};
 
-	class TerarkBlockIter : public TIterator {
+	class TerarkBlockIter : public Iterator {
 	public:
 	TerarkBlockIter()
 		: comparator_(nullptr),
@@ -57,7 +57,7 @@ TIterator* NewIterator(const TComparator* comparator);
 			current_(0),
 			status_(Status::OK()) {}
 		
-	TerarkBlockIter(const TComparator* comparator, const char* data, size_t size)
+	TerarkBlockIter(const Comparator* comparator, const char* data, size_t size)
 		: TerarkBlockIter() {
 			assert(data_ == nullptr);           // Ensure it is called only once
 			comparator_ = comparator;
@@ -92,7 +92,7 @@ TIterator* NewIterator(const TComparator* comparator);
 		}
 
 	private:
-		const TComparator* comparator_;
+		const Comparator* comparator_;
 		const char* data_;       // underlying block contents
 
 		// current_ is offset in data_ of current entry.

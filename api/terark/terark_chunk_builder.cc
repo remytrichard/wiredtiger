@@ -113,31 +113,6 @@ namespace terark {
 
 	TerarkChunkBuilder::~TerarkChunkBuilder() {}
 
-	uint64_t TerarkChunkBuilder::FileSize() const {
-		if (0 == offset_) {
-			// for compaction caller to split file by increasing size
-			auto kvLen = properties_.raw_key_size + properties_.raw_value_size;
-			auto fsize = uint64_t(kvLen * table_options_.estimateCompressionRatio);
-			if (terark_unlikely(histogram_.empty())) {
-				return fsize;
-			}
-			size_t dictZipMemSize = std::min<size_t>(sampleLenSum_, INT32_MAX) * 6;
-			size_t nltTrieMemSize = 0;
-			for (auto& item : histogram_) {
-				nltTrieMemSize = std::max(nltTrieMemSize,
-										  item.stat.sumKeyLen + sizeof(SortableStrVec::SEntry) * item.stat.numKeys);
-			}
-			size_t peakMemSize = std::max(dictZipMemSize, nltTrieMemSize);
-			if (peakMemSize < table_options_.softZipWorkingMemLimit) {
-				return fsize;
-			} else {
-				return fsize * 5; // notify rocksdb to `Finish()` this table asap.
-			}
-		} else {
-			return offset_;
-		}
-	}
-
 	Status TerarkChunkBuilder::EmptyTableFinish() {
 		//INFO(table_build_options_.info_log
 		printf("TerarkChunkBuilder::EmptyFinish():this=%p\n", this);
@@ -208,7 +183,10 @@ namespace terark {
 		closed_ = true;
 
 		if (histogram_.back().stat.numKeys == 0) {
-			return EmptyTableFinish();
+			// empty chunk is not allowed
+			std::string tmp = "TerarkSpecialTreatmentForEmptyKey";
+			Slice placeholderKey(tmp), placeholderValue("\x14\x14", 2);
+			Add(placeholderKey, placeholderValue);
 		}
 
 		for (auto& item : histogram_) {

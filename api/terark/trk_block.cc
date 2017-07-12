@@ -107,7 +107,7 @@ namespace terark {
 		}
 	}
 
-	TIterator* TerarkBlock::NewIterator(const TComparator* cmp) {
+	Iterator* TerarkBlock::NewIterator(const Comparator* cmp) {
 		if (size_ < 2 * sizeof(uint32_t)) {
 			return nullptr;
 		} else {

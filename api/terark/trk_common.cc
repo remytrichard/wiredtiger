@@ -7,10 +7,10 @@
 
 namespace terark {
 
-	TComparator* GetBytewiseComparator() {
-		static TBytewiseComparator* comparator_;
+	Comparator* GetBytewiseComparator() {
+		static BytewiseComparator* comparator_;
 		if (!comparator_) {
-			comparator_ = new TBytewiseComparator();
+			comparator_ = new BytewiseComparator();
 		}
 		return comparator_;
 	}

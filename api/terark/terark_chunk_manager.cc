@@ -132,7 +132,7 @@ namespace terark {
 			return true;
 		}
 
-		bool IsBytewiseComparator(const TComparator* cmp) {
+		bool IsBytewiseComparator(const Comparator* cmp) {
 			return cmp->Name() == std::string("leveldb.BytewiseComparator");
 		}
 
@@ -195,7 +195,7 @@ namespace terark {
 	TerarkChunkBuilder*
 	TerarkChunkManager::NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
 		const std::string& fname) {
-		const terark::TComparator* userCmp = &table_builder_options.internal_comparator;
+		const terark::Comparator* userCmp = &table_builder_options.internal_comparator;
 		if (!IsBytewiseComparator(userCmp)) {
 			THROW_STD(invalid_argument,
 				"TerarkChunkManager::NewTableBuilder(): "
@@ -220,7 +220,7 @@ namespace terark {
 		return builder;
 	}
 
-	TerarkIterator*
+	Iterator*
 	TerarkChunkManager::NewIterator(const std::string& fname) {
 		terark::TerarkChunkReader* reader = GetReader(fname);
 		if (!reader) {
