@@ -53,13 +53,9 @@ namespace terark {
 			std::map<std::string, std::string> dict;
 			for (auto& str : settings) {
 				size_t pos = str.find('=');
-				std::string key = str.substr(0, pos);
-				std::string val = str.substr(pos + 1);
-				printf("str: %s\t key %s\t val %s\t\n", str.c_str(), key.c_str(), val.c_str());
 				if (pos != std::string::npos) {
 					dict[str.substr(0, pos)] = str.substr(pos + 1);
 				}
-				
 			}
             if (dict.empty()) {
 				STD_INFO("TerarkZipConfigFromConfigString() failed because config is empty\n");
@@ -177,8 +173,12 @@ namespace terark {
 	}
 
 	// TBD(kg): should we reuse such file_reader?
-	bool TerarkChunkManager::IsChunkExist(const std::string& fname) {
-		// check within reader first ?
+	bool TerarkChunkManager::IsChunkExist(const std::string& fname, 
+										  const std::string& cur_tag) {
+		// check within reader
+		if (GetReader(cur_tag)) {
+			return true;
+		}
 		size_t file_size = 0;
 		Status s = GetFileSize(fname, &file_size);
 		if (s.ok() && file_size > 100) {

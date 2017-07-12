@@ -79,7 +79,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	// set cursor-ops based on builder/reader
 	std::string path(std::string(home) + "/" + uri);
 	std::replace(path.begin(), path.end(), ':', '-');
-	if (chunk_manager->IsChunkExist(path)) {
+	if (chunk_manager->IsChunkExist(path, uri)) {
 		printf("open cursor for read: %s\n", uri);
 		cursor->next = trk_cursor_next;
 		cursor->prev = trk_cursor_prev;

@@ -86,7 +86,7 @@ namespace terark {
 
 
 	public:
-		bool IsChunkExist(const std::string&);
+		bool IsChunkExist(const std::string&, const std::string&);
 
 		TerarkChunkBuilder*
 			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,

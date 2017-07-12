@@ -44,7 +44,8 @@ int main() {
 	std::string fname(sst_path);
 
 	system("rm -rf data && mkdir data");
-	terark::TerarkChunkManager* manager = terark::TerarkChunkManager::sharedInstance();
+	std::string config = "trk_localTempDir=./data";
+	terark::TerarkChunkManager* manager = new terark::TerarkChunkManager(config);
 	{
 		const terark::Comparator* comparator = terark::GetBytewiseComparator();
 		terark::TerarkTableBuilderOptions builder_options(*comparator);
