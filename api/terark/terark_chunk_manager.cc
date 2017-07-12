@@ -12,7 +12,6 @@
 #include <cstdlib>
 #include <cstdint>
 #include <fstream>
-// for #include <sys/mman.h>
 #ifdef _MSC_VER
 # include <io.h>
 #else
@@ -41,17 +40,6 @@
 namespace terark {
 	
 	terark::profiling g_pf;
-
-	/*const uint64_t kTerarkZipTableMagicNumber = 0x1122334455667788;
-
-	const std::string kTerarkZipTableIndexBlock        = "TerarkZipTableIndexBlock";
-	const std::string kTerarkZipTableValueTypeBlock    = "TerarkZipTableValueTypeBlock";
-	const std::string kTerarkZipTableValueDictBlock    = "TerarkZipTableValueDictBlock";
-	const std::string kTerarkZipTableOffsetBlock       = "TerarkZipTableOffsetBlock";
-	const std::string kTerarkZipTableCommonPrefixBlock = "TerarkZipTableCommonPrefixBlock";
-	const std::string kTerarkEmptyTableKey             = "ThisIsAnEmptyTable";
-	const std::string kTerarkPropertiesBlock           = "TerarkPropertyBlock";
-	*/
 
 	namespace {
 
@@ -221,11 +209,11 @@ namespace terark {
 	}
 
 	Iterator*
-	TerarkChunkManager::NewIterator(const std::string& fname) {
+	TerarkChunkManager::NewIterator(const std::string& fname, const std::string& cur_tag) {
 		terark::TerarkChunkReader* reader = GetReader(fname);
 		if (!reader) {
 			reader = new TerarkChunkReader(table_options_, fname);
-			AddReader(fname, reader);
+			AddReader(cur_tag, reader);
 		}
 		return reader->NewIterator();
 	}

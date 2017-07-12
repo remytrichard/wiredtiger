@@ -14,6 +14,7 @@
 #include <terark/stdtypes.hpp>
 #include <terark/util/profiling.hpp>
 // project headers
+#include "lru_cache.h"
 #include "terark_zip_common.h"
 #include "terark_zip_config.h"
 #include "terark_chunk_builder.h"
@@ -25,7 +26,6 @@ namespace terark {
 	using terark::fstring;
 	using terark::valvec;
 	using terark::byte_t;
-
 
 	extern terark::profiling g_pf;
 
@@ -42,7 +42,8 @@ namespace terark {
 	private:
 		static TerarkChunkManager* _instance;
 	 
-		TerarkChunkManager() {}
+	TerarkChunkManager() 
+		: reader_cache_(5) {}
 		~TerarkChunkManager() {}
 
 	public:
@@ -59,25 +60,29 @@ namespace terark {
 		TerarkChunkBuilder* GetBuilder(const std::string& fname) {
 			return builder_dict_[fname];
 		}
-		// TBD(kg): when should we remve reader? no ref ?
-		void AddReader(const std::string& fname, TerarkChunkReader* reader) {
-			reader_dict_[fname] = reader;
-		}
-		TerarkChunkReader* GetReader(const std::string& fname) {
-			return reader_dict_[fname];
-		}
 
 		void AddIterator(WT_CURSOR* cursor, Iterator* iter) {
 			assert(cursor != nullptr);
 			cursor_dict_[cursor] = iter;
+			assert(reader_cache_.exists(cursor->uri));
+			auto reader = reader_cache_.get(cursor->uri);
+			reader->AddRef();
 		}
 		void RemoveIterator(WT_CURSOR* cursor) {
+			assert(cursor != nullptr);
 			cursor_dict_.erase(cursor);
+			assert(reader_cache_.exists(cursor->uri) == true);
+			auto reader = reader_cache_.get(cursor->uri);
+			reader->RelRef();
 		}
 		Iterator* GetIterator(WT_CURSOR* cursor) {
 			assert(cursor != nullptr);
+			if (reader_cache_.exists(cursor->uri)) {
+				reader_cache_.get(cursor->uri); // lru update
+			}
 			return cursor_dict_[cursor];
 		}
+
 
 	public:
 		bool IsChunkExist(const std::string&);
@@ -87,7 +92,7 @@ namespace terark {
 							const std::string& fname);
 		
 		Iterator* 
-			NewIterator(const std::string& fname);
+			NewIterator(const std::string& fname, const std::string& cur_tag);
 
 		std::string GetPrintableTableOptions() const;
 
@@ -98,16 +103,25 @@ namespace terark {
 		void* GetOptions() { return &table_options_; }
 
 	private:
+
+		void AddReader(const std::string& fname, TerarkChunkReader* reader) {
+			reader->AddRef();
+			reader_cache_.put(fname, reader);
+		}
+		TerarkChunkReader* GetReader(const std::string& fname) {
+			if (!reader_cache_.exists(fname)) {
+				return nullptr;
+			}
+			return reader_cache_.get(fname);
+		}
+
 		TerarkZipTableOptions table_options_;
-		//TableFactory* fallback_factory_;
-		//TableFactory* adaptive_factory_; // just for open table
 		mutable size_t nth_new_terark_table_ = 0;
 		mutable size_t nth_new_fallback_table_ = 0;
  
-	private:
-		// should replace name of TerarkChunkBuilder with TerarkChunk
+		// builder, reader key: uri, not path
 		std::map<std::string, TerarkChunkBuilder*> builder_dict_;
-		std::map<std::string, TerarkChunkReader*>  reader_dict_;
+		lru_cache<std::string, TerarkChunkReader*> reader_cache_; // cache size set to 5 temp now
 		std::map<WT_CURSOR*, Iterator*>      cursor_dict_;
 	};
 

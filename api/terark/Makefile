@@ -39,7 +39,7 @@ terark_zip_index.o: terark_zip_index.h
 terark_chunk_builder.o: terark_chunk_builder.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c terark_chunk_builder.cc
 
-terark_chunk_manager.o: terark_chunk_manager.h 
+terark_chunk_manager.o: terark_chunk_manager.h lru_cache.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c terark_chunk_manager.cc
 
 trk_common.o: trk_common.h
@@ -47,9 +47,6 @@ trk_common.o: trk_common.h
 
 trk_block.o: trk_block.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_block.cc
-
-#trk_table_properties.o: trk_table_properties.h
-#	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_table_properties.cc
 
 trk_meta_blocks.o: trk_meta_blocks.h trk_format.h trk_block.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_meta_blocks.cc

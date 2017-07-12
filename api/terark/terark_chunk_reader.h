@@ -39,7 +39,8 @@ namespace terark {
 	public:
 	TerarkChunkReader(const TerarkZipTableOptions& tzto,const std::string& fname) 
 		: table_options_(tzto),
-			chunk_name_(fname) {}
+			chunk_name_(fname),
+			ref_count_(0) {}
 		~TerarkChunkReader();
 
 	public:
@@ -93,12 +94,18 @@ namespace terark {
 	};
 	TerarkReaderIterator* NewIterator();
 
+	public:
+	int AddRef() { return ref_count_++; }
+	int RelRef() { return ref_count_--; }
+	int RefCount() { return ref_count_; }
+
 	private:
 	Status Open();
 	
 	private:
 	const std::string chunk_name_;
 	const TerarkZipTableOptions& table_options_;
+	int ref_count_;
 
 	std::unique_ptr<TerarkIndex> index_;
 	std::unique_ptr<terark::BlobStore> store_;

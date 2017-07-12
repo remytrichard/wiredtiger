@@ -84,7 +84,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		cursor->search_near = trk_cursor_search_near;
 		cursor->close = trk_reader_cursor_close;
 		// read iterator
-		terark::Iterator* iter = chunk_manager->NewIterator(path);
+		terark::Iterator* iter = chunk_manager->NewIterator(path, uri);
 		chunk_manager->AddIterator(cursor, iter);
 	} else {
 		printf("open cursor for build: %s\n", uri);

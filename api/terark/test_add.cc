@@ -67,7 +67,7 @@ int main() {
 		assert(s.ok());
 	}
 	{		
-		terark::Iterator* iter = manager->NewIterator(fname);
+		terark::Iterator* iter = manager->NewIterator(fname, fname);
 		assert(iter != nullptr);
 
 		for (auto& di : dict) {
