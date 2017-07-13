@@ -5132,6 +5132,9 @@ __rec_row_leaf(WT_SESSION_IMPL *session,
 			kpack = &_kpack;
 			__wt_cell_unpack(cell, kpack);
 		}
+		if (kpack) {
+		    printf("unpack_key: %.*s\n", kpack->size, kpack->data);
+		}
 
 		/* Unpack the on-page value cell, and look for an update. */
 		if ((val_cell =
@@ -5141,6 +5144,10 @@ __rec_row_leaf(WT_SESSION_IMPL *session,
 			vpack = &_vpack;
 			__wt_cell_unpack(val_cell, vpack);
 		}
+		if (vpack) {
+		    printf("unpack_val: %.*s\n", vpack->size, vpack->data);
+		}
+		
 		WT_ERR(__rec_txn_read(session, r, NULL, rip, vpack, &upd));
 
 		/* Build value cell. */

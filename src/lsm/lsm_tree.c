@@ -52,6 +52,8 @@ __lsm_tree_discard(WT_SESSION_IMPL *session, WT_LSM_TREE *lsm_tree, bool final)
 	__wt_free(session, lsm_tree->key_format);
 	__wt_free(session, lsm_tree->value_format);
 	__wt_free(session, lsm_tree->collator_name);
+	__wt_free(session, lsm_tree->custom_prefix);
+	__wt_free(session, lsm_tree->custom_suffix);
 	__wt_free(session, lsm_tree->bloom_config);
 	__wt_free(session, lsm_tree->file_config);
 
@@ -198,14 +200,22 @@ err:	__wt_scr_free(session, &tmp);
  */
 int
 __wt_lsm_tree_chunk_name(WT_SESSION_IMPL *session,
-    WT_LSM_TREE *lsm_tree, uint32_t id, const char **retp)
+						 WT_LSM_TREE *lsm_tree, uint32_t id, uint32_t generation,
+						 const char **retp)
 {
 	WT_DECL_ITEM(tmp);
 	WT_DECL_RET;
 
 	WT_RET(__wt_scr_alloc(session, 0, &tmp));
-	WT_ERR(__wt_buf_fmt(
-	    session, tmp, "file:%s-%06" PRIu32 ".lsm", lsm_tree->filename, id));
+	if (lsm_tree->custom_generation != 0 &&
+		generation >= lsm_tree->custom_generation)
+		WT_ERR(__wt_buf_fmt(session, tmp, "%s:%s-%06" PRIu32 "%s",
+							lsm_tree->custom_prefix, lsm_tree->filename, id,
+							lsm_tree->custom_suffix));
+	else
+		WT_ERR(__wt_buf_fmt(session, tmp, "file:%s-%06" PRIu32 ".lsm",
+							lsm_tree->filename, id));
+
 	WT_ERR(__wt_strndup(session, tmp->data, tmp->size, retp));
 
 err:	__wt_scr_free(session, &tmp);
@@ -225,7 +235,8 @@ __wt_lsm_tree_set_chunk_size(
 	const char *filename;
 
 	filename = chunk->uri;
-	if (!WT_PREFIX_SKIP(filename, "file:"))
+	if (!WT_PREFIX_SKIP(filename, "file:") &&
+		!WT_PREFIX_SKIP(filename, "terark:"))
 		WT_RET_MSG(session, EINVAL,
 		    "Expected a 'file:' URI: %s", chunk->uri);
 	WT_RET(__wt_fs_size(session, filename, &size));
@@ -268,7 +279,7 @@ __wt_lsm_tree_setup_chunk(
 	__wt_epoch(session, &chunk->create_ts);
 
 	WT_RET(__wt_lsm_tree_chunk_name(
-	    session, lsm_tree, chunk->id, &chunk->uri));
+									session, lsm_tree, chunk->id, chunk->generation, &chunk->uri));
 
 	/*
 	 * If the underlying file exists, drop the chunk first - there may be
@@ -977,8 +988,8 @@ __wt_lsm_tree_rename(WT_SESSION_IMPL *session,
 		old = chunk->uri;
 		chunk->uri = NULL;
 
-		WT_ERR(__wt_lsm_tree_chunk_name(
-		    session, lsm_tree, chunk->id, &chunk->uri));
+		WT_ERR(__wt_lsm_tree_chunk_name(session, lsm_tree,
+										chunk->id, chunk->generation, &chunk->uri));
 		WT_ERR(__wt_schema_rename(session, old, chunk->uri, cfg));
 		__wt_free(session, old);
 
@@ -1157,6 +1168,7 @@ __wt_lsm_compact(WT_SESSION_IMPL *session, const char *name, bool *skipp)
 	/* Tell __wt_schema_worker not to look inside the LSM tree. */
 	*skipp = true;
 
+	printf("\nlsm_compact: name %s\n", name);
 	WT_WITH_HANDLE_LIST_LOCK(session,
 	    ret = __wt_lsm_tree_get(session, name, false, &lsm_tree));
 	WT_RET(ret);
@@ -1173,6 +1185,7 @@ __wt_lsm_compact(WT_SESSION_IMPL *session, const char *name, bool *skipp)
 	if (lsm_tree->nchunks == 1 &&
 	    (!FLD_ISSET(lsm_tree->bloom, WT_LSM_BLOOM_OLDEST) ||
 	    F_ISSET(lsm_tree->chunk[0], WT_LSM_CHUNK_BLOOM))) {
+	    printf("lsm_compact: only one chunk\n");
 		__wt_lsm_tree_release(session, lsm_tree);
 		return (0);
 	}
@@ -1219,6 +1232,7 @@ __wt_lsm_compact(WT_SESSION_IMPL *session, const char *name, bool *skipp)
 			WT_FULL_BARRIER();
 			chunk->switch_txn = __wt_txn_id_alloc(session, false);
 		}
+		printf("chunk->switch_txn: %d\n", chunk->switch_txn);
 		/*
 		 * If we have a chunk, we want to look for it to be on-disk.
 		 * So we need to add a reference to keep it available.
@@ -1235,6 +1249,8 @@ __wt_lsm_compact(WT_SESSION_IMPL *session, const char *name, bool *skipp)
 		    "Compact force flush %s flags 0x%" PRIx32
 		    " chunk %" PRIu32 " flags 0x%" PRIx32,
 		    name, lsm_tree->flags, chunk->id, chunk->flags);
+		printf("Compact force flush %s flags 0x%" PRIx32
+		    " chunk %" PRIu32 " flags 0x%" PRIx32 "\n", name, lsm_tree->flags, chunk->id, chunk->flags);
 		flushing = true;
 		/*
 		 * Make sure the in-memory chunk gets flushed do not push a
@@ -1354,6 +1370,7 @@ __wt_lsm_tree_worker(WT_SESSION_IMPL *session,
 	u_int i;
 	bool exclusive, locked;
 
+	printf("_lsm_tree_worker enter\n");
 	locked = false;
 	exclusive = FLD_ISSET(open_flags, WT_DHANDLE_EXCLUSIVE);
 	WT_WITH_HANDLE_LIST_LOCK(session,
@@ -1371,6 +1388,7 @@ __wt_lsm_tree_worker(WT_SESSION_IMPL *session,
 		__wt_lsm_tree_readlock(session, lsm_tree);
 	locked = true;
 	for (i = 0; i < lsm_tree->nchunks; i++) {
+	    printf("_lsm_tree_worker, nchunk: %d\n", i);
 		chunk = lsm_tree->chunk[i];
 		/*
 		 * If the chunk is on disk, don't include underlying handles in
@@ -1381,6 +1399,7 @@ __wt_lsm_tree_worker(WT_SESSION_IMPL *session,
 		if (F_ISSET(chunk, WT_LSM_CHUNK_ONDISK) &&
 		    file_func == __wt_checkpoint_get_handles)
 			continue;
+		printf("_lsm_tree_worker: chunk-uri: %s\n", chunk->uri);
 		WT_ERR(__wt_schema_worker(session, chunk->uri,
 		    file_func, name_func, cfg, open_flags));
 		if (F_ISSET(chunk, WT_LSM_CHUNK_BLOOM))

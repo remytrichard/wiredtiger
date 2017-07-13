@@ -89,9 +89,12 @@ __wt_schema_worker(WT_SESSION_IMPL *session,
 		for (i = 0; i < WT_COLGROUPS(table); i++) {
 			colgroup = table->cgroups[i];
 			skip = false;
+			printf("schema_work, colgroup %d, source %s\n",
+			       i, colgroup->source);
 			if (name_func != NULL)
 				WT_ERR(name_func(
 				    session, colgroup->name, &skip));
+			printf("schema_worker, skip %d\n", skip);
 			if (!skip)
 				WT_ERR(__wt_schema_worker(
 				    session, colgroup->source,
@@ -100,6 +103,7 @@ __wt_schema_worker(WT_SESSION_IMPL *session,
 
 		WT_ERR(__wt_schema_open_indices(session, table));
 		for (i = 0; i < table->nindices; i++) {
+		    printf("schema_work, nindices %d\n", i);
 			idx = table->indices[i];
 			skip = false;
 			if (name_func != NULL)
