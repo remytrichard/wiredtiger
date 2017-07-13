@@ -1,8 +1,5 @@
 
-#include "terark_zip_config.h"
-#include "terark_zip_common.h"
-#include <terark/hash_strmap.hpp>
-#include <terark/util/throw.hpp>
+
 #ifdef _MSC_VER
 # include <Windows.h>
 # define strcasecmp _stricmp
@@ -10,6 +7,12 @@
 # include <unistd.h>
 #endif
 #include <mutex>
+// terark header
+#include <terark/hash_strmap.hpp>
+#include <terark/util/throw.hpp>
+// project header
+#include "terark_zip_config.h"
+#include "terark_zip_common.h"
 
 namespace terark {
 	void DictZipBlobStore_setZipThreads(int zipThreads);
@@ -54,84 +57,6 @@ namespace terark {
 		else {
 			return 5;
 		}
-	}
-
-	bool TerarkZipOptionsFromEnv(TerarkZipTableOptions& tzo) {
-		const char* localTempDir = getenv("TerarkZipTable_localTempDir");
-		if (!localTempDir) {
-			STD_INFO("TerarkZipConfigFromEnv(dbo, cfo) failed because env TerarkZipTable_localTempDir is not defined\n");
-			return false;
-		}
-		if (!*localTempDir) {
-			THROW_STD(invalid_argument,
-					  "If env TerarkZipTable_localTempDir is defined, it must not be empty");
-		}
-		tzo.localTempDir = localTempDir;
-		if (const char* algo = getenv("TerarkZipTable_entropyAlgo")) {
-			if (strcasecmp(algo, "NoEntropy") == 0) {
-				tzo.entropyAlgo = tzo.kNoEntropy;
-			} else if (strcasecmp(algo, "FSE") == 0) {
-				tzo.entropyAlgo = tzo.kFSE;
-			} else if (strcasecmp(algo, "huf") == 0) {
-				tzo.entropyAlgo = tzo.kHuffman;
-			} else if (strcasecmp(algo, "huff") == 0) {
-				tzo.entropyAlgo = tzo.kHuffman;
-			} else if (strcasecmp(algo, "huffman") == 0) {
-				tzo.entropyAlgo = tzo.kHuffman;
-			} else {
-				tzo.entropyAlgo = tzo.kNoEntropy;
-				STD_WARN(
-						 "bad env TerarkZipTable_entropyAlgo=%s, must be one of {NoEntropy, FSE, huf}, reset to default 'NoEntropy'\n"
-						 , algo);
-			}
-		}
-		if (const char* env = getenv("TerarkZipTable_indexType")) {
-			tzo.indexType = env;
-		}
-
-#define MyGetInt(obj, name, Default)									\
-		obj.name = (int)terark::getEnvLong("TerarkZipTable_" #name, Default)
-#define MyGetBool(obj, name, Default)									\
-		obj.name = terark::getEnvBool("TerarkZipTable_" #name, Default)
-#define MyGetDouble(obj, name, Default)									\
-		obj.name = terark::getEnvDouble("TerarkZipTable_" #name, Default)
-#define MyGetXiB(obj, name)										\
-		if (const char* env = getenv("TerarkZipTable_" #name))	\
-			obj.name = terark::ParseSizeXiB(env)
-
-		MyGetInt   (tzo, checksumLevel           , 3    );
-		MyGetInt   (tzo, indexNestLevel          , 3    );
-		MyGetInt   (tzo, terarkZipMinLevel       , 0    );
-		MyGetInt   (tzo, debugLevel              , 0    );
-		MyGetInt   (tzo, keyPrefixLen            , 0    );
-		MyGetBool  (tzo, useSuffixArrayLocalMatch, false);
-		MyGetBool  (tzo, warmUpIndexOnOpen       , true );
-		MyGetBool  (tzo, warmUpValueOnOpen       , false);
-		MyGetBool  (tzo, disableSecondPassIter   , true);
-
-		{   // TBD(kg):...
-			size_t page_num  = sysconf(_SC_PHYS_PAGES);
-			size_t page_size = sysconf(_SC_PAGE_SIZE);
-			size_t memBytesLimit = page_num * page_size;
-
-			tzo.softZipWorkingMemLimit = memBytesLimit * 7 / 8;
-			tzo.hardZipWorkingMemLimit = tzo.softZipWorkingMemLimit;
-			tzo.smallTaskMemory = memBytesLimit / 16;
-			tzo.indexNestLevel = 2;
-		}
-
-		MyGetDouble(tzo, estimateCompressionRatio, 0.20 );
-		MyGetDouble(tzo, sampleRatio             , 0.03 );
-		MyGetDouble(tzo, indexCacheRatio         , 0.00 );
-
-		MyGetXiB(tzo, softZipWorkingMemLimit);
-		MyGetXiB(tzo, hardZipWorkingMemLimit);
-		MyGetXiB(tzo, smallTaskMemory);
-
-		if (tzo.debugLevel) {
-			STD_INFO("TerarkZipConfigFromEnv(dbo, cfo) successed\n");
-		}
-		return true;
 	}
 
 	template<class T>

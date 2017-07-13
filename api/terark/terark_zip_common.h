@@ -3,7 +3,7 @@
 #include <terark/io/DataIO.hpp>
 #include <terark/io/FileStream.hpp>
 #include <terark/io/StreamBuffer.hpp>
-#include "slice.h"
+#include "util/slice.h"
 
 namespace terark {
 

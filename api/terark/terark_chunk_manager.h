@@ -14,7 +14,7 @@
 #include <terark/stdtypes.hpp>
 #include <terark/util/profiling.hpp>
 // project headers
-#include "lru_cache.h"
+#include "util/lru_cache.h"
 #include "terark_zip_common.h"
 #include "terark_zip_config.h"
 #include "terark_chunk_builder.h"

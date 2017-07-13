@@ -10,15 +10,14 @@
 #include <string>
 #include <vector>
 
-// rocksdb headers
-#include "slice.h"
 // terark headers
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>
 #include <terark/stdtypes.hpp>
 #include <terark/util/profiling.hpp>
-
-#include "trk_common.h"
+// project header
+#include "util/slice.h"
+#include "util/trk_common.h"
 
 namespace terark {
 	
@@ -170,11 +169,6 @@ namespace terark {
 		// TableProperties.
 		void Add(const TerarkTableProperties& tp) {}
 	};
-
-
-	/// @memBytesLimit total memory can be used for the whole process
-	///   memBytesLimit == 0 indicate all physical memory can be used
-	bool TerarkZipConfigFromEnv(TerarkZipTableOptions&);
 
 }  // namespace rocksdb
 

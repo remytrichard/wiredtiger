@@ -1,13 +1,15 @@
 #pragma once
 
+#include <memory>
+// boost
+#include <boost/intrusive_ptr.hpp>
+// terark header
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>
 #include <terark/util/refcount.hpp>
 #include <terark/int_vector.hpp>
 #include <terark/io/DataIO.hpp>
 #include <terark/io/StreamBuffer.hpp>
-#include <boost/intrusive_ptr.hpp>
-#include <memory>
 
 namespace terark {
 

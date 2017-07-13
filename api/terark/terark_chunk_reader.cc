@@ -4,10 +4,9 @@
 // terark headers
 #include <terark/util/crc.hpp>
 // project headers
+#include "util/trk_meta_blocks.h"
 #include "terark_chunk_reader.h"
 #include "terark_zip_common.h"
-#include "trk_format.h"
-#include "trk_meta_blocks.h"
 
 namespace terark {
 

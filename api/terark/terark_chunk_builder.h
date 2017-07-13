@@ -25,11 +25,12 @@
 #include <terark/bitfield_array.hpp>
 #include <terark/util/fstrvec.hpp>
 // project headers
+#include "util/trk_block.h"
+#include "util/trk_format.h"
 #include "terark_zip_common.h"
 #include "terark_zip_config.h"
 #include "terark_zip_index.h"
-#include "trk_block.h"
-#include "trk_format.h"
+
 
 namespace terark {
 

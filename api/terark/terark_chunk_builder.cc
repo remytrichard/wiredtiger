@@ -10,10 +10,9 @@
 #include <terark/util/sortable_strvec.hpp>
 #include <terark/int_vector.hpp>
 // project headers
+#include "util/trk_meta_blocks.h"
 #include "terark_chunk_builder.h"
 #include "terark_zip_config.h"
-#include "trk_format.h"
-#include "trk_meta_blocks.h"
 
 namespace terark {
 

@@ -31,12 +31,12 @@
 #include <terark/lcast.hpp>
 #include <terark/util/mmap.hpp>
 // project headers
+#include "util/trk_format.h"
+#include "util/trk_meta_blocks.h"
 #include "terark_zip_index.h"
 #include "terark_zip_config.h"
 #include "terark_chunk_manager.h"
 
-#include "trk_format.h"
-#include "trk_meta_blocks.h"
 
 namespace terark {
 	

@@ -1,7 +1,5 @@
-#include "terark_zip_common.h"
-#include <terark/io/byte_swap.hpp>
-#include <boost/predef/other/endian.h>
-#include <terark/util/throw.hpp>
+
+
 #include <stdlib.h>
 #include <ctime>
 #ifdef _MSC_VER
@@ -12,6 +10,14 @@
 # include <fcntl.h>
 # include <cxxabi.h>
 #endif
+#include <utility>
+// boost header
+#include <boost/predef/other/endian.h>
+// terark header
+#include <terark/io/byte_swap.hpp>
+#include <terark/util/throw.hpp>
+// project header
+#include "terark_zip_common.h"
 
 namespace terark {
 
