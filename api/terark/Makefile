@@ -6,17 +6,14 @@ TigerDir=/newssd1/zzz/wiredtiger
 RocksDir=/newssd1/zzz/rocksdb
 CXX=g++
 CFLAGS=-g -std=c++11 -DROCKSDB_PLATFORM_POSIX
-#INC=-I. -I$(TigerDir) -I$(TerarkDir) -I$(RocksDir)/include -I$(RocksDir)/port -I$(RocksDir) -I$(RocksDir)/util
-INC=-I. -I$(TigerDir) -I$(TerarkDir)
-# don't use terark-zip-rocksdb any more
-#LIB=-L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lrocksdb -lterark-core-d -lterark-fsa-d -lterark-zbs-d
+INC=-I. -I./util -I$(TigerDir) -I$(TerarkDir)
 LIB=-L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lterark-core-d -lterark-fsa-d -lterark-zbs-d
 
 
 OBJS = trk_block.o trk_common.o trk_meta_blocks.o trk_format.o terark_chunk_reader.o terark_zip_common.o terark_zip_config.o terark_zip_index.o terark_chunk_builder.o terark_chunk_manager.o
 
-all: test_add
-#all: bridge
+#all: test_add
+all: bridge
 
 bridge: ${OBJS}
 	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o bridge bridge.cc
@@ -39,20 +36,20 @@ terark_zip_index.o: terark_zip_index.h
 terark_chunk_builder.o: terark_chunk_builder.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c terark_chunk_builder.cc
 
-terark_chunk_manager.o: terark_chunk_manager.h lru_cache.h
+terark_chunk_manager.o: terark_chunk_manager.h util/lru_cache.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c terark_chunk_manager.cc
 
-trk_common.o: trk_common.h
-	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_common.cc
+trk_common.o: util/trk_common.h
+	${CXX} ${CFLAGS} ${INC} ${LIB} -c util/trk_common.cc
 
-trk_block.o: trk_block.h
-	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_block.cc
+trk_block.o: util/trk_block.h
+	${CXX} ${CFLAGS} ${INC} ${LIB} -c util/trk_block.cc
 
-trk_meta_blocks.o: trk_meta_blocks.h trk_format.h trk_block.h
-	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_meta_blocks.cc
+trk_meta_blocks.o: util/trk_meta_blocks.h util/trk_format.h util/trk_block.h
+	${CXX} ${CFLAGS} ${INC} ${LIB} -c util/trk_meta_blocks.cc
 
-trk_format.o: trk_format.h trk_common.h
-	${CXX} ${CFLAGS} ${INC} ${LIB} -c trk_format.cc
+trk_format.o: util/trk_format.h util/trk_common.h
+	${CXX} ${CFLAGS} ${INC} ${LIB} -c util/trk_format.cc
 
 
 clean:
