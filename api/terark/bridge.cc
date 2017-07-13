@@ -27,6 +27,11 @@ static const char *home;
 static WT_CONNECTION *conn;
 static terark::TerarkChunkManager* chunk_manager;
 
+static inline std::string composePath(const std::string& uri) {
+	static const int skip = 7; // strlen(terark:)
+	return std::string(home) + "/" +
+		uri.substr(7);
+}
 // TBD(kg): parse config as well
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
@@ -43,8 +48,9 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	terark::TerarkTableBuilderOptions builder_options(*comparator);
 
 	// TBD(kg): need more settings on env
-	std::string path(std::string(home) + "/" + uri);
-	std::replace(path.begin(), path.end(), ':', '-');
+	//std::string path(std::string(home) + "/" + uri);
+	//std::replace(path.begin(), path.end(), ':', '-');
+	std::string path = composePath(uri);
 	terark::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
 
@@ -77,8 +83,9 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	cursor->uri = uri;
 
 	// set cursor-ops based on builder/reader
-	std::string path(std::string(home) + "/" + uri);
-	std::replace(path.begin(), path.end(), ':', '-');
+	//	std::string path(std::string(home) + "/" + uri);
+	//std::replace(path.begin(), path.end(), ':', '-');
+	std::string path = composePath(uri);
 	if (chunk_manager->IsChunkExist(path, uri)) {
 		printf("open cursor for read: %s\n", uri);
 		cursor->next = trk_cursor_next;
@@ -132,8 +139,9 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config) {
 	printf("enter drop: %s\n", uri);
 	
-	std::string path(std::string(home) + "/" + uri);
-	std::replace(path.begin(), path.end(), ':', '-');
+	//std::string path(std::string(home) + "/" + uri);
+	//std::replace(path.begin(), path.end(), ':', '-');
+	std::string path = composePath(uri);
 	::remove(path.c_str());
 	return (0);
 }
@@ -339,7 +347,7 @@ int main() {
 		trk_pre_merge
 	};
 	
-	ret = conn->add_data_source(conn, "terark", &trk_dsrc, NULL);
+	ret = conn->add_data_source(conn, "terark:", &trk_dsrc, NULL);
 
 	ret = conn->configure_method(conn,
 								 "WT_SESSION.open_cursor", NULL, "collator=", "string", NULL);
@@ -349,7 +357,7 @@ int main() {
 		WT_CURSOR *c;
 		// TBD(kg): should we set raw == true ?
 		session->create(session, "table:bucket", 
-						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2),chunk_size=2MB),"
+						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2,suffix=.trk),chunk_size=2MB),"
 						"key_format=S,value_format=S");
 		
 		session->open_cursor(session, "table:bucket", NULL, NULL, &c);

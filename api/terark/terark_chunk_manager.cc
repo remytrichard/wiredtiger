@@ -229,7 +229,7 @@ namespace terark {
 
 	Iterator*
 	TerarkChunkManager::NewIterator(const std::string& fname, const std::string& cur_tag) {
-		terark::TerarkChunkReader* reader = GetReader(fname);
+		terark::TerarkChunkReader* reader = GetReader(cur_tag);
 		if (!reader) {
 			reader = new TerarkChunkReader(table_options_, fname);
 			AddReader(cur_tag, reader);
