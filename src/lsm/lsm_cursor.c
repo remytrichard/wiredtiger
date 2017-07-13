@@ -569,17 +569,15 @@ retry:	if (F_ISSET(clsm, WT_CLSM_MERGE)) {
 				break;
 
 			/* Make sure the checkpoint config matches. */
-			// TBD(kg): our customized ds should be
-			// WT_CURSOR_DATA_SOURCE
-			if (((WT_CURSOR_BTREE*)cursor)->btree == NULL) {
-				continue;
+			if (lsm_tree->custom_generation == 0 ||
+				chunk->generation < lsm_tree->custom_generation) {
+				checkpoint = ((WT_CURSOR_BTREE *)cursor)->
+					btree->dhandle->checkpoint;
+				if (checkpoint == NULL &&
+					F_ISSET(chunk, WT_LSM_CHUNK_ONDISK) &&
+					!chunk->empty)
+					break;
 			}
-			checkpoint = ((WT_CURSOR_BTREE *)cursor)->
-			    btree->dhandle->checkpoint;
-			if (checkpoint == NULL &&
-			    F_ISSET(chunk, WT_LSM_CHUNK_ONDISK) &&
-			    !chunk->empty)
-				break;
 
 			/* Make sure the Bloom config matches. */
 			if (clsm->chunks[ngood]->bloom == NULL &&

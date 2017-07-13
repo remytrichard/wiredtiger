@@ -38,12 +38,10 @@ static inline std::string ComposePath(WT_CONNECTION *conn, const std::string& ur
 
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
-	(void)dsrc;
-
+	const char* sconfig = ((const char**)config)[0]; // session create config
 	if (!chunk_manager) {
 		// TBD(kg): lock
-		const char* input = ((const char**)config)[0];
-		chunk_manager = new terark::TerarkChunkManager(input);
+		chunk_manager = new terark::TerarkChunkManager(sconfig);
 	}
 	const terark::Comparator* comparator = terark::GetBytewiseComparator();
 	terark::TerarkTableBuilderOptions builder_options(*comparator);
@@ -55,8 +53,7 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	chunk_manager->AddBuilder(uri, builder);
 	
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
-	const char* value = "key_format=S,value_format=S,app_metadata=";
-	int ret = wt_api->metadata_insert(wt_api, session, uri, value);
+	int ret = wt_api->metadata_insert(wt_api, session, uri, sconfig);
 	assert(ret == 0);
 
 	return (0);
@@ -71,7 +68,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		return (errno);
 
 	/*
-	 * Configure local cursor information.
+	 * TBD(kg): Configure local cursor information.
 	 */
 	cursor->key_format = "S";
 	cursor->value_format = "S";
@@ -120,7 +117,6 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 }
 
 int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config) {
-	printf("enter drop: %s\n", uri);
 	std::string path = ComposePath(session->connection, uri);
 	::remove(path.c_str());
 	return (0);
@@ -130,13 +126,11 @@ int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONF
 int trk_cursor_insert(WT_CURSOR *cursor) {
 	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	builder->Add(terark::Slice((const char*)cursor->value.data, cursor->value.size));
-
 	return (0);
 }
 
 
 int trk_builder_cursor_close(WT_CURSOR *cursor) {
-	printf("builder close entered: %s\n", cursor->uri);
 	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	builder->Finish2ndPass();
 
@@ -146,8 +140,6 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 }
 
 int trk_reader_cursor_close(WT_CURSOR *cursor) {
-	// TBD(kg): remove/delete builder from manager
-	printf("reader close entered: %s\n", cursor->uri);
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	chunk_manager->RemoveIterator(cursor);
 	delete iter;
@@ -196,7 +188,6 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 int trk_reader_cursor_reset(WT_CURSOR *cursor) {
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->SetInvalid();
-
 	return (0);
 }
 int trk_builder_cursor_reset(WT_CURSOR *cursor) {
@@ -225,7 +216,6 @@ int trk_cursor_search(WT_CURSOR *cursor) {
 
 int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	printf("search near entered: %s\n", cursor->uri);
-
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	terark::Slice key = iter->key();
 	WT_ITEM* kbuf = &cursor->key;
