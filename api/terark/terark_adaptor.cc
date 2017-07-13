@@ -16,44 +16,44 @@
 #include "wiredtiger_ext.h"
 
 // project header
-#include "bridge.h"
+#include "terark_adaptor.h"
 #include "terark_chunk_manager.h"
 #include "terark_zip_config.h"
 #include "terark_chunk_builder.h"
 #include "terark_chunk_reader.h"
 
 
-static const char *home;
-static WT_CONNECTION *conn;
 static terark::TerarkChunkManager* chunk_manager;
 
-static inline std::string composePath(const std::string& uri) {
-	static const int skip = 7; // strlen(terark:)
-	return std::string(home) + "/" +
-		uri.substr(7);
+static inline std::string ComposePath(WT_CONNECTION *conn, const std::string& uri) {
+	assert(conn);
+	const char* home = conn->get_home(conn);
+	size_t pos = uri.find(':');
+	if (pos != std::string::npos) {
+		return std::string(home) + "/" + uri.substr(pos + 1);
+	} else {
+		return std::string(home) + "/" + uri;
+	}
 }
-// TBD(kg): parse config as well
+
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
 	(void)dsrc;
-	(void)session;
 
 	if (!chunk_manager) {
-		// lock
+		// TBD(kg): lock
 		const char* input = ((const char**)config)[0];
 		chunk_manager = new terark::TerarkChunkManager(input);
 	}
-	// TBD(kg): make sure such file is not exist, remove it anyway
 	const terark::Comparator* comparator = terark::GetBytewiseComparator();
 	terark::TerarkTableBuilderOptions builder_options(*comparator);
 
-	// TBD(kg): need more settings on env
-	//std::string path(std::string(home) + "/" + uri);
-	//std::replace(path.begin(), path.end(), ':', '-');
-	std::string path = composePath(uri);
+	WT_CONNECTION *conn = session->connection;
+	std::string path = ComposePath(conn, uri);
+   	::remove(path.c_str()); // make sure such file is not exist, remove it anyway
 	terark::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
-
+	
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
 	const char* value = "key_format=S,value_format=S,app_metadata=";
 	int ret = wt_api->metadata_insert(wt_api, session, uri, value);
@@ -65,10 +65,6 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 // can we open multi times on one data-source ? how many diff cursors can we get ?
 int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 					const char *uri, WT_CONFIG_ARG *config, WT_CURSOR **new_cursor) {
-	(void)dsrc;
-	(void)session;
-	(void)config;
-
 	// Allocate and initialize a WiredTiger cursor.
 	WT_CURSOR *cursor;
 	if ((cursor = (WT_CURSOR*)calloc(1, sizeof(*cursor))) == NULL)
@@ -79,13 +75,10 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	 */
 	cursor->key_format = "S";
 	cursor->value_format = "S";
-	// TBD(kg): make sure it's safe
 	cursor->uri = uri;
 
 	// set cursor-ops based on builder/reader
-	//	std::string path(std::string(home) + "/" + uri);
-	//std::replace(path.begin(), path.end(), ':', '-');
-	std::string path = composePath(uri);
+	std::string path = ComposePath(session->connection, uri);
 	if (chunk_manager->IsChunkExist(path, uri)) {
 		printf("open cursor for read: %s\n", uri);
 		cursor->next = trk_cursor_next;
@@ -112,16 +105,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 
 
 int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
-	(void)dsrc;
-	(void)cursor;
-	(void)dest;
-	
-	printf("trk_pre_merge: %s\n", dest->uri);
-	if (cursor->uri) {
-		printf("src is %s\n", cursor->uri);
-	}
 	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(dest->uri);
-
 	int ret = 0;
 	WT_ITEM key, value;
 	while ((ret = cursor->next(cursor)) == 0) {
@@ -131,17 +115,13 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 				   terark::Slice((const char*)value.data, value.size));
 	}
 	builder->Finish1stPass();
-	printf("trk_pre_merge done\n");
 
 	return (0);
 }
 
 int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config) {
 	printf("enter drop: %s\n", uri);
-	
-	//std::string path(std::string(home) + "/" + uri);
-	//std::replace(path.begin(), path.end(), ':', '-');
-	std::string path = composePath(uri);
+	std::string path = ComposePath(session->connection, uri);
 	::remove(path.c_str());
 	return (0);
 }
@@ -160,7 +140,6 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	builder->Finish2ndPass();
 
-	// TBD(kg): remove/delete builder from manager
 	chunk_manager->RemoveBuilder(cursor->uri);
 	delete builder;
 	return (0);
@@ -192,7 +171,6 @@ static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
 
 // only reader will use the following cursor-ops
 int trk_cursor_next(WT_CURSOR *cursor) {
-	//printf("next entered: %s\n", cursor->uri);
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Next();
 	if (!iter->Valid()) {
@@ -204,7 +182,6 @@ int trk_cursor_next(WT_CURSOR *cursor) {
 }
 
 int trk_cursor_prev(WT_CURSOR *cursor) {
-	printf("prev entered: %s\n", cursor->uri);
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Prev();
 	if (!iter->Valid()) {
@@ -217,19 +194,16 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 // TBD(kg): any resources held by the cursor are released
 // reset followed by next?
 int trk_reader_cursor_reset(WT_CURSOR *cursor) {
-	//printf("reader reset entered: %s\n", cursor->uri);
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->SetInvalid();
 
 	return (0);
 }
 int trk_builder_cursor_reset(WT_CURSOR *cursor) {
-	printf("builder reset entered: %s\n", cursor->uri);
 	return (0);
 }
 
 int trk_cursor_search(WT_CURSOR *cursor) {
-	//printf("search entered: %s\n", cursor->uri);
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Seek(terark::Slice((const char*)cursor->key.data, cursor->key.size));
 	if (!iter->Valid()) {
@@ -311,26 +285,20 @@ void InitDict() {
 
 int main() {
 	WT_SESSION *session;
+	const char* home;
 	int ret;
-
     if (getenv("WIREDTIGER_HOME") == NULL) {
 		home = "WT_HOME";
 		ret = system("rm -rf WT_HOME && mkdir WT_HOME");
 		ret = system("rm -rf temp && mkdir temp");
-    } else
+    } else {
 		home = NULL;
-
-	//chunk_manager = terark::TerarkChunkManager::sharedInstance();
+	}
 	//ret = wiredtiger_open(home, NULL, "create,verbose=[lsm,lsm_manager]", &conn);
+	WT_CONNECTION *conn;
 	ret = wiredtiger_open(home, NULL, "create", &conn);
 	ret = conn->open_session(conn, NULL, NULL, &session);
 
-	//my_data_source_init(conn);
-
-	/*! [WT_DATA_SOURCE register] */
-	//WT_DATA_SOURCE trk_dsrc;
-	
-	//trk_dsrc.open_cursor = trk_open_cursor;
 	static WT_DATA_SOURCE trk_dsrc = {
 		NULL, //__wt_lsm_tree_alter, //my_alter,
 		trk_create,
@@ -370,21 +338,18 @@ int main() {
 			c->insert(c);
 		}
 		printf("insert done\n");
-		//sleep(30);
 		printf("start search...\n");
 		{
 			// cursor read ...
 			//c->reset(c);
 			int i = 0;
 			for (auto& di : dict) {
-				//printf("will search %dth key %s\n", i++, di.first.c_str());
 				c->set_key(c, di.first.c_str());
 				int ret = c->search(c);
 				assert(ret == 0);
 				const char *value;
 				c->get_value(c, &value);
 				ret = memcmp(value, di.second.c_str(), strlen(value));
-				//printf("val expected %s actual: %s\n", di.second.c_str(), value);
 				assert(ret == 0);
 			}
 		}
