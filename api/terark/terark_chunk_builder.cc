@@ -69,16 +69,17 @@ namespace terark {
 		const std::string& fname)
 		: table_options_(tzto)
 		, table_build_options_(tbo)
-		, chunk_name_(fname) {
+		, chunk_name_(fname)
+		, useUint64Comparator_(false) {
 		// temp mmap files
 		sampleUpperBound_ = randomGenerator_.max() * table_options_.sampleRatio;
-		tmpValueFile_.path = tzto.localTempDir + "/Terark-XXXXXX";
-		tmpKeyFile_.path = tmpValueFile_.path + ".keydata";
+		work_path_ = tzto.localTempDir + "/Terark-XXXXXX";
+		tmpKeyFile_.path = work_path_ + ".keydata";
 		tmpKeyFile_.open();
-		tmpSampleFile_.path = tmpValueFile_.path + ".sample";
+		tmpSampleFile_.path = work_path_ + ".sample";
 		tmpSampleFile_.open();
 		if (table_options_.debugLevel == 4) {
-			tmpDumpFile_.open(tmpValueFile_.path + ".dump", "wb+");
+			tmpDumpFile_.open(work_path_ + ".dump", "wb+");
 		}
 		file_writer_.path = fname;
 		file_writer_.open();
@@ -97,6 +98,12 @@ namespace terark {
 		currentHistogram.stat.sumKeyLen = 0;
 		currentHistogram.stat.numKeys = 0;
 		tms_.resize(10);
+#if BOOST_ENDIAN_LITTLE_BYTE
+		useUint64Comparator_ = tzto.useUint64Comparator;
+#endif
+		if (useUint64Comparator_) {
+			properties_.comparator_name = "uint64comparator";
+		}
 	}
 
 	TerarkChunkBuilder::~TerarkChunkBuilder() {}
@@ -128,6 +135,14 @@ namespace terark {
 		uint64_t offset = uint64_t((properties_.raw_key_size + properties_.raw_value_size)
 								   * table_options_.estimateCompressionRatio);
 		fstring userKey(key.data(), key.size());
+		{   // special impl for uint64 comp
+			uint64_t u64_key;
+			if (useUint64Comparator_) {
+				assert(userKey.size() == 8);
+				u64_key = byte_swap(*reinterpret_cast<const uint64_t*>(userKey.data()));
+				userKey = fstring(reinterpret_cast<const char*>(&u64_key), 8);
+			}
+		}
 		{	
 			// update stat
 			auto& currentHistogram = histogram_.back();
@@ -152,9 +167,6 @@ namespace terark {
 		}
 
 		tmpKeyFile_.writer << userKey;
-		// TBD(kg): since we have pre-merge & merge, there is no need
-		// to write such tmp value file !!!
-		//tmpValueFile_.writer << fstringOf(value);
 		if (!value.empty() && randomGenerator_() < sampleUpperBound_) {
 			tmpSampleFile_.writer << fstringOf(value);
 			sampleLenSum_ += value.size();
@@ -270,7 +282,7 @@ namespace terark {
 			sumWorkingMem += myWorkMem;
 		};
 		// indexing is also slow, run it in parallel
-		tmpIndexFile_.fpath = tmpValueFile_.path + ".index";
+		tmpIndexFile_.fpath = work_path_ + ".index";
 		std::future<void> asyncIndexResult = 
 			std::async(std::launch::async, [&]() {
 					size_t fileOffset = 0;
@@ -340,7 +352,7 @@ namespace terark {
 	ZipValueToFinish(std::function<void()> waitIndex) {
 		DebugPrepare();
 		assert(histogram_.size() == 1);
-		tmpStoreFile_.fpath = tmpValueFile_.path + ".zbs";
+		tmpStoreFile_.fpath = work_path_ + ".zbs";
 		auto& kvs = histogram_.front();
 		{
 			tms_[kSampleStart] = g_pf.now();
@@ -601,7 +613,6 @@ namespace terark {
 	void TerarkChunkBuilder::Abandon() {
 		closed_ = true;
 		//tmpKeyFile_.complete_write();
-		//tmpValueFile_.complete_write();
 		//tmpSampleFile_.complete_write();
 		//tmpZipDictFile_.Delete();
 		//tmpZipValueFile_.Delete();

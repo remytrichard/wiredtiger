@@ -81,6 +81,7 @@ namespace terark {
 		bool warmUpIndexOnOpen = true;
 		bool warmUpValueOnOpen = false;
 		bool disableSecondPassIter = false;
+		bool useUint64Comparator = false;
 
 		float estimateCompressionRatio = 0.2f;
 		double sampleRatio = 0.03;
@@ -143,6 +144,7 @@ namespace terark {
 		static const std::string kRawKeySize;
 		static const std::string kRawValueSize;
 		static const std::string kNumEntries;
+		static const std::string kComparator;
 	};
 
 	// TableProperties contains a bunch of read-only properties of its associated
@@ -157,8 +159,10 @@ namespace terark {
 		uint64_t raw_key_size = 0;
 		// total raw value size
 		uint64_t raw_value_size = 0;
-		// the number of entries in this table
+		// the number of entries in this chunk
 		uint64_t num_entries = 0;
+		// The name of the comparator used in this chunk
+		std::string comparator_name;
 
 		// convert this object to a human readable form
 		//   @prop_delim: delimiter for each property.

@@ -111,8 +111,9 @@ namespace terark {
 		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem
 		valvec<byte_t> prevUserKey_;
+		bool useUint64Comparator_;
+		std::string work_path_;
 		TempFileDeleteOnClose tmpKeyFile_;
-		TempFileDeleteOnClose tmpValueFile_;
 		TempFileDeleteOnClose tmpSampleFile_;
 		FileWriter file_writer_;
 		FileStream tmpDumpFile_;

@@ -42,6 +42,8 @@ namespace terark {
 		"terark.raw.value.size";
 	const std::string TerarkTablePropertiesNames::kNumEntries =
 		"terark.num.entries";
+	const std::string TerarkTablePropertiesNames::kComparator = 
+		"terark.comparator";
 
 	static
 	int ComputeFileSizeMultiplier(double diskLimit, double minVal, int levels) {

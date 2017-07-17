@@ -105,6 +105,7 @@ namespace terark {
 			tzo.warmUpIndexOnOpen = GetInt("trk_warmUpIndexOnOpen", 1);
 			tzo.warmUpValueOnOpen = GetInt("trk_warmUpValueOnOpen", 0);
 			tzo.disableSecondPassIter = GetInt("trk_disableSecondPassIter", 1);
+			tzo.useUint64Comparator = GetInt("trk_useUint64Comparator", 0);
 			{   // TBD(kg):...
 				size_t page_num  = sysconf(_SC_PHYS_PAGES);
 				size_t page_size = sysconf(_SC_PAGE_SIZE);
@@ -163,7 +164,7 @@ namespace terark {
 		} catch (...) {
 			fprintf(stderr
 					, "ERROR: bad localTempDir %s %s\n"
-					, tzo.localTempDir, err ? strerror(err) : "");
+					, tzo.localTempDir.c_str(), err ? strerror(err) : "");
 			abort();
 		}
 		/*if (tzo.debugLevel < 0) {

@@ -42,12 +42,60 @@ namespace terark {
 	using terark::byte_swap;
 	using terark::BlobStore;
 
-	void TerarkChunkReader::TerarkReaderIterator::SeekForPrev(const Slice& target) {
+	class TerarkChunkIterator : public Iterator, boost::noncopyable {
+	public:
+		TerarkChunkIterator(TerarkChunkReader* chunk)
+			: chunk_(chunk) {
+			iter_.reset(chunk_->index_->NewIterator()); 
+			iter_->SetInvalid(); 
+			reseted_ = false;
+		}
+		~TerarkChunkIterator() {}
+		bool Valid() const { return iter_->Valid(); }
+		void SeekToFirst() {
+			reseted_ = false;
+			UnzipIterRecord(iter_->SeekToFirst());
+		}
+		void SeekToLast() {
+			reseted_ = false;
+			UnzipIterRecord(iter_->SeekToLast());
+		}
+		void SeekForPrev(const Slice&);
+		void Seek(const Slice& target) {
+			reseted_ = false;
+			UnzipIterRecord(iter_->Seek(fstringOf(target)));
+		}
+		void Next();
+		void Prev();
+
+		void SetInvalid() { reseted_ = true; }
+		Slice key() const {
+			assert(iter_->Valid());
+			return SliceOf(keyBuf_);
+		}
+		Slice value() const {
+			assert(iter_->Valid());
+			return SliceOf(fstring(valueBuf_));
+		}
+		Status status() const { return status_; }
+		virtual bool UnzipIterRecord(bool);
+		
+	protected:
+		TerarkChunkReader* chunk_;
+		std::unique_ptr<TerarkIndex::Iterator> iter_;
+		bool  reseted_;
+		valvec<byte_t>          keyBuf_;
+		valvec<byte_t>          valueBuf_;
+		Status                  status_;
+	};
+
+	void TerarkChunkIterator::SeekForPrev(const Slice& target) {
 		reseted_ = false;
 		Seek(target);
 		if (!Valid()) {
 			SeekToLast();
 		}
+		// TBD(kg): Slice.uint64comparator ?
 		while (Valid() && target.compare(key()) < 0) {
 			Prev();
 		}
@@ -58,7 +106,7 @@ namespace terark {
 	 * a position in the data source, it is positioned at the beginning 
 	 * of the data source.
 	 */
-	void TerarkChunkReader::TerarkReaderIterator::Next() {
+	void TerarkChunkIterator::Next() {
 		if (reseted_) {
 			SeekToFirst();
 			reseted_ = false;
@@ -73,7 +121,7 @@ namespace terark {
 	 * a position in the data source, it is positioned at the end
 	 * of the data source.
 	 */
-	void TerarkChunkReader::TerarkReaderIterator::Prev() {
+	void TerarkChunkIterator::Prev() {
 		if (reseted_) {
 			SeekToLast();
 			reseted_ = false;
@@ -83,7 +131,7 @@ namespace terark {
 		UnzipIterRecord(iter_->Prev());
 	}
 
-	bool TerarkChunkReader::TerarkReaderIterator::UnzipIterRecord(bool hasRecord) {
+	bool TerarkChunkIterator::UnzipIterRecord(bool hasRecord) {
 		if (hasRecord) {
 			assert(iter_->id() < chunk_->index_->NumKeys());
 			size_t recId = iter_->id();
@@ -104,20 +152,53 @@ namespace terark {
 	}
 
 
+	class TerarkChunkeUint64Iterator : public TerarkChunkIterator {
+	public:
+		TerarkChunkeUint64Iterator(TerarkChunkReader* chunk)
+			: TerarkChunkIterator(chunk) {}
+		
+		void Seek(const Slice& target) override {
+			assert(target.size() == 8);
+			uint64_t u64_target = byte_swap(*reinterpret_cast<const uint64_t*>(target.data()));
+			Slice user_key = Slice(reinterpret_cast<const char*>(&u64_target), 8);
+			TerarkChunkIterator::Seek(user_key);
+		}
+		
+		// key data is serialized as Big Endian, transform to Little Endian back to user
+		bool UnzipIterRecord(bool hasRecord) override {
+			bool ret = TerarkChunkIterator::UnzipIterRecord(hasRecord);
+			if (ret) {
+				byte_swap(keyBuf_.data(), keyBuf_.size());
+			}
+			return ret;
+		}
+	};
+
+
 	TerarkChunkReader::~TerarkChunkReader() {
 		index_.reset();
 		store_.reset();
 		file_reader_.reset();
 	}
 	
-	TerarkChunkReader::TerarkReaderIterator*
+	Iterator*
 	TerarkChunkReader::NewIterator() {
 		Status s = Open();
 		if (!s.ok()) {
 			printf("Fail to open chunk: %s\n", s.getState());
 			return nullptr;
 		}
-		return new TerarkReaderIterator(this);
+		if (!useUint64Comparator_) {
+			return new TerarkChunkIterator(this);
+		} else {
+			// under big endian condition, uint64Iterator works
+			// the same way as Iterator. 
+#if BOOST_ENDIAN_LITTLE_BYTE
+			return new TerarkChunkeUint64Iterator(this);
+#else
+			return new TerarkChunkIterator(this);
+#endif
+		}
 	}
 
 	Status
@@ -139,6 +220,11 @@ namespace terark {
 			return s;
 		}
 		assert(nullptr != table_props);
+		// if chunk was build with 'uint64comparator', we
+		// will stick with it without asking table_options
+		if (table_props->comparator_name == "uint64comparator") {
+			useUint64Comparator_ = true;
+		}
 		TerarkBlockContents valueDictBlock, indexBlock;
 		s = TerarkReadMetaBlock(file_data, file_size, kTerarkZipTableMagicNumber,
 			kTerarkZipTableValueDictBlock, &valueDictBlock);
