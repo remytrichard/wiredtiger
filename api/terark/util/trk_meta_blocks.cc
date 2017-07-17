@@ -50,6 +50,9 @@ namespace terark {
 		Add(TerarkTablePropertiesNames::kDataSize, props.data_size);
 		Add(TerarkTablePropertiesNames::kIndexSize, props.index_size);
 		Add(TerarkTablePropertiesNames::kNumEntries, props.num_entries);
+		if (!props.comparator_name.empty()) {
+			Add(TerarkTablePropertiesNames::kComparator, props.comparator_name);
+		}
 	}
 
 	Slice TerarkPropertyBlockBuilder::Finish() {
@@ -117,6 +120,8 @@ namespace terark {
 						continue;
 					}
 					*(pos->second) = val;
+				} else if (key == TerarkTablePropertiesNames::kComparator) {
+					new_table_properties->comparator_name = raw_val.ToString();
 				} else {
 					// handle user-collected properties
 					//new_table_properties->user_collected_properties.insert({key, raw_val.ToString()});

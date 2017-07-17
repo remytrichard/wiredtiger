@@ -2,6 +2,8 @@
 #ifndef __BRIDGE_H_
 #define __BRIDGE_H_
 
+#define DLL_PUBLIC __attribute__ ((visibility ("default")))
+
 #include <vector>
 
 #include "wiredtiger.h"
@@ -12,17 +14,17 @@ extern "C" {
 #endif
 
 	// Callback to create a new object.
-	int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
+	DLL_PUBLIC int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 				   const char *uri, WT_CONFIG_ARG *config);
 
 	// Callback to initialize a cursor.
-	int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
+	DLL_PUBLIC int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 						const char *uri, WT_CONFIG_ARG *config, WT_CURSOR **new_cursor);
 
 	//Callback performed before an LSM merge.
-	int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *source, WT_CURSOR *dest);
+	DLL_PUBLIC int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *source, WT_CURSOR *dest);
 
-	int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config);
+	DLL_PUBLIC int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config);
 	
 
 	// Return the next record.

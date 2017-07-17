@@ -5,22 +5,30 @@ TerarkLib=/newssd1/zzz/terark-zip-rocksdb/pkg/terark-zip-rocksdb-Linux-x86_64-g+
 TigerDir=/newssd1/zzz/wiredtiger
 RocksDir=/newssd1/zzz/rocksdb
 CXX=g++
-CFLAGS=-g -std=c++11 -DROCKSDB_PLATFORM_POSIX
+CFLAGS=-g -std=c++11 -fPIC
 INC=-I. -I./util -I$(TigerDir) -I$(TerarkDir)
-LIB=-L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lterark-core-d -lterark-fsa-d -lterark-zbs-d
+LIB=-L. -L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lterark-core-d -lterark-fsa-d -lterark-zbs-d
 
 
-OBJS = trk_block.o trk_common.o trk_meta_blocks.o trk_format.o terark_chunk_reader.o terark_zip_common.o terark_zip_config.o terark_zip_index.o terark_chunk_builder.o terark_chunk_manager.o
+OBJS = trk_block.o trk_common.o trk_meta_blocks.o trk_format.o terark_chunk_reader.o terark_zip_common.o terark_zip_config.o terark_zip_index.o terark_chunk_builder.o terark_chunk_manager.o terark_adaptor.o
 
 #all: test_add
 #all: bridge
-all: adaptor
+shared_lib: adaptor
+test: integration_test
+
+integration_test:
+	${CXX} -g -std=c++11 ${INC} ${LIB} -lterark-adaptor -o integration_test integration_test.cc
 
 adaptor: ${OBJS}
-	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o adaptor terark_adaptor.cc
+	${CXX} -g -std=c++11 -shared -Wl,-soname,libterark-adaptor.so.1 -o libterark-adaptor.so.1.0 ${OBJS}
+#	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o adaptor terark_adaptor.cc
 
 test_add: ${OBJS}
 	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o test_add test_add.cc
+
+terark_adaptor.o: 
+	${CXX} ${CFLAGS} ${INC} ${LIB} -c terark_adaptor.cc
 
 terark_zip_config.o: terark_zip_config.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c terark_zip_config.cc
@@ -54,5 +62,5 @@ trk_format.o: util/trk_format.h util/trk_common.h
 
 
 clean:
-	rm -f ${EXES} *.o *.exe *.a test_add bridge
+	rm -f ${EXES} *.o *.exe *.a test_add bridge *.so*
 

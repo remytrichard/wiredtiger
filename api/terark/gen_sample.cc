@@ -32,8 +32,15 @@ int main(int argc, char* argv[]) {
 	}
 	std::srand(std::time(0)); // use current time as seed for random generator
 	ofstream fo(path);
-	for (int i = 0; i < 1000 * 1000; i++) {
-		std::string key = digit_key ? std::to_string(i) : gen();
+	static char carr[9] = { 0 };
+	for (int i = 1; i < 1000 * 1000; i++) {
+		std::string key;
+		if (digit_key) {
+			snprintf(carr, 9, "%08d", i);
+			key = carr;
+		} else {
+			key = gen();
+		}
 		std::string val = gen();
 		fo << "key: " << key << '\n';
 		fo << "val: " << val << '\n';
