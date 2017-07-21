@@ -62,5 +62,5 @@ trk_format.o: util/trk_format.h util/trk_common.h
 
 
 clean:
-	rm -f ${EXES} *.o *.exe *.a test_add bridge *.so*
+	rm -f ${EXES} *.o *.exe *.a test_add bridge *.so* integration_test
 

@@ -259,11 +259,20 @@ __lsm_tree_cleanup_old(WT_SESSION_IMPL *session, const char *uri)
 	const char *cfg[] =
 	    { WT_CONFIG_BASE(session, WT_SESSION_drop), "force", NULL };
 	bool exists;
-
-	WT_RET(__wt_fs_exist(session, uri + strlen("file:"), &exists));
-	if (exists)
-		WT_WITH_SCHEMA_LOCK(session,
-		    ret = __wt_schema_drop(session, uri, cfg));
+	
+	if (WT_PREFIX_MATCH(uri, "terark:")) {
+		WT_RET(__wt_fs_exist(session, uri + strlen("terark:"), &exists));
+		if (exists) {
+			WT_WITH_SCHEMA_LOCK(session,
+		        ret = __wt_schema_drop(session, uri, cfg));
+		}
+	} else {
+		WT_RET(__wt_fs_exist(session, uri + strlen("file:"), &exists));
+		if (exists) {
+			WT_WITH_SCHEMA_LOCK(session,
+			    ret = __wt_schema_drop(session, uri, cfg));
+		}
+	}
 	return (ret);
 }
 

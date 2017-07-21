@@ -22,6 +22,7 @@
 #include "terark_chunk_builder.h"
 #include "terark_chunk_reader.h"
 
+std::map<std::string, int> cur_stats;
 
 static terark::TerarkChunkManager* chunk_manager;
 static inline std::string ComposePath(WT_CONNECTION *conn, const std::string& uri) {
@@ -76,7 +77,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	// set cursor-ops based on builder/reader
 	std::string path = ComposePath(session->connection, uri);
 	if (chunk_manager->IsChunkExist(path, uri)) {
-		printf("open cursor for read: %s\n", uri);
+		printf("\nopen cursor for read: %s, cnt %d\n", uri, ++cur_stats[uri + std::string("_opened")]);
 		cursor->next = trk_cursor_next;
 		cursor->prev = trk_cursor_prev;
 		cursor->reset = trk_reader_cursor_reset;
@@ -87,7 +88,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		terark::Iterator* iter = chunk_manager->NewIterator(path, uri);
 		chunk_manager->AddIterator(cursor, iter);
 	} else {
-		printf("open cursor for build: %s\n", uri);
+		printf("\nopen cursor for build: %s\n", uri);
 		cursor->reset = trk_builder_cursor_reset;
 		cursor->insert = trk_cursor_insert;
 		cursor->close = trk_builder_cursor_close;
@@ -116,8 +117,11 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 }
 
 int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config) {
-	std::string path = ComposePath(session->connection, uri);
-	::remove(path.c_str());
+	//std::string path = ComposePath(session->connection, uri);
+	//::remove(path.c_str());
+	if (uri && strlen(uri) > 0) {
+		chunk_manager->RemoveReader(uri);
+	}
 	return (0);
 }
 
@@ -130,6 +134,7 @@ int trk_cursor_insert(WT_CURSOR *cursor) {
 
 
 int trk_builder_cursor_close(WT_CURSOR *cursor) {
+	printf("\nbuilder cursor close: %s\n", cursor->uri);
 	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	builder->Finish2ndPass();
 
@@ -139,6 +144,7 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 }
 
 int trk_reader_cursor_close(WT_CURSOR *cursor) {
+	printf("\nreader cursor close: %s, %d\n", cursor->uri, ++cur_stats[cursor->uri + std::string("_closed")]);
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	chunk_manager->RemoveIterator(cursor);
 	delete iter;

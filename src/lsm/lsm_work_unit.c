@@ -530,8 +530,11 @@ __lsm_drop_file(WT_SESSION_IMPL *session, const char *uri)
 	    ret = __wt_schema_drop(session, uri, drop_cfg));
 
 	if (ret == 0) {
-		if (WT_PREFIX_MATCH(uri, "file:"))
+		if (WT_PREFIX_MATCH(uri, "file:")) {
 			ret = __wt_fs_remove(session, uri + strlen("file:"), false);
+		} else if (WT_PREFIX_MATCH(uri, "terark:")) {
+			ret = __wt_fs_remove(session, uri + strlen("terark:"), false);
+		}
 	}
 	__wt_verbose(session, WT_VERB_LSM, "Dropped %s", uri);
 

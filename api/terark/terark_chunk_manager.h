@@ -53,33 +53,49 @@ namespace terark {
 
 	public:
 		void AddBuilder(const std::string& fname, TerarkChunkBuilder* builder) {
+			//std::unique_lock<std::mutex> lock(dict_m_);
 			builder_dict_[fname] = builder;
 		}
 		void RemoveBuilder(const std::string& fname) {
+			//std::unique_lock<std::mutex> lock(dict_m_);
 			builder_dict_.erase(fname);
 		}
 		TerarkChunkBuilder* GetBuilder(const std::string& fname) {
+			//std::unique_lock<std::mutex> lock(dict_m_);
 			return builder_dict_[fname];
 		}
 
+		void RemoveReader(const std::string& fname) {
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
+			for (auto& item : cursor_dict_) {
+				if (item.first->uri == fname) {
+					RemoveIterator(item.first);
+				}
+			}
+		}
+
 		void AddIterator(WT_CURSOR* cursor, Iterator* iter) {
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			assert(cursor != nullptr);
 			cursor_dict_[cursor] = iter;
-			assert(reader_cache_.exists(cursor->uri));
-			auto reader = reader_cache_.get(cursor->uri);
+			assert(reader_cache_.exists(std::string(cursor->uri)));
+			auto reader = reader_cache_.get(std::string(cursor->uri));
 			reader->AddRef();
 		}
 		void RemoveIterator(WT_CURSOR* cursor) {
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			assert(cursor != nullptr);
 			cursor_dict_.erase(cursor);
-			assert(reader_cache_.exists(cursor->uri) == true);
-			auto reader = reader_cache_.get(cursor->uri);
-			reader->RelRef();
+			if (reader_cache_.exists(std::string(cursor->uri))) {
+				auto reader = reader_cache_.get(std::string(cursor->uri));
+				reader->RelRef();
+			}
 		}
 		Iterator* GetIterator(WT_CURSOR* cursor) {
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			assert(cursor != nullptr);
-			if (reader_cache_.exists(cursor->uri)) {
-				reader_cache_.get(cursor->uri); // lru update
+			if (reader_cache_.exists(std::string(cursor->uri))) {
+				reader_cache_.get(std::string(cursor->uri)); // lru update
 			}
 			return cursor_dict_[cursor];
 		}
@@ -97,19 +113,16 @@ namespace terark {
 
 		std::string GetPrintableTableOptions() const;
 
-		// Sanitizes the specified DB Options.
-		//Status SanitizeOptions(const DBOptions& db_opts,
-		//	const ColumnFamilyOptions& cf_opts) const;
-
 		void* GetOptions() { return &table_options_; }
 
 	private:
-
 		void AddReader(const std::string& fname, TerarkChunkReader* reader) {
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			reader->AddRef();
 			reader_cache_.put(fname, reader);
 		}
 		TerarkChunkReader* GetReader(const std::string& fname) {
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			if (!reader_cache_.exists(fname)) {
 				return nullptr;
 			}
@@ -124,6 +137,7 @@ namespace terark {
 		std::map<std::string, TerarkChunkBuilder*> builder_dict_;
 		lru_cache<std::string, TerarkChunkReader*> reader_cache_; // cache size set to 5 temp now
 		std::map<WT_CURSOR*, Iterator*>      cursor_dict_;
+		std::recursive_mutex dict_m_;
 	};
 
 
