@@ -73,7 +73,9 @@ namespace terark {
 		, useUint64Comparator_(false) {
 		// temp mmap files
 		sampleUpperBound_ = randomGenerator_.max() * table_options_.sampleRatio;
-		work_path_ = tzto.localTempDir + "/Terark-XXXXXX";
+		size_t pos = fname.find_last_of('/');
+		std::string ext = (pos == std::string::npos) ? fname : fname.substr(pos + 1);
+		work_path_ = tzto.localTempDir + "/Terark-" + ext;
 		tmpKeyFile_.path = work_path_ + ".keydata";
 		tmpKeyFile_.open();
 		tmpSampleFile_.path = work_path_ + ".sample";
