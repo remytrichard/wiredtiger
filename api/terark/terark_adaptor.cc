@@ -51,7 +51,7 @@ static inline std::string ComposePath(WT_CONNECTION *conn, const std::string& ur
  */
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
-	//const char* sconfig = ((const char**)config)[0]; // session create config
+	const char* sconfig = ((const char**)config)[0]; // session create config
 	//if (!chunk_manager) {
 	//	chunk_manager = new terark::TerarkChunkManager(sconfig);
 	//}
@@ -64,9 +64,9 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	terark::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
 	
-	//WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
-	//int ret = wt_api->metadata_insert(wt_api, session, uri, sconfig);
-	//assert(ret == 0);
+	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
+	int ret = wt_api->metadata_insert(wt_api, session, uri, sconfig);
+	assert(ret == 0);
 
 	return (0);
 }

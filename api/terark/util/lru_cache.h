@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <unordered_map>
+#include <map>
 #include <list>
 #include <cstddef>
 #include <stdexcept>
@@ -39,10 +39,15 @@ namespace terark {
 				auto last = _cache_items_list.end();
 				do {
 					last--;
-					if (last->second->RefCount() <= 1) {
+					if (last->first == key) {
+						continue; // don't remove item just added
+					} else if (last->second->RefCount() <= 1) {
 						delete last->second;
 						_cache_items_map.erase(last->first);
 						last = _cache_items_list.erase(last);
+					}
+					if (_cache_items_map.size() <= _max_size) {
+						break;
 					}
 				} while (last != _cache_items_list.begin());
 			}
@@ -68,7 +73,7 @@ namespace terark {
 		
 	private:
 		std::list<key_value_pair_t> _cache_items_list;
-		std::unordered_map<key_t, list_iterator_t> _cache_items_map;
+		std::map<key_t, list_iterator_t> _cache_items_map;
 		size_t _max_size;
 	};
 
