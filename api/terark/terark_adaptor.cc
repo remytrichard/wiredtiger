@@ -25,24 +25,36 @@
 std::map<std::string, int> cur_stats;
 
 static terark::TerarkChunkManager* chunk_manager;
+// TBD(kg): Global scope? how about session scope?
+int trk_init(const char* config) {
+	if (!chunk_manager) {
+		chunk_manager = new terark::TerarkChunkManager(config);
+	}
+	return 0;
+}
+
 static inline std::string ComposePath(WT_CONNECTION *conn, const std::string& uri) {
 	assert(conn);
-	const char* home = conn->get_home(conn);
+	std::string home = conn->get_home(conn);
+	if (home.back() != '/') home.push_back('/');
 	size_t pos = uri.find(':');
 	if (pos != std::string::npos) {
-		return std::string(home) + "/" + uri.substr(pos + 1);
+		return std::string(home) + uri.substr(pos + 1);
 	} else {
-		return std::string(home) + "/" + uri;
+		return std::string(home) + uri;
 	}
 }
 
+/*
+ * TBD(kg): there should be an Init() within which chunk_manager is 
+ * inited, not in create().  Otherwise, read-only workload will failed forever
+ */
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
-	const char* sconfig = ((const char**)config)[0]; // session create config
-	if (!chunk_manager) {
-		// TBD(kg): lock
-		chunk_manager = new terark::TerarkChunkManager(sconfig);
-	}
+	//const char* sconfig = ((const char**)config)[0]; // session create config
+	//if (!chunk_manager) {
+	//	chunk_manager = new terark::TerarkChunkManager(sconfig);
+	//}
 	const terark::Comparator* comparator = terark::GetBytewiseComparator();
 	terark::TerarkTableBuilderOptions builder_options(*comparator);
 
@@ -52,9 +64,9 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	terark::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
 	
-	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
-	int ret = wt_api->metadata_insert(wt_api, session, uri, sconfig);
-	assert(ret == 0);
+	//WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
+	//int ret = wt_api->metadata_insert(wt_api, session, uri, sconfig);
+	//assert(ret == 0);
 
 	return (0);
 }
@@ -117,6 +129,9 @@ int trk_pre_merge(WT_DATA_SOURCE *dsrc, WT_CURSOR *cursor, WT_CURSOR *dest) {
 }
 
 int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONFIG_ARG *config) {
+	printf("\ntrk_drop: %s\n", uri);
+	printf("\t open %d, close %d\n", cur_stats[uri + std::string("_opened")], 
+		   cur_stats[uri + std::string("_closed")]);
 	//std::string path = ComposePath(session->connection, uri);
 	//::remove(path.c_str());
 	if (uri && strlen(uri) > 0) {

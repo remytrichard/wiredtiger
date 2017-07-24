@@ -12,6 +12,8 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
+	//!!! BEFORE any other methods called, always call init first
+	DLL_PUBLIC int trk_init(const char* config);
 
 	// Callback to create a new object.
 	DLL_PUBLIC int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
@@ -133,7 +135,6 @@ extern "C" {
 	 */
 	int trk_builder_cursor_close(WT_CURSOR *cursor);
 	int trk_reader_cursor_close(WT_CURSOR *cursor);
-
 
 
 #if defined(__cplusplus)

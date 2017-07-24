@@ -23,28 +23,17 @@
 #include "terark_adaptor.h"
 
 
-void configure_method(WT_CONNECTION *conn) {
-	int ret = 0;
-	conn->configure_method(conn, "WT_SESSION.create", NULL,
-						   "trk_localTempDir=./temp", "string", NULL);
-	conn->configure_method(conn, "WT_SESSION.create", NULL,
-						   "trk_indexNestLevel=2", "string", NULL);
-	conn->configure_method(conn, "WT_SESSION.create", NULL,
-						   "trk_indexCacheRatio=0.005", "string", NULL);
-	conn->configure_method(conn, "WT_SESSION.create", NULL,
-						   "trk_smallTaskMemory=1G", "string", NULL);
-	conn->configure_method(conn, "WT_SESSION.create", NULL,
-						   "trk_softZipWorkingMemLimit=16G", "string", NULL);
-	conn->configure_method(conn, "WT_SESSION.create", NULL,
-						   "trk_hardZipWorkingMemLimit=32G", "string", NULL);
-	conn->configure_method(conn, "WT_SESSION.create", NULL,
-						   "trk_minDictZipValueSize=1024", "string", NULL);
-	conn->configure_method(conn, "WT_SESSION.create", NULL,
-						   "trk_offsetArrayBlockUnits=128", "string", NULL);
-	conn->configure_method(conn, "WT_SESSION.create", NULL,
-						   "trk_max_background_flushes=4", "string", NULL);
-	//conn->configure_method(conn, "WT_SESSION.create", NULL,
-	//					   "trk_useUint64Comparator=1", "string", NULL);
+void InitTerark() {
+	const char* config = "trk_localTempDir=./temp,"
+		"trk_indexNestLevel=2,"
+		"trk_indexCacheRatio=0.005,"
+		"trk_smallTaskMemory=1G,"
+		"trk_softZipWorkingMemLimit=16G,"
+		"trk_hardZipWorkingMemLimit=32G,"
+		"trk_minDictZipValueSize=1024,"
+		"trk_offsetArrayBlockUnits=128,"
+		"trk_max_background_flushes=4";
+	trk_init(config);
 }
 
 std::map<std::string, std::string> dict;
@@ -72,7 +61,7 @@ int main() {
     } else {
 		home = NULL;
 	}
-	//ret = wiredtiger_open(home, NULL, "create,verbose=[lsm,lsm_manager]", &conn);
+	
 	WT_CONNECTION *conn;
 	ret = wiredtiger_open(home, NULL, "create", &conn);
 	ret = conn->open_session(conn, NULL, NULL, &session);
@@ -97,7 +86,7 @@ int main() {
 
 	ret = conn->configure_method(conn,
 								 "WT_SESSION.open_cursor", NULL, "collator=", "string", NULL);
-	configure_method(conn);
+	InitTerark();
 
 	{
 		WT_CURSOR *c;
