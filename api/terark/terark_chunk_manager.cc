@@ -82,7 +82,7 @@ namespace terark {
 				} else {
 					tzo.entropyAlgo = tzo.kNoEntropy;
 					STD_WARN("bad env entropyAlgo=%s, must be one of {NoEntropy, FSE, huf}, reset to default 'NoEntropy'\n"
-							 , algo);
+							 , algo.c_str());
 				}
 			}
 			if (dict.count("trk_indexType") > 0) {
@@ -149,7 +149,7 @@ namespace terark {
 
 
 	TerarkChunkManager::TerarkChunkManager(const std::string& config)
-		: reader_cache_(5) {
+		: reader_cache_(3) {
 		TerarkZipTableOptions& tzo = table_options_;
 		if (!TerarkZipOptionsFromConfigString(config, tzo)) {
 			abort();
