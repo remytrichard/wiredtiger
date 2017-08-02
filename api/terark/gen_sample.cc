@@ -23,20 +23,21 @@ std::string gen() {
 }
 
 int main(int argc, char* argv[]) {
-	bool digit_key = false;
+	bool simple_key = false;
 	if (argc == 1) {
 		path = "./samples_large.txt";
 	} else {
-		path = "./samples_uint64.txt";
-		digit_key = true;
+		//path = "./samples_uint64.txt";
+		path = "./samples_simple.txt";
+		simple_key = true;
 	}
 	std::srand(std::time(0)); // use current time as seed for random generator
 	ofstream fo(path);
-	static char carr[9] = { 0 };
+	static char carr[20] = { 0 };
 	for (int i = 1; i < 1000 * 1000; i++) {
 		std::string key;
-		if (digit_key) {
-			snprintf(carr, 9, "%08d", i);
+		if (simple_key) {
+			snprintf(carr, 20, "%019d", i);
 			key = carr;
 		} else {
 			key = gen();

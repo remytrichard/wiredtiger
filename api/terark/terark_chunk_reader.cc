@@ -44,15 +44,15 @@ namespace terark {
 
 	class TerarkChunkIterator : public Iterator, boost::noncopyable {
 	public:
-		TerarkChunkIterator(TerarkChunkReader* chunk, std::string std::string commonPrefix)
-			: chunk_(chunk) {
+		TerarkChunkIterator(TerarkChunkReader* chunk, const std::string& commonPrefix)
+			: chunk_(chunk), commonPrefix_(commonPrefix) {
 			//iter_.reset(chunk_->index_->NewIterator()); 
-			//iter_->SetInvalid(); 
+			//iter_->SetInvalid();
 			reseted_ = false;
 			status_ = Status::NotFound();
 		}
 		~TerarkChunkIterator() {}
-		bool Valid() const { return !status_.IsNotFound(); }
+		bool Valid() const { return status_.ok(); }
 		void lazyCreateIter() {
 			if (!iter_) {
 				iter_.reset(chunk_->index_->NewIterator());
@@ -72,8 +72,12 @@ namespace terark {
 		void SeekForPrev(const Slice&);
 		void Seek(const Slice& target) {
 			reseted_ = false;
-			size_t clen = fstringOf(target).commonPrefixLen(subReader_->commonPrefix_);
-			size_t recId = chunk_->index_->Find(fstringOf(target));
+			size_t clen = fstringOf(target).commonPrefixLen(commonPrefix_);
+			if (clen != commonPrefix_.length()) {
+				status_ = Status::NotFound();
+				return;
+			}
+			size_t recId = chunk_->index_->Find(fstringOf(target).substr(clen));
 			if (recId == std::string::npos) {
 				status_ = Status::NotFound();
 				return;
@@ -93,11 +97,11 @@ namespace terark {
 
 		void SetInvalid() { reseted_ = true; }
 		Slice key() const {
-			assert(status_.IsNotFound() == false);
+			assert(status_.ok());
 			return SliceOf(keyBuf_);
 		}
 		Slice value() const {
-			assert(status_.IsNotFound() == false);
+			assert(status_.ok());
 			return SliceOf(fstring(valueBuf_));
 		}
 		Status status() const { return status_; }
@@ -178,8 +182,8 @@ namespace terark {
 
 	class TerarkChunkeUint64Iterator : public TerarkChunkIterator {
 	public:
-		TerarkChunkeUint64Iterator(TerarkChunkReader* chunk)
-			: TerarkChunkIterator(chunk) {}
+		TerarkChunkeUint64Iterator(TerarkChunkReader* chunk, const std::string& commonPrefix)
+			: TerarkChunkIterator(chunk, commonPrefix) {}
 		
 		void Seek(const Slice& target) override {
 			assert(target.size() == 8);
@@ -213,14 +217,14 @@ namespace terark {
 			return nullptr;
 		}
 		if (!useUint64Comparator_) {
-			return new TerarkChunkIterator(this);
+			return new TerarkChunkIterator(this, commonPrefix_);
 		} else {
 			// under big endian condition, uint64Iterator works
 			// the same way as Iterator. 
 #if BOOST_ENDIAN_LITTLE_BYTE
-			return new TerarkChunkeUint64Iterator(this);
+			return new TerarkChunkeUint64Iterator(this, commonPrefix_);
 #else
-			return new TerarkChunkIterator(this);
+			return new TerarkChunkIterator(this, commonPrefix_);
 #endif
 		}
 	}
@@ -249,15 +253,23 @@ namespace terark {
 		if (table_props->comparator_name == "uint64comparator") {
 			useUint64Comparator_ = true;
 		}
-		TerarkBlockContents valueDictBlock, indexBlock;
+		TerarkBlockContents valueDictBlock, indexBlock, commonPrefixBlock;
 		s = TerarkReadMetaBlock(file_data, file_size, kTerarkZipTableMagicNumber,
-			kTerarkZipTableValueDictBlock, &valueDictBlock);
+								kTerarkZipTableValueDictBlock, &valueDictBlock);
 		if (!s.ok()) {
 			return s;
 		}
 		s = TerarkReadMetaBlock(file_data, file_size, kTerarkZipTableMagicNumber,
-			kTerarkZipTableIndexBlock, &indexBlock);
+								kTerarkZipTableIndexBlock, &indexBlock);
 		if (!s.ok()) {
+			return s;
+		}
+		s = TerarkReadMetaBlock(file_data, file_size, kTerarkZipTableMagicNumber,
+								kTerarkZipTableCommonPrefixBlock, &commonPrefixBlock);
+		if (s.ok()) {
+			commonPrefix_.assign(commonPrefixBlock.data.data(),
+								 commonPrefixBlock.data.size());
+		} else {
 			return s;
 		}
 		// read contents -- index, value

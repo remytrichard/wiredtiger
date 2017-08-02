@@ -38,7 +38,8 @@ void InitTerark() {
 
 std::map<std::string, std::string> dict;
 void InitDict() {
-	std::ifstream fi("./samples_large.txt");
+	//std::ifstream fi("./samples_large.txt");
+	std::ifstream fi("./samples_simple.txt");
 	while (true) {
 		std::string key, val;
 		if (!std::getline(fi, key)) break;

@@ -60,6 +60,7 @@ namespace terark {
 		bool useUint64Comparator_;
 		int ref_count_;
 
+		std::string commonPrefix_;
 		std::unique_ptr<TerarkIndex> index_;
 		std::unique_ptr<terark::BlobStore> store_;
 		std::unique_ptr<terark::MmapWholeFile> file_reader_;

@@ -110,7 +110,7 @@ namespace terark {
 			ctx.root = 0;
 			ctx.pos = 0;
 			ctx.zidx = 0;
-			//ctx.zbuf_state = size_t(-1);
+			ctx.zbuf_state = size_t(-1);
 			return m_trie->index(ctx, key);
 		}
 		size_t NumKeys() const override final {

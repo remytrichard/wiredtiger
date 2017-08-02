@@ -469,10 +469,11 @@ namespace terark {
 
 		std::string commonPrefix;
 		commonPrefix.reserve(keyStat.commonPrefixLen);
-		commonPrefix.append(kvs.prefix.data(), kvs.prefix.size());
+		//commonPrefix.append(kvs.prefix.data(), kvs.prefix.size());
 		commonPrefix.append((const char*)prevUserKey_.data(), keyStat.commonPrefixLen);
 		WriteBlock(commonPrefix, file_writer_, &offset_, &commonPrefixBlock);
 		properties_.data_size = dataBlock.size();
+		printf("commonPrefix: %s\n", commonPrefix.c_str());
 
 		s = WriteBlock(dict.memory, file_writer_, &offset_, &dictBlock);
 		if (!s.ok()) {
