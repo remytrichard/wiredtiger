@@ -69,7 +69,6 @@ namespace terark {
 			lazyCreateIter();
 			UnzipIterRecord(iter_->SeekToLast());
 		}
-		void SeekForPrev(const Slice&);
 		void Seek(const Slice& target) {
 			reseted_ = false;
 			size_t clen = fstringOf(target).commonPrefixLen(commonPrefix_);
@@ -77,21 +76,11 @@ namespace terark {
 				status_ = Status::NotFound();
 				return;
 			}
-			size_t recId = chunk_->index_->Find(fstringOf(target).substr(clen));
-			if (recId == std::string::npos) {
-				status_ = Status::NotFound();
-				return;
-			}
-            try {
-                valueBuf_.erase_all();
-                chunk_->store_->get_record_append(recId, &valueBuf_);
-            } catch (const BadCrc32cException& ex) { // crc checksum error
-                status_ = Status::Corruption("TerarkZipTableIterator::Seek()", ex.what());
-                return;
-            }
-			keyBuf_.assign(target.data(), target.size());
-			status_ = Status::OK();
+			lazyCreateIter();
+			UnzipIterRecord(iter_->Seek(fstringOf(target).substr(clen)));
 		}
+		//void SeekForPrev(const Slice&);
+		void SeekExact(const Slice&);
 		void Next();
 		void Prev();
 
@@ -117,15 +106,41 @@ namespace terark {
 		Status                  status_;
 	};
 
-	void TerarkChunkIterator::SeekForPrev(const Slice& target) {
+	/*void TerarkChunkIterator::SeekForPrev(const Slice& target) {
 		reseted_ = false;
-		Seek(target);
+		SeekExact(target);
 		if (!Valid()) {
 			SeekToLast();
 		}
 		while (Valid() && target.compare(key()) < 0) {
 			Prev();
 		}
+		}*/
+
+	void TerarkChunkIterator::SeekExact(const Slice& target) {
+		reseted_ = false;
+		size_t clen = fstringOf(target).commonPrefixLen(commonPrefix_);
+		if (clen != commonPrefix_.length()) {
+			printf("commonPrefix error, target %*s, commonPrefix %s\n",
+				   target.size(), target.data(), commonPrefix_.c_str());
+			status_ = Status::NotFound();
+			return;
+		}
+		size_t recId = chunk_->index_->Find(fstringOf(target).substr(clen));
+		if (recId == std::string::npos) {
+			printf("target not found: %*s\n", target.size(), target.data());
+			status_ = Status::NotFound();
+			return;
+		}
+		try {
+			valueBuf_.erase_all();
+			chunk_->store_->get_record_append(recId, &valueBuf_);
+		} catch (const BadCrc32cException& ex) { // crc checksum error
+			status_ = Status::Corruption("TerarkZipTableIterator::Seek()", ex.what());
+			return;
+		}
+		keyBuf_.assign(target.data(), target.size());
+		status_ = Status::OK();
 	}
 
 	/*
@@ -191,6 +206,13 @@ namespace terark {
 			Slice user_key = Slice(reinterpret_cast<const char*>(&u64_target), 8);
 			TerarkChunkIterator::Seek(user_key);
 		}
+		void SeekExact(const Slice& target) override {
+            assert(target.size() == 8);
+            uint64_t u64_target = byte_swap(*reinterpret_cast<const uint64_t*>(target.data()));
+            Slice user_key = Slice(reinterpret_cast<const char*>(&u64_target), 8);
+			TerarkChunkIterator::SeekExact(user_key);
+        }
+
 		
 		// key data is serialized as Big Endian, transform to Little Endian back to user
 		bool UnzipIterRecord(bool hasRecord) override {

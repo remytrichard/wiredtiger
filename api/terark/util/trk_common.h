@@ -28,6 +28,7 @@ namespace terark {
 		// an entry that comes at or past target.
 		virtual void Seek(const Slice& target) = 0;
 
+		virtual void SeekExact(const Slice& target) {}
 		// Position at the last key in the source that at or before target
 		// The iterator is Valid() after this call iff the source contains
 		// an entry that comes at or before target.

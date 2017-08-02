@@ -195,8 +195,6 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 	return (0);
 }
 
-// TBD(kg): any resources held by the cursor are released
-// reset followed by next?
 int trk_reader_cursor_reset(WT_CURSOR *cursor) {
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->SetInvalid();
@@ -208,7 +206,7 @@ int trk_builder_cursor_reset(WT_CURSOR *cursor) {
 
 int trk_cursor_search(WT_CURSOR *cursor) {
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
-	iter->Seek(terark::Slice((const char*)cursor->key.data, cursor->key.size));
+	iter->SeekExact(terark::Slice((const char*)cursor->key.data, cursor->key.size));
 	if (!iter->Valid()) {
 		return WT_NOTFOUND;
 	}
