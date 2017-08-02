@@ -25,7 +25,6 @@
 std::map<std::string, int> cur_stats;
 
 static terark::TerarkChunkManager* chunk_manager;
-// TBD(kg): Global scope? how about session scope?
 int trk_init(const char* config) {
 	if (!chunk_manager) {
 		chunk_manager = new terark::TerarkChunkManager(config);
@@ -45,16 +44,9 @@ static inline std::string ComposePath(WT_CONNECTION *conn, const std::string& ur
 	}
 }
 
-/*
- * TBD(kg): there should be an Init() within which chunk_manager is 
- * inited, not in create().  Otherwise, read-only workload will failed forever
- */
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
 	const char* sconfig = ((const char**)config)[0]; // session create config
-	//if (!chunk_manager) {
-	//	chunk_manager = new terark::TerarkChunkManager(sconfig);
-	//}
 	const terark::Comparator* comparator = terark::GetBytewiseComparator();
 	terark::TerarkTableBuilderOptions builder_options(*comparator);
 
@@ -240,6 +232,7 @@ int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	terark::Slice key = iter->key();
 	WT_ITEM* kbuf = &cursor->key;
 	WT_ITEM* vbuf = &cursor->value;
+	// TBD(kg): seek near should be provided
 	iter->Seek(terark::Slice((const char*)kbuf->data, kbuf->size));
 	if (!iter->Valid()) { // target > last elem
 		iter->SeekToLast();

@@ -44,37 +44,60 @@ namespace terark {
 
 	class TerarkChunkIterator : public Iterator, boost::noncopyable {
 	public:
-		TerarkChunkIterator(TerarkChunkReader* chunk)
+		TerarkChunkIterator(TerarkChunkReader* chunk, std::string std::string commonPrefix)
 			: chunk_(chunk) {
-			iter_.reset(chunk_->index_->NewIterator()); 
-			iter_->SetInvalid(); 
+			//iter_.reset(chunk_->index_->NewIterator()); 
+			//iter_->SetInvalid(); 
 			reseted_ = false;
+			status_ = Status::NotFound();
 		}
 		~TerarkChunkIterator() {}
-		bool Valid() const { return iter_->Valid(); }
+		bool Valid() const { return !status_.IsNotFound(); }
+		void lazyCreateIter() {
+			if (!iter_) {
+				iter_.reset(chunk_->index_->NewIterator());
+				iter_->SetInvalid();
+			}
+		}
 		void SeekToFirst() {
 			reseted_ = false;
+			lazyCreateIter();
 			UnzipIterRecord(iter_->SeekToFirst());
 		}
 		void SeekToLast() {
 			reseted_ = false;
+			lazyCreateIter();
 			UnzipIterRecord(iter_->SeekToLast());
 		}
 		void SeekForPrev(const Slice&);
 		void Seek(const Slice& target) {
 			reseted_ = false;
-			UnzipIterRecord(iter_->Seek(fstringOf(target)));
+			size_t clen = fstringOf(target).commonPrefixLen(subReader_->commonPrefix_);
+			size_t recId = chunk_->index_->Find(fstringOf(target));
+			if (recId == std::string::npos) {
+				status_ = Status::NotFound();
+				return;
+			}
+            try {
+                valueBuf_.erase_all();
+                chunk_->store_->get_record_append(recId, &valueBuf_);
+            } catch (const BadCrc32cException& ex) { // crc checksum error
+                status_ = Status::Corruption("TerarkZipTableIterator::Seek()", ex.what());
+                return;
+            }
+			keyBuf_.assign(target.data(), target.size());
+			status_ = Status::OK();
 		}
 		void Next();
 		void Prev();
 
 		void SetInvalid() { reseted_ = true; }
 		Slice key() const {
-			assert(iter_->Valid());
+			assert(status_.IsNotFound() == false);
 			return SliceOf(keyBuf_);
 		}
 		Slice value() const {
-			assert(iter_->Valid());
+			assert(status_.IsNotFound() == false);
 			return SliceOf(fstring(valueBuf_));
 		}
 		Status status() const { return status_; }
@@ -84,6 +107,7 @@ namespace terark {
 		TerarkChunkReader* chunk_;
 		std::unique_ptr<TerarkIndex::Iterator> iter_;
 		bool  reseted_;
+		std::string commonPrefix_;
 		valvec<byte_t>          keyBuf_;
 		valvec<byte_t>          valueBuf_;
 		Status                  status_;
@@ -95,7 +119,6 @@ namespace terark {
 		if (!Valid()) {
 			SeekToLast();
 		}
-		// TBD(kg): Slice.uint64comparator ?
 		while (Valid() && target.compare(key()) < 0) {
 			Prev();
 		}
@@ -131,6 +154,7 @@ namespace terark {
 		UnzipIterRecord(iter_->Prev());
 	}
 
+	// should be called from Next/Prev/SearchNear
 	bool TerarkChunkIterator::UnzipIterRecord(bool hasRecord) {
 		if (hasRecord) {
 			assert(iter_->id() < chunk_->index_->NumKeys());
@@ -146,7 +170,7 @@ namespace terark {
 			keyBuf_.assign((byte_t*)iter_->key().data(), iter_->key().size());
 			return true;
 		} else {
-			iter_->SetInvalid();
+			status_ = Status::NotFound();
 			return false;
 		}
 	}
