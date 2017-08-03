@@ -174,6 +174,10 @@ static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
 }
 
 // only reader will use the following cursor-ops
+/*
+ * TBD(kg): what if next() is called after a search()? Or
+ * just after key is set ? 
+ */
 int trk_cursor_next(WT_CURSOR *cursor) {
 	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	iter->Next();

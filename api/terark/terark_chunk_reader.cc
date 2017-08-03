@@ -106,17 +106,6 @@ namespace terark {
 		Status                  status_;
 	};
 
-	/*void TerarkChunkIterator::SeekForPrev(const Slice& target) {
-		reseted_ = false;
-		SeekExact(target);
-		if (!Valid()) {
-			SeekToLast();
-		}
-		while (Valid() && target.compare(key()) < 0) {
-			Prev();
-		}
-		}*/
-
 	void TerarkChunkIterator::SeekExact(const Slice& target) {
 		reseted_ = false;
 		size_t clen = fstringOf(target).commonPrefixLen(commonPrefix_);
@@ -128,7 +117,7 @@ namespace terark {
 		}
 		size_t recId = chunk_->index_->Find(fstringOf(target).substr(clen));
 		if (recId == std::string::npos) {
-			printf("target not found: %*s\n", target.size(), target.data());
+			//printf("target not found: %*s\n", target.size(), target.data());
 			status_ = Status::NotFound();
 			return;
 		}
@@ -186,7 +175,9 @@ namespace terark {
 				status_ = Status::Corruption("TerarkZipTableIterator::UnzipIterRecord()", ex.what());
 				return false;
 			}
-			keyBuf_.assign((byte_t*)iter_->key().data(), iter_->key().size());
+			keyBuf_.assign(commonPrefix_);
+			keyBuf_.append((byte_t*)iter_->key().data(), iter_->key().size());
+			status_ = Status::OK();
 			return true;
 		} else {
 			status_ = Status::NotFound();
