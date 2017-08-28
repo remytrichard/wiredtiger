@@ -92,7 +92,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		// read iterator
 		terark::Iterator* iter = chunk_manager->NewIterator(path, uri);
 		terark_cursor->iter = iter;
-		chunk_manager->AddIterator(cursor, iter);
+		chunk_manager->AddIterator(cursor);
 	} else {
 		printf("\nopen cursor for build: %s\n", uri);
 		cursor->reset = trk_builder_cursor_reset;
@@ -155,9 +155,7 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 int trk_reader_cursor_close(WT_CURSOR *cursor) {
 	printf("\nreader cursor close: %s, %d\n", cursor->uri, ++cur_stats[cursor->uri + std::string("_closed")]);
 	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
-	//chunk_manager->RemoveIterator(cursor);
-	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
-	delete iter;
+	chunk_manager->RemoveIterator(cursor);
 	return (0);
 }
 

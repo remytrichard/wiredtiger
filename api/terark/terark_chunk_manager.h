@@ -42,10 +42,8 @@ namespace terark {
 
 	class TerarkChunkManager : boost::noncopyable {
 	public:
-		//static TerarkChunkManager* _instance;
-	 
 		TerarkChunkManager(const std::string& config);
-		//: reader_cache_(5) {}
+
 	private:
 		~TerarkChunkManager() {}
 
@@ -68,46 +66,39 @@ namespace terark {
 		}
 
 		void RemoveReader(const std::string& fname) {
-			//std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
-			for (auto& item : cursor_dict_) {
-				if (item.first->uri == fname) {
-					//RemoveIterator(item.first);
-					cursor_dict_.erase(item.first);
+			// remove related cursor
+			auto siter = cursor_set_.begin();
+			while (siter != cursor_set_.end()) {
+				WT_CURSOR* cursor = *siter;
+				if (cursor->uri == fname) {
+					siter = cursor_set_.erase(siter);
+					Iterator* iter = ((wt_terark_cursor*)cursor)->iter;
+					delete iter;
+				} else {
+					siter ++;
 				}
 			}
+			// remove reader
+			auto reader = reader_dict_[fname];
 			reader_dict_.erase(fname);
+			if (reader) {
+				delete reader;
+			}
 		}
 
-		void AddIterator(WT_CURSOR* cursor, Iterator* iter) {
+		void AddIterator(WT_CURSOR* cursor) {
 			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
-			//std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			assert(cursor != nullptr);
-			cursor_dict_[cursor] = iter;
-			//assert(reader_cache_.exists(std::string(cursor->uri)));
-			//auto reader = reader_cache_.get(std::string(cursor->uri));
-			//reader->AddRef();
+			cursor_set_.insert(cursor);
 		}
 		void RemoveIterator(WT_CURSOR* cursor) {
-			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
-			//std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			assert(cursor != nullptr);
-			cursor_dict_.erase(cursor);
-			//if (reader_cache_.exists(std::string(cursor->uri))) {
-			//	auto reader = reader_cache_.get(std::string(cursor->uri));
-			//	reader->RelRef();
-			//}
+			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
+			cursor_set_.erase(cursor);
+			Iterator* iter = ((wt_terark_cursor*)cursor)->iter;
+			delete iter;
 		}
-		Iterator* GetIterator(WT_CURSOR* cursor) {
-			//std::lock_guard<boost::detail::spinlock> lock(dict_s_);
-			//std::unique_lock<std::recursive_mutex> lock(dict_m_);
-			//assert(cursor != nullptr);
-			//if (reader_cache_.exists(std::string(cursor->uri))) {
-			//	reader_cache_.get(std::string(cursor->uri)); // lru update
-			//}
-			//return cursor_dict_[cursor];
-		}
-
 
 	public:
 		bool IsChunkExist(const std::string&, const std::string&);
@@ -126,18 +117,10 @@ namespace terark {
 	private:
 		void AddReader(const std::string& fname, TerarkChunkReader* reader) {
 			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
-			//std::unique_lock<std::recursive_mutex> lock(dict_m_);
-			//reader->AddRef();
-			//reader_cache_.put(fname, reader);
-			reader_dict[fname] = reader;
+			reader_dict_[fname] = reader;
 		}
 		TerarkChunkReader* GetReader(const std::string& fname) {
 			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
-			//std::unique_lock<std::recursive_mutex> lock(dict_m_);
-			/*if (!reader_cache_.exists(fname)) {
-				return nullptr;
-			}
-			return reader_cache_.get(fname);*/
 			return reader_dict_[fname];
 		}
 
@@ -147,10 +130,8 @@ namespace terark {
  
 		// builder, reader key: uri, not path
 		std::map<std::string, TerarkChunkBuilder*> builder_dict_;
-		//lru_cache<std::string, TerarkChunkReader*> reader_cache_; // cache size set to 5 temp now
 		std::map<std::string, TerarkChunkReader*> reader_dict_;
-		std::map<WT_CURSOR*, Iterator*>      cursor_dict_;
-		//std::recursive_mutex dict_m_;
+		std::set<WT_CURSOR*>      cursor_set_;
 		boost::detail::spinlock dict_s_;
 	};
 

@@ -148,8 +148,7 @@ namespace terark {
 	} // namespace
 
 
-	TerarkChunkManager::TerarkChunkManager(const std::string& config)
-		: reader_cache_(3) {
+	TerarkChunkManager::TerarkChunkManager(const std::string& config) {
 		TerarkZipTableOptions& tzo = table_options_;
 		if (!TerarkZipOptionsFromConfigString(config, tzo)) {
 			abort();
