@@ -8,7 +8,10 @@
 #include "wiredtiger.h"
 // terark headers
 #include <terark/util/sortable_strvec.hpp>
+#include <terark/util/mmap.hpp>
 #include <terark/int_vector.hpp>
+#include <terark/zbs/blob_store.hpp>
+#include <terark/zbs/zip_reorder_map.hpp>
 // project headers
 #include "util/trk_meta_blocks.h"
 #include "terark_chunk_builder.h"
@@ -405,25 +408,42 @@ namespace terark {
 		terark::BlobStore::Dictionary dict;
 		std::unique_ptr<terark::BlobStore> store;
 		DictZipBlobStore::ZipStat dzstat;
-		DictZipBlobStore* zstore;
-		store.reset(zstore = zbuilder_->finish(DictZipBlobStore::ZipBuilder::FinishFreeDict));
+		//DictZipBlobStore* zstore;
+		zbuilder_->finish(DictZipBlobStore::ZipBuilder::FinishFreeDict);
+		dict = zbuilder_->getDictionary();
+		terark::MmapWholeFile mfile(tmpStoreFile_.fpath);
+		terark::BlobStore* bstore = terark::BlobStore::load_from_user_memory(mfile.memory(), dict);
+		store.reset(bstore);
 		dzstat = zbuilder_->getZipStat();
 		tms_[kBlobStoreFinish] = g_pf.now();
-		dict = zbuilder_->getDictionary();
 		return WriteSSTFile(store.get(), dict, dzstat);
+	}
+
+	void TerarkChunkBuilder::BuildReorderMap(TerarkIndex* index, KeyValueStatus& kvs) {
+		size_t keyCount = kvs.stat.numKeys;
+        if (index->NeedsReorder()) {
+			terark::UintVecMin0 newToOld(keyCount, keyCount - 1);
+            index->GetOrderMap(newToOld);
+			terark::ZReorderMap::Builder builder(keyCount, 1, tmpReorderFile_.fpath, "wb");
+            for (size_t n = 0; n < keyCount; ++n) {
+                builder.push_back(newToOld[n]);
+            }
+			builder.finish();
+		}
 	}
 
 	Status TerarkChunkBuilder::WriteStore(TerarkIndex* index, terark::BlobStore* store,
 		KeyValueStatus& kvs, std::function<void(const void*, size_t)> writeAppend,
 		TerarkBlockHandle& dataBlock) {
 		auto& keyStat = kvs.stat;
+		tmpReorderFile_.fpath = work_path_ + ".reorder";
+		BuildReorderMap(index, kvs);
 		if (index->NeedsReorder()) {
-			terark::UintVecMin0 newToOld(keyStat.numKeys, keyStat.numKeys - 1);
-			index->GetOrderMap(newToOld);
 			tms_[kReorderStart] = tms_[kBZTypeBuildStart] = g_pf.now();
+			terark::ZReorderMap reorder(tmpReorderFile_.fpath);
 			try {
 				dataBlock.set_offset(offset_);
-				store->reorder_zip_data(newToOld, std::ref(writeAppend));
+				store->reorder_zip_data(reorder, std::ref(writeAppend));
 				dataBlock.set_size(offset_ - dataBlock.offset());
 			} catch (const Status& s) {
 				return s;
@@ -573,6 +593,7 @@ namespace terark {
 			 );
 
 		tmpIndexFile_.Delete();
+		tmpReorderFile_.Delete();
 		tmpStoreFile_.Delete();
 		file_writer_.close();
 		return s;

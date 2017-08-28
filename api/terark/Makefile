@@ -7,21 +7,25 @@ RocksDir=/newssd1/zzz/rocksdb
 CXX=g++
 CFLAGS=-g -std=c++11 -fPIC
 INC=-I. -I./util -I$(TigerDir) -I$(TerarkDir)
-LIB=-L. -L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lterark-core-d -lterark-fsa-d -lterark-zbs-d
+LIB=-L. -L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lterark-core-r -lterark-fsa-r -lterark-zbs-r
 
 
-OBJS = trk_block.o trk_common.o trk_meta_blocks.o trk_format.o terark_chunk_reader.o terark_zip_common.o terark_zip_config.o terark_zip_index.o terark_chunk_builder.o terark_chunk_manager.o terark_adaptor.o
+OBJS = trk_block.o trk_common.o trk_meta_blocks.o trk_format.o terark_chunk_reader.o terark_zip_common.o terark_zip_config.o terark_zip_index.o terark_chunk_builder.o terark_chunk_manager.o terark_adaptor.o git_version.c
 
 #all: test_add
 #all: bridge
-shared_lib: adaptor
+all: shared_lib test
+
+shared_lib: terark_adaptor
 test: integration_test
 
 integration_test:
 	${CXX} -g -std=c++11 ${INC} ${LIB} -lterark-adaptor -o integration_test integration_test.cc
 
-adaptor: ${OBJS}
+terark_adaptor: ${OBJS}
 	${CXX} -g -std=c++11 -shared -Wl,-soname,libterark-adaptor.so.1 -o libterark-adaptor.so.1.0 ${OBJS}
+	ln -sf libterark-adaptor.so.1.0 libterark-adaptor.so.1
+	ln -sf libterark-adaptor.so.1.0 libterark-adaptor.so
 #	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o adaptor terark_adaptor.cc
 
 test_add: ${OBJS}
@@ -60,6 +64,9 @@ trk_meta_blocks.o: util/trk_meta_blocks.h util/trk_format.h util/trk_block.h
 trk_format.o: util/trk_format.h util/trk_common.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c util/trk_format.cc
 
+git_version.c: ../../.git/HEAD ../../.git/index
+	touch git_version.c
+	echo "const char *gitversion = \"$(shell git rev-parse HEAD)\";" > $@
 
 clean:
 	rm -f ${EXES} *.o *.exe *.a test_add bridge *.so* integration_test

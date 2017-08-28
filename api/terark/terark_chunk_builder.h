@@ -88,6 +88,7 @@ namespace terark {
 		Status EmptyTableFinish();
 
 		Status ZipValueToFinish(std::function<void()> waitIndex);
+		void   BuildReorderMap(TerarkIndex* index, KeyValueStatus& kvs);
 		Status WriteStore(TerarkIndex* index, BlobStore* store,
 						  KeyValueStatus& kvs, std::function<void(const void*, size_t)> write,
 						  TerarkBlockHandle& dataBlock);
@@ -118,6 +119,7 @@ namespace terark {
 		FileWriter file_writer_;
 		FileStream tmpDumpFile_;
 		AutoDeleteFile tmpIndexFile_;
+		AutoDeleteFile tmpReorderFile_;
 		AutoDeleteFile tmpStoreFile_;
 		std::mt19937_64 randomGenerator_;
 		uint64_t sampleUpperBound_;
