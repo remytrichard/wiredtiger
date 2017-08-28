@@ -10,6 +10,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <cstring>
+#include <unistd.h>
 
 #include <fstream>
 #include <iostream>
@@ -108,6 +109,8 @@ int main() {
 			c->insert(c);
 		}
 		printf("insert done\n");
+		printf("sleep 30s\n");
+		sleep(30);
 		printf("start search...\n");
 		{
 			//c->reset(c);
@@ -122,6 +125,7 @@ int main() {
 				c->get_value(c, &value);
 				ret = memcmp(value, di.second.c_str(), strlen(value));
 				assert(ret == 0);
+				printf("key %s done\n", di.first.c_str());
 			}
 		}
 		std::cout << "\n\nTest Case Passed!\n\n";

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "wiredtiger.h"
+
 #include <terark/io/DataIO.hpp>
 #include <terark/io/FileStream.hpp>
 #include <terark/io/StreamBuffer.hpp>
@@ -42,6 +44,12 @@ namespace terark {
 	using terark::OutputBuffer;
 	using terark::LittleEndianDataInput;
 	using terark::LittleEndianDataOutput;
+
+	class Iterator;
+	struct wt_terark_cursor {
+		WT_CURSOR iface;
+		Iterator* iter;
+	};
 
 	template<class T>
 		inline unique_ptr<T> UniquePtrOf(T* p) { return unique_ptr<T>(p); }

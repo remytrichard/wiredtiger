@@ -18,6 +18,7 @@
 // project header
 #include "terark_adaptor.h"
 #include "terark_chunk_manager.h"
+#include "terark_zip_common.h"
 #include "terark_zip_config.h"
 #include "terark_chunk_builder.h"
 #include "terark_chunk_reader.h"
@@ -67,10 +68,10 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 					const char *uri, WT_CONFIG_ARG *config, WT_CURSOR **new_cursor) {
 	// Allocate and initialize a WiredTiger cursor.
-	WT_CURSOR *cursor;
-	if ((cursor = (WT_CURSOR*)calloc(1, sizeof(*cursor))) == NULL)
+	terark::wt_terark_cursor *terark_cursor;
+	if ((terark_cursor = ((terark::wt_terark_cursor*)calloc(1, sizeof(*terark_cursor)))) == NULL)
 		return (errno);
-
+	WT_CURSOR *cursor = (WT_CURSOR*)&terark_cursor->iface;
 	/*
 	 * TBD(kg): Configure local cursor information.
 	 */
@@ -90,6 +91,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		cursor->close = trk_reader_cursor_close;
 		// read iterator
 		terark::Iterator* iter = chunk_manager->NewIterator(path, uri);
+		terark_cursor->iter = iter;
 		chunk_manager->AddIterator(cursor, iter);
 	} else {
 		printf("\nopen cursor for build: %s\n", uri);
@@ -152,8 +154,9 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 
 int trk_reader_cursor_close(WT_CURSOR *cursor) {
 	printf("\nreader cursor close: %s, %d\n", cursor->uri, ++cur_stats[cursor->uri + std::string("_closed")]);
-	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
-	chunk_manager->RemoveIterator(cursor);
+	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	//chunk_manager->RemoveIterator(cursor);
+	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	delete iter;
 	return (0);
 }
@@ -179,7 +182,8 @@ static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
  * just after key is set ? 
  */
 int trk_cursor_next(WT_CURSOR *cursor) {
-	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->Next();
 	if (!iter->Valid()) {
 		printf("to the end: %s\n", cursor->uri);
@@ -190,7 +194,8 @@ int trk_cursor_next(WT_CURSOR *cursor) {
 }
 
 int trk_cursor_prev(WT_CURSOR *cursor) {
-	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->Prev();
 	if (!iter->Valid()) {
 		return WT_NOTFOUND;
@@ -200,7 +205,8 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 }
 
 int trk_reader_cursor_reset(WT_CURSOR *cursor) {
-	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->SetInvalid();
 	return (0);
 }
@@ -209,7 +215,8 @@ int trk_builder_cursor_reset(WT_CURSOR *cursor) {
 }
 
 int trk_cursor_search(WT_CURSOR *cursor) {
-	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->SeekExact(terark::Slice((const char*)cursor->key.data, cursor->key.size));
 	if (!iter->Valid()) {
 		return WT_NOTFOUND;
@@ -230,7 +237,8 @@ int trk_cursor_search(WT_CURSOR *cursor) {
 
 int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	printf("search near entered: %s\n", cursor->uri);
-	terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
+	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	terark::Slice key = iter->key();
 	WT_ITEM* kbuf = &cursor->key;
 	WT_ITEM* vbuf = &cursor->value;
