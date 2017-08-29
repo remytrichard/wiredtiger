@@ -66,7 +66,7 @@ namespace terark {
 		}
 
 		void RemoveReader(const std::string& fname) {
-			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			// remove related cursor
 			auto siter = cursor_set_.begin();
 			while (siter != cursor_set_.end()) {
@@ -88,13 +88,13 @@ namespace terark {
 		}
 
 		void AddIterator(WT_CURSOR* cursor) {
-			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
 			assert(cursor != nullptr);
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			cursor_set_.insert(cursor);
 		}
 		void RemoveIterator(WT_CURSOR* cursor) {
 			assert(cursor != nullptr);
-			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			cursor_set_.erase(cursor);
 			Iterator* iter = ((wt_terark_cursor*)cursor)->iter;
 			delete iter;
@@ -116,11 +116,11 @@ namespace terark {
 
 	private:
 		void AddReader(const std::string& fname, TerarkChunkReader* reader) {
-			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			reader_dict_[fname] = reader;
 		}
 		TerarkChunkReader* GetReader(const std::string& fname) {
-			std::lock_guard<boost::detail::spinlock> lock(dict_s_);
+			std::unique_lock<std::recursive_mutex> lock(dict_m_);
 			return reader_dict_[fname];
 		}
 
@@ -132,7 +132,7 @@ namespace terark {
 		std::map<std::string, TerarkChunkBuilder*> builder_dict_;
 		std::map<std::string, TerarkChunkReader*> reader_dict_;
 		std::set<WT_CURSOR*>      cursor_set_;
-		boost::detail::spinlock dict_s_;
+		std::recursive_mutex dict_m_;
 	};
 
 

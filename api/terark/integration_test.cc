@@ -69,6 +69,23 @@ void test_search_near(WT_CURSOR* c) {
 		assert(ret == 0);
 		printf("key %s done\n", low_key.c_str());
 	}
+	printf("exact == 1 done\n");
+
+	{
+		const char *key = "10000000000000999999", *value;
+		c->set_key(c, key);
+		int ret = c->search_near(c, &exact);
+		assert(exact == -1);
+		printf("exact == -1 done\n");
+	}
+
+	{
+		const char *key = "0000000000000999975", *value;
+        c->set_key(c, key);
+        int ret = c->search_near(c, &exact);
+        assert(exact == 0);
+		printf("exact == 0 done\n");
+	}
 }
 
 void test_search(WT_CURSOR* c) {
