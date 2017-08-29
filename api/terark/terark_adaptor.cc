@@ -154,7 +154,6 @@ int trk_builder_cursor_close(WT_CURSOR *cursor) {
 
 int trk_reader_cursor_close(WT_CURSOR *cursor) {
 	printf("\nreader cursor close: %s, %d\n", cursor->uri, ++cur_stats[cursor->uri + std::string("_closed")]);
-	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	chunk_manager->RemoveIterator(cursor);
 	return (0);
 }
@@ -175,16 +174,10 @@ static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
 }
 
 // only reader will use the following cursor-ops
-/*
- * TBD(kg): what if next() is called after a search()? Or
- * just after key is set ? 
- */
 int trk_cursor_next(WT_CURSOR *cursor) {
-	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->Next();
 	if (!iter->Valid()) {
-		printf("to the end: %s\n", cursor->uri);
 		return WT_NOTFOUND;
 	}
 	set_kv(iter, cursor);
@@ -192,7 +185,6 @@ int trk_cursor_next(WT_CURSOR *cursor) {
 }
 
 int trk_cursor_prev(WT_CURSOR *cursor) {
-	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->Prev();
 	if (!iter->Valid()) {
@@ -203,7 +195,6 @@ int trk_cursor_prev(WT_CURSOR *cursor) {
 }
 
 int trk_reader_cursor_reset(WT_CURSOR *cursor) {
-	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->SetInvalid();
 	return (0);
@@ -213,7 +204,6 @@ int trk_builder_cursor_reset(WT_CURSOR *cursor) {
 }
 
 int trk_cursor_search(WT_CURSOR *cursor) {
-	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->SeekExact(terark::Slice((const char*)cursor->key.data, cursor->key.size));
 	if (!iter->Valid()) {
@@ -235,18 +225,15 @@ int trk_cursor_search(WT_CURSOR *cursor) {
 
 int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	printf("search near entered: %s\n", cursor->uri);
-	//terark::Iterator* iter = chunk_manager->GetIterator(cursor);
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
-	terark::Slice key = iter->key();
 	WT_ITEM* kbuf = &cursor->key;
 	WT_ITEM* vbuf = &cursor->value;
-	// TBD(kg): seek near should be provided
 	iter->Seek(terark::Slice((const char*)kbuf->data, kbuf->size));
 	if (!iter->Valid()) { // target > last elem
 		iter->SeekToLast();
 		*exactp = -1;
-	} else if (key.size() == kbuf->size &&
-			memcmp(key.data(), kbuf->data, key.size()) == 0) {
+	} else if (iter->key().size() == kbuf->size &&
+			   memcmp(iter->key().data(), kbuf->data, iter->key().size()) == 0) {
 		*exactp = 0;
 	} else {
 		*exactp = 1;

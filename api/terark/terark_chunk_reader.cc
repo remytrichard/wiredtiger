@@ -48,7 +48,8 @@ namespace terark {
 			: chunk_(chunk), commonPrefix_(commonPrefix) {
 			//iter_.reset(chunk_->index_->NewIterator()); 
 			//iter_->SetInvalid();
-			reseted_ = false;
+			reset_ = true;
+			seek_exact_prev_ = false;
 			status_ = Status::NotFound();
 		}
 		~TerarkChunkIterator() {}
@@ -60,17 +61,20 @@ namespace terark {
 			}
 		}
 		void SeekToFirst() {
-			reseted_ = false;
+			reset_ = false;
+			seek_exact_prev_ = false;
 			lazyCreateIter();
 			UnzipIterRecord(iter_->SeekToFirst());
 		}
 		void SeekToLast() {
-			reseted_ = false;
+			reset_ = false;
+			seek_exact_prev_ = false;
 			lazyCreateIter();
 			UnzipIterRecord(iter_->SeekToLast());
 		}
 		void Seek(const Slice& target) {
-			reseted_ = false;
+			reset_ = false;
+			seek_exact_prev_ = false;
 			size_t clen = fstringOf(target).commonPrefixLen(commonPrefix_);
 			if (clen != commonPrefix_.length()) {
 				status_ = Status::NotFound();
@@ -79,12 +83,12 @@ namespace terark {
 			lazyCreateIter();
 			UnzipIterRecord(iter_->Seek(fstringOf(target).substr(clen)));
 		}
-		//void SeekForPrev(const Slice&);
+
 		void SeekExact(const Slice&);
 		void Next();
 		void Prev();
 
-		void SetInvalid() { reseted_ = true; }
+		void SetInvalid() { reset_ = true; keyBuf_.clear(); }
 		Slice key() const {
 			assert(status_.ok());
 			return SliceOf(keyBuf_);
@@ -99,7 +103,8 @@ namespace terark {
 	protected:
 		TerarkChunkReader* chunk_;
 		std::unique_ptr<TerarkIndex::Iterator> iter_;
-		bool  reseted_;
+		bool  reset_;
+		bool  seek_exact_prev_;
 		std::string commonPrefix_;
 		valvec<byte_t>          keyBuf_;
 		valvec<byte_t>          valueBuf_;
@@ -107,7 +112,8 @@ namespace terark {
 	};
 
 	void TerarkChunkIterator::SeekExact(const Slice& target) {
-		reseted_ = false;
+		reset_ = false;
+		seek_exact_prev_ = true;
 		size_t clen = fstringOf(target).commonPrefixLen(commonPrefix_);
 		if (clen != commonPrefix_.length()) {
 			printf("commonPrefix error, target %*s, commonPrefix %s\n",
@@ -117,7 +123,6 @@ namespace terark {
 		}
 		size_t recId = chunk_->index_->Find(fstringOf(target).substr(clen));
 		if (recId == std::string::npos) {
-			//printf("target not found: %*s\n", target.size(), target.data());
 			status_ = Status::NotFound();
 			return;
 		}
@@ -136,13 +141,19 @@ namespace terark {
 	 * If the WT_CURSOR::next method is called on a cursor without 
 	 * a position in the data source, it is positioned at the beginning 
 	 * of the data source.
+	 * SeekExact() -> Next()
+	 * Seek() -> SeekExact() -> Next()
 	 */
 	void TerarkChunkIterator::Next() {
-		if (reseted_) {
+		if (reset_) {
 			SeekToFirst();
-			reseted_ = false;
+			reset_ = false;
 			return;
+		} else if (seek_exact_prev_) {
+			Seek(SliceOf(keyBuf_));
+			// if key != prevKey, next is just invalid...
 		}
+		seek_exact_prev_ = false;
 		assert(iter_->Valid());
 		UnzipIterRecord(iter_->Next());
 	}
@@ -153,11 +164,14 @@ namespace terark {
 	 * of the data source.
 	 */
 	void TerarkChunkIterator::Prev() {
-		if (reseted_) {
+		if (reset_) {
 			SeekToLast();
-			reseted_ = false;
+			reset_ = false;
 			return;
+		} else if (seek_exact_prev_) {
+			Seek(SliceOf(keyBuf_));
 		}
+		seek_exact_prev_ = false;
 		assert(iter_->Valid());
 		UnzipIterRecord(iter_->Prev());
 	}
