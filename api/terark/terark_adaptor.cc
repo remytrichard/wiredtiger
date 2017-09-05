@@ -57,6 +57,7 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	terark::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
 	
+	// don't ask me why...
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
 	int ret = wt_api->metadata_insert(wt_api, session, uri, sconfig);
 	assert(ret == 0);
@@ -64,7 +65,40 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	return (0);
 }
 
-// can we open multi times on one data-source ? how many diff cursors can we get ?
+static void parse_cursor_config(WT_SESSION *session, const char* uri, WT_CURSOR *cursor) {
+	WT_CONNECTION *conn = session->connection;
+	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
+	char* config = nullptr;
+	WT_CONFIG_ITEM key_item, value_item;
+
+#define WT_GOTO(a) do {            \
+		int __ret;                 \
+		if ((__ret = (a)) != 0)    \
+			goto defaults;         \
+	} while (0)
+	
+	size_t pos = uri.find_last_of('-');
+	std::string name;
+	if (pos != std::string::npos) {
+		name = uri.substr(0, pos);
+	} else {
+		goto defaults;
+	}
+	WT_GOTO(wt_api->metadata_search(wt_api, session, name.c_str(), &config));
+	printf("config value: %s\n", config);
+	WT_GOTO(wt_api->config_get_string(wt_api, session, config, "key_format", &key_item));
+	WT_GOTO(wt_api->config_get_string(wt_api, session, config, "value_format", &value_item));
+
+	cursor->key_format = key_item.str;
+	cursor->value_format = value_item.str;
+	
+	if (0) {
+ defaults:
+	 	cursor->key_format = "S";
+		cursor->value_format = "S";
+	}
+}
+
 int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 					const char *uri, WT_CONFIG_ARG *config, WT_CURSOR **new_cursor) {
 	// Allocate and initialize a WiredTiger cursor.
@@ -72,9 +106,12 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	if ((terark_cursor = ((terark::wt_terark_cursor*)calloc(1, sizeof(*terark_cursor)))) == NULL)
 		return (errno);
 	WT_CURSOR *cursor = (WT_CURSOR*)&terark_cursor->iface;
+
 	/*
-	 * TBD(kg): Configure local cursor information.
+	 * TBD(kg): Configure local cursor information. how can we get related lsm-info
+	 * where key_format & value_format is stored ?
 	 */
+	//parse_cursor_config(session, uri, cursor);
 	cursor->key_format = "S";
 	cursor->value_format = "S";
 	cursor->uri = uri;
