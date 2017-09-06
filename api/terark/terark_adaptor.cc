@@ -45,9 +45,19 @@ static inline std::string ComposePath(WT_CONNECTION *conn, const std::string& ur
 	}
 }
 
+static inline std::string ComposeLSMName(const std::string& uri) {
+	size_t start_pos = uri.find(":");
+	size_t end_pos = uri.find_last_of("-");
+	if (start_pos == std::string::npos ||
+		end_pos == std::string::npos) {
+		return "";
+	}
+	std::string sub = uri.substr(start_pos + 1, end_pos - start_pos - 1);
+	return "lsm:" + sub;
+}
+
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
-	const char* sconfig = ((const char**)config)[0]; // session create config
 	const terark::Comparator* comparator = terark::GetBytewiseComparator();
 	terark::TerarkTableBuilderOptions builder_options(*comparator);
 
@@ -57,15 +67,19 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	terark::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
 	
-	// don't ask me why...
+	// change from terark:bucket-000031.trk to lsm:bucket before insert to meta table
+	char* sconfig = nullptr;
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
-	int ret = wt_api->metadata_insert(wt_api, session, uri, sconfig);
+	std::string lsm_name = ComposeLSMName(uri);
+	assert(lsm_name.length() > 0);
+	int ret = wt_api->metadata_search(wt_api, session, lsm_name.c_str(), &sconfig);
 	assert(ret == 0);
+	wt_api->metadata_insert(wt_api, session, uri, sconfig);
 
 	return (0);
 }
 
-static void parse_cursor_config(WT_SESSION *session, const char* uri, WT_CURSOR *cursor) {
+static void parse_cursor_config(WT_SESSION *session, const char *uri, WT_CURSOR *cursor) {
 	WT_CONNECTION *conn = session->connection;
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
 	char* config = nullptr;
@@ -76,21 +90,14 @@ static void parse_cursor_config(WT_SESSION *session, const char* uri, WT_CURSOR 
 		if ((__ret = (a)) != 0)    \
 			goto defaults;         \
 	} while (0)
-	
-	size_t pos = uri.find_last_of('-');
-	std::string name;
-	if (pos != std::string::npos) {
-		name = uri.substr(0, pos);
-	} else {
-		goto defaults;
-	}
-	WT_GOTO(wt_api->metadata_search(wt_api, session, name.c_str(), &config));
-	printf("config value: %s\n", config);
+
+	std::string lsm_name = ComposeLSMName(uri);
+	WT_GOTO(wt_api->metadata_search(wt_api, session, lsm_name.c_str(), &config));
 	WT_GOTO(wt_api->config_get_string(wt_api, session, config, "key_format", &key_item));
 	WT_GOTO(wt_api->config_get_string(wt_api, session, config, "value_format", &value_item));
-
-	cursor->key_format = key_item.str;
-	cursor->value_format = value_item.str;
+	
+	terark::wt_strndup(key_item.str, key_item.len, &cursor->key_format);
+	terark::wt_strndup(value_item.str, value_item.len, &cursor->value_format);
 	
 	if (0) {
  defaults:
@@ -107,24 +114,19 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		return (errno);
 	WT_CURSOR *cursor = (WT_CURSOR*)&terark_cursor->iface;
 
-	/*
-	 * TBD(kg): Configure local cursor information. how can we get related lsm-info
-	 * where key_format & value_format is stored ?
-	 */
-	//parse_cursor_config(session, uri, cursor);
-	cursor->key_format = "S";
-	cursor->value_format = "S";
+	// update cursor format
+	parse_cursor_config(session, uri, cursor);
 	cursor->uri = uri;
 
 	// set cursor-ops based on builder/reader
 	std::string path = ComposePath(session->connection, uri);
 	if (chunk_manager->IsChunkExist(path, uri)) {
 		printf("\nopen cursor for read: %s, cnt %d\n", uri, ++cur_stats[uri + std::string("_opened")]);
-		cursor->next = trk_cursor_next;
-		cursor->prev = trk_cursor_prev;
+		cursor->next = trk_reader_cursor_next;
+		cursor->prev = trk_reader_cursor_prev;
 		cursor->reset = trk_reader_cursor_reset;
-		cursor->search = trk_cursor_search;
-		cursor->search_near = trk_cursor_search_near;
+		cursor->search = trk_reader_cursor_search;
+		cursor->search_near = trk_reader_cursor_search_near;
 		cursor->close = trk_reader_cursor_close;
 		// read iterator
 		terark::Iterator* iter = chunk_manager->NewIterator(path, uri);
@@ -133,7 +135,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	} else {
 		printf("\nopen cursor for build: %s\n", uri);
 		cursor->reset = trk_builder_cursor_reset;
-		cursor->insert = trk_cursor_insert;
+		cursor->insert = trk_builder_cursor_insert;
 		cursor->close = trk_builder_cursor_close;
 	}
 
@@ -172,7 +174,7 @@ int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONF
 }
 
 
-int trk_cursor_insert(WT_CURSOR *cursor) {
+int trk_builder_cursor_insert(WT_CURSOR *cursor) {
 	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
 	builder->Add(terark::Slice((const char*)cursor->value.data, cursor->value.size));
 	return (0);
@@ -195,6 +197,12 @@ int trk_reader_cursor_close(WT_CURSOR *cursor) {
 	return (0);
 }
 
+/*
+ * checkout src/cursor/cur_ds.c:__curds_cursor_resolve(), which requires
+ * the underlying data-source never returns with the cursor/source key referencing
+ * application memory, it'd be great to do a copy as necessary.
+ * However, i haven't found where free() is called hence no copy here at least now
+ */
 static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
 	{
 		WT_ITEM* buf = &cursor->key;
@@ -211,7 +219,7 @@ static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
 }
 
 // only reader will use the following cursor-ops
-int trk_cursor_next(WT_CURSOR *cursor) {
+int trk_reader_cursor_next(WT_CURSOR *cursor) {
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->Next();
 	if (!iter->Valid()) {
@@ -221,7 +229,7 @@ int trk_cursor_next(WT_CURSOR *cursor) {
 	return (0);
 }
 
-int trk_cursor_prev(WT_CURSOR *cursor) {
+int trk_reader_cursor_prev(WT_CURSOR *cursor) {
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->Prev();
 	if (!iter->Valid()) {
@@ -240,7 +248,7 @@ int trk_builder_cursor_reset(WT_CURSOR *cursor) {
 	return (0);
 }
 
-int trk_cursor_search(WT_CURSOR *cursor) {
+int trk_reader_cursor_search(WT_CURSOR *cursor) {
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	iter->SeekExact(terark::Slice((const char*)cursor->key.data, cursor->key.size));
 	if (!iter->Valid()) {
@@ -260,7 +268,7 @@ int trk_cursor_search(WT_CURSOR *cursor) {
 	return (0);
 }
 
-int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
+int trk_reader_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	printf("search near entered: %s\n", cursor->uri);
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	WT_ITEM* kbuf = &cursor->key;

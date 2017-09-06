@@ -30,10 +30,10 @@ extern "C" {
 	
 
 	// Return the next record.
-	int trk_cursor_next(WT_CURSOR *cursor);
+	int trk_reader_cursor_next(WT_CURSOR *cursor);
 
 	// Return the previous record.
-	int trk_cursor_prev(WT_CURSOR *cursor);
+	int trk_reader_cursor_prev(WT_CURSOR *cursor);
 
 	/*!
 	 * Reset the cursor. Any resources held by the cursor are released,
@@ -55,7 +55,7 @@ extern "C" {
 	 * called as soon as the record has been retrieved and the cursor no
 	 * longer needs that position.
 	 */
-	int trk_cursor_search(WT_CURSOR *cursor);
+	int trk_reader_cursor_search(WT_CURSOR *cursor);
 
 	/*!
 	 * Return the record matching the key if it exists, or an adjacent
@@ -74,7 +74,7 @@ extern "C" {
 	 * found, < 0 if a smaller key is returned, > 0 if a larger key is
 	 * returned
 	 */
-	int trk_cursor_search_near(WT_CURSOR *cursor, int *exactp);
+	int trk_reader_cursor_search_near(WT_CURSOR *cursor, int *exactp);
 
 	/*!
 	 * Insert a record and optionally update an existing record.
@@ -124,7 +124,7 @@ extern "C" {
 	 * ::WT_CACHE_FULL is returned.
 	 * ---------------------------------------------------------------------
 	 */
-	int trk_cursor_insert(WT_CURSOR *cursor);
+	int trk_builder_cursor_insert(WT_CURSOR *cursor);
 
 	/*!
 	 * Close the cursor.

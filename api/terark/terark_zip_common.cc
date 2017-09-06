@@ -80,6 +80,25 @@ namespace terark {
 #endif
 	}
 
+	int wt_strndup(const void *str, size_t len, void *retp) {
+		void *p;
+		if (str == NULL) {
+			*(void **)retp = NULL;
+			return (0);
+		}
+
+		p = malloc(len + 1);
+		/*
+		 * Don't change this to strncpy, we rely on this function to duplicate
+		 * "strings" that contain nul bytes.
+		 */
+		memcpy(p, str, len);
+		((uint8_t *)p)[len] = '\0';
+
+		*(void **)retp = p;
+		return (0);
+	}
+
 	void AutoDeleteFile::Delete() {
 		::remove(fpath.c_str());
 		fpath.clear();

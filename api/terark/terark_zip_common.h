@@ -86,6 +86,12 @@ namespace terark {
 		return ByteArrayView(x.data() + pos, x.size() - pos);
 	}
 
+	/*
+	 * wt_strndup -- (from src/os_common/os_alloc.c)
+	 *  Duplicate a byte string of a given length (and NUL-terminate).
+	 */
+	int wt_strndup(const void *str, size_t len, void *retp);
+
 	class AutoDeleteFile {
 	public:
 		std::string fpath;

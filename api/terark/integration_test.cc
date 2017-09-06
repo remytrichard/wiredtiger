@@ -23,7 +23,7 @@
 // project header
 #include "terark_adaptor.h"
 
-bool g_search_near = true;
+bool g_search_near = false;
 void InitTerark() {
 	const char* config = "trk_localTempDir=./temp,"
 		"trk_indexNestLevel=2,"
@@ -121,18 +121,18 @@ int main() {
 	ret = conn->open_session(conn, NULL, NULL, &session);
 
 	static WT_DATA_SOURCE trk_dsrc = {
-		NULL, //__wt_lsm_tree_alter, //my_alter,
+		NULL, //__wt_lsm_tree_alter
 		trk_create,
-		NULL, //__wt_lsm_compact, //NULL, //my_compact,
-		trk_drop, //__wt_lsm_tree_drop, //NULL, //my_drop,
+		NULL, //__wt_lsm_compact
+		trk_drop, //__wt_lsm_tree_drop
 		trk_open_cursor,
-		NULL, //__wt_lsm_tree_rename, //NULL, //my_rename,
-		NULL, //my_salvage,
-		NULL, //__wt_lsm_tree_truncate, //NULL, //my_truncate,
-		NULL, //my_range_truncate,
-		NULL, //my_verify,
-		NULL, //my_checkpoint,
-		NULL,  //my_terminate
+		NULL, //__wt_lsm_tree_rename
+		NULL, //__wt_lsm_tree_salvage
+		NULL, //__wt_lsm_tree_truncate
+		NULL, //__wt_lsm_range_truncate
+		NULL, //__wt_lsm__verify
+		NULL, //__wt_lsm_checkpoint
+		NULL,  //__wt_lsm_terminate
 		trk_pre_merge
 	};
 	
