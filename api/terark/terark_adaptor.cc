@@ -68,6 +68,7 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	chunk_manager->AddBuilder(uri, builder);
 	
 	// change from terark:bucket-000031.trk to lsm:bucket before insert to meta table
+	// during cur_ds:open_cursor, such config will be used
 	char* sconfig = nullptr;
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
 	std::string lsm_name = ComposeLSMName(uri);
@@ -117,6 +118,7 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	// update cursor format
 	parse_cursor_config(session, uri, cursor);
 	cursor->uri = uri;
+	cursor->session = session;
 
 	// set cursor-ops based on builder/reader
 	std::string path = ComposePath(session->connection, uri);
@@ -215,6 +217,16 @@ static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
 		terark::Slice value = iter->value();
 		buf->size = value.size();
 		buf->data = value.data();
+	}
+	{
+		const char* fmt = cursor->key_format;
+		if (fmt[0] == 'r' && fmt[1] == '\0') {
+			WT_CONNECTION *conn = cursor->session->connection;
+			WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
+			WT_ITEM* buf = &cursor->value;
+			wt_api->struct_unpack(wt_api, cursor->session, buf->data,
+								  buf->size, "r", &cursor->recno);
+		}
 	}
 }
 

@@ -95,9 +95,13 @@ namespace terark {
 		void RemoveIterator(WT_CURSOR* cursor) {
 			assert(cursor != nullptr);
 			std::unique_lock<std::recursive_mutex> lock(dict_m_);
-			cursor_set_.erase(cursor);
-			Iterator* iter = ((wt_terark_cursor*)cursor)->iter;
-			delete iter;
+			if (!cursor->uri || !GetReader(cursor->uri)) {
+                return;
+            } else {
+                cursor_set_.erase(cursor);
+                Iterator* iter = ((wt_terark_cursor*)cursor)->iter;
+                delete iter;
+            }
 		}
 
 	public:
