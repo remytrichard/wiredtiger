@@ -30,7 +30,6 @@ namespace terark {
 	}
 	template<class Vec>
 	static void MmapWarmUp(const Vec& uv) {
-		// TBD(kg): uv.data(), uv.mem_size() ?
 		MmapWarmUpBytes(uv.memory.data(), uv.memory.size());
 	}
 }
@@ -88,7 +87,7 @@ namespace terark {
 		void Next();
 		void Prev();
 
-		void SetInvalid() { reset_ = true; keyBuf_.clear(); }
+		void SetInvalid() { reset_ = true; keyBuf_.clear(); valueBuf_.clear(); }
 		Slice key() const {
 			assert(status_.ok());
 			return SliceOf(keyBuf_);

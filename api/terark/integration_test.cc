@@ -138,8 +138,8 @@ int main() {
 	
 	ret = conn->add_data_source(conn, "terark:", &trk_dsrc, NULL);
 
-	ret = conn->configure_method(conn,
-								 "WT_SESSION.open_cursor", NULL, "collator=", "string", NULL);
+	//ret = conn->configure_method(conn,
+	//							 "WT_SESSION.open_cursor", NULL, "collator=", "string", NULL);
 	InitTerark();
 
 	{

@@ -67,14 +67,10 @@ int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 	terark::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
 	
-	// change from terark:bucket-000031.trk to lsm:bucket before insert to meta table
+	// insert config into metatable
 	// during cur_ds:open_cursor, such config will be used
-	char* sconfig = nullptr;
+	char* sconfig = ((char**)config)[0];
 	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
-	std::string lsm_name = ComposeLSMName(uri);
-	assert(lsm_name.length() > 0);
-	int ret = wt_api->metadata_search(wt_api, session, lsm_name.c_str(), &sconfig);
-	assert(ret == 0);
 	wt_api->metadata_insert(wt_api, session, uri, sconfig);
 
 	return (0);
@@ -92,8 +88,7 @@ static void parse_cursor_config(WT_SESSION *session, const char *uri, WT_CURSOR 
 			goto defaults;         \
 	} while (0)
 
-	std::string lsm_name = ComposeLSMName(uri);
-	WT_GOTO(wt_api->metadata_search(wt_api, session, lsm_name.c_str(), &config));
+	WT_GOTO(wt_api->metadata_search(wt_api, session, uri, &config));
 	WT_GOTO(wt_api->config_get_string(wt_api, session, config, "key_format", &key_item));
 	WT_GOTO(wt_api->config_get_string(wt_api, session, config, "value_format", &value_item));
 	
@@ -102,8 +97,8 @@ static void parse_cursor_config(WT_SESSION *session, const char *uri, WT_CURSOR 
 	
 	if (0) {
  defaults:
-	 	cursor->key_format = "S";
-		cursor->value_format = "S";
+	 	cursor->key_format = "u";
+		cursor->value_format = "u";
 	}
 }
 
@@ -219,14 +214,12 @@ static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
 		buf->data = value.data();
 	}
 	{
-		const char* fmt = cursor->key_format;
-		if (fmt[0] == 'r' && fmt[1] == '\0') {
-			WT_CONNECTION *conn = cursor->session->connection;
-			WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
-			WT_ITEM* buf = &cursor->value;
-			wt_api->struct_unpack(wt_api, cursor->session, buf->data,
-								  buf->size, "r", &cursor->recno);
-		}
+		// not sure if such unpack is appropriate here
+		WT_CONNECTION *conn = cursor->session->connection;
+		WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
+		WT_ITEM* buf = &cursor->value;
+		wt_api->struct_unpack(wt_api, cursor->session, buf->data,
+							  buf->size, "r", &cursor->recno);
 	}
 }
 

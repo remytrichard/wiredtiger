@@ -1,6 +1,7 @@
 #pragma once
 
 #include "wiredtiger.h"
+#include "wiredtiger_ext.h"
 
 #include <terark/io/DataIO.hpp>
 #include <terark/io/FileStream.hpp>
@@ -90,6 +91,7 @@ namespace terark {
 	 * wt_strndup -- (from src/os_common/os_alloc.c)
 	 *  Duplicate a byte string of a given length (and NUL-terminate).
 	 */
+	extern WT_EXTENSION_API* wt_api;
 	int wt_strndup(const void *str, size_t len, void *retp);
 
 	class AutoDeleteFile {

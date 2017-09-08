@@ -21,6 +21,8 @@
 
 namespace terark {
 
+	WT_EXTENSION_API* wt_api = nullptr;
+
 	uint64_t ReadUint64(const byte_t* beg, const byte_t* end) {
 		assert(end - beg <= 8);
 		union {
