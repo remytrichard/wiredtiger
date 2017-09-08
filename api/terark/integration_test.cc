@@ -24,18 +24,6 @@
 #include "terark_adaptor.h"
 
 bool g_search_near = false;
-void InitTerark() {
-	const char* config = "trk_localTempDir=./temp,"
-		"trk_indexNestLevel=2,"
-		"trk_indexCacheRatio=0.005,"
-		"trk_smallTaskMemory=1G,"
-		"trk_softZipWorkingMemLimit=16G,"
-		"trk_hardZipWorkingMemLimit=32G,"
-		"trk_minDictZipValueSize=1024,"
-		"trk_offsetArrayBlockUnits=128,"
-		"trk_max_background_flushes=4";
-	trk_init(config);
-}
 
 std::map<std::string, std::string> dict;
 void InitDict() {
@@ -115,32 +103,10 @@ int main() {
     } else {
 		home = NULL;
 	}
-	
+
 	WT_CONNECTION *conn;
 	ret = wiredtiger_open(home, NULL, "create", &conn);
 	ret = conn->open_session(conn, NULL, NULL, &session);
-
-	static WT_DATA_SOURCE trk_dsrc = {
-		NULL, //__wt_lsm_tree_alter
-		trk_create,
-		NULL, //__wt_lsm_compact
-		trk_drop, //__wt_lsm_tree_drop
-		trk_open_cursor,
-		NULL, //__wt_lsm_tree_rename
-		NULL, //__wt_lsm_tree_salvage
-		NULL, //__wt_lsm_tree_truncate
-		NULL, //__wt_lsm_range_truncate
-		NULL, //__wt_lsm__verify
-		NULL, //__wt_lsm_checkpoint
-		NULL,  //__wt_lsm_terminate
-		trk_pre_merge
-	};
-	
-	ret = conn->add_data_source(conn, "terark:", &trk_dsrc, NULL);
-
-	//ret = conn->configure_method(conn,
-	//							 "WT_SESSION.open_cursor", NULL, "collator=", "string", NULL);
-	InitTerark();
 
 	{
 		WT_CURSOR *c;

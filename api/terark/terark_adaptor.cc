@@ -11,6 +11,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <mutex>
 
 #include "wiredtiger.h"
 #include "wiredtiger_ext.h"
@@ -23,14 +24,44 @@
 #include "terark_chunk_builder.h"
 #include "terark_chunk_reader.h"
 
+#undef	EMSG_ERR
+#define	EMSG_ERR(wt_api, session, ...) do {				\
+	(void)								\
+	    wt_api->err_printf(wt_api, session, "terark: " __VA_ARGS__);\
+	goto err;							\
+} while (0)
+
 std::map<std::string, int> cur_stats;
 
 static terark::TerarkChunkManager* chunk_manager;
-int trk_init(const char* config) {
+static std::mutex g_lock;
+static WT_EXTENSION_API *wt_api;
+int trk_init() {
+	// TBD(kg): add support for windows
+	std::unique_lock<std::mutex> lock(g_lock);
 	if (!chunk_manager) {
-		chunk_manager = new terark::TerarkChunkManager(config);
+		std::stringstream ss;
+		char* lpath = nullptr;
+		if ((lpath = getenv("WT_TERARK_HOME")) != NULL) {
+			ss << "trk_localTempDir=" << lpath << ",";
+			char op[128] = { 0 };
+			snprintf(op, sizeof(op), "mkdir %s", lpath);
+			system(op);
+		} else {
+			ss << "trk_localTempDir=" << "./terark_tmp,";
+			system("mkdir terark_tmp");
+		}
+		ss << "trk_indexNestLevel=2,";
+		ss << "trk_indexCacheRatio=0.005,";
+		ss << "trk_smallTaskMemory=1G,";
+		ss << "trk_softZipWorkingMemLimit=16G,";
+		ss << "trk_hardZipWorkingMemLimit=32G,";
+		ss << "trk_minDictZipValueSize=1024,";
+		ss << "trk_offsetArrayBlockUnits=128,";
+		ss << "trk_max_background_flushes=4";
+		chunk_manager = new terark::TerarkChunkManager(ss.str());
 	}
-	return 0;
+	return (0);
 }
 
 static inline std::string ComposePath(WT_CONNECTION *conn, const std::string& uri) {
@@ -294,3 +325,43 @@ int trk_reader_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
 	return (0);
 }
 
+/*
+ * wiredtiger_extension_init --
+ *	Initialize the Helium connector code.
+ */
+int
+wiredtiger_extension_init(WT_CONNECTION *connection, WT_CONFIG_ARG *config) {
+	// init terark manager
+	trk_init();
+	// add terark data source as extension into wt
+	static WT_DATA_SOURCE trk_dsrc = {
+		NULL, //__wt_lsm_tree_alter
+		trk_create,
+		NULL, //__wt_lsm_compact
+		trk_drop, //__wt_lsm_tree_drop
+		trk_open_cursor,
+		NULL, //__wt_lsm_tree_rename
+		NULL, //__wt_lsm_tree_salvage
+		NULL, //__wt_lsm_tree_truncate
+		NULL, //__wt_lsm_range_truncate
+		NULL, //__wt_lsm__verify
+		NULL, //__wt_lsm_checkpoint
+		NULL,  //__wt_lsm_terminate
+		trk_pre_merge
+	};
+	wt_api = connection->get_extension_api(connection);
+
+	int ret = 0;
+	if ((ret = connection->add_data_source(
+		connection, "terark:", &trk_dsrc, NULL)) != 0) {
+		EMSG_ERR(wt_api, NULL, 
+				 "WT_CONNECTION.add_data_source: %s",
+				 wt_api->strerror(wt_api, NULL, ret));
+	}
+	ret = connection->configure_method(
+		connection, "WT_SESSION.open_cursor", NULL, "collator=", "string", NULL);
+	return (0);
+
+ err:
+	return ret;
+}

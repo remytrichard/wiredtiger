@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 	//!!! BEFORE any other methods called, always call init first
-	DLL_PUBLIC int trk_init(const char* config);
+	DLL_PUBLIC int trk_init();
 
 	// Callback to create a new object.
 	DLL_PUBLIC int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
