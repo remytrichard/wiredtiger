@@ -1,0 +1,408 @@
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:316:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:131:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(8, uint8_t, uint8_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_cas8(uint8_t*, uint8_t, uint8_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:131:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(8, uint8_t, uint8_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:132:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(16, uint16_t, uint16_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_cas16(uint16_t*, uint16_t, uint16_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:132:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(16, uint16_t, uint16_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:133:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(32, uint32_t, uint32_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_cas32(uint32_t*, uint32_t, uint32_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:133:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(32, uint32_t, uint32_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:134:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(v32, uint32_t, volatile uint32_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_casv32(volatile uint32_t*, uint32_t, uint32_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:134:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(v32, uint32_t, volatile uint32_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:135:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(i32, int32_t, int32_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_casi32(int32_t*, int32_t, int32_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:135:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(i32, int32_t, int32_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:136:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(iv32, int32_t, volatile int32_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_casiv32(volatile int32_t*, int32_t, int32_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:136:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(iv32, int32_t, volatile int32_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:137:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(64, uint64_t, uint64_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_cas64(uint64_t*, uint64_t, uint64_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:137:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(64, uint64_t, uint64_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:138:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(v64, uint64_t, volatile uint64_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_casv64(volatile uint64_t*, uint64_t, uint64_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:138:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(v64, uint64_t, volatile uint64_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:139:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(i64, int64_t, int64_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_casi64(int64_t*, int64_t, int64_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:139:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(i64, int64_t, int64_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:140:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(iv64, int64_t, volatile int64_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_casiv64(volatile int64_t*, int64_t, int64_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:140:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(iv64, int64_t, volatile int64_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:126:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas##name(type *vp, type old, type new)   \
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:141:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(size, size_t, size_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_cassize(size_t*, size_t, size_t)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:128:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS(vp, old, new));    \
+          ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:141:1: 附注：in expansion of macro ‘WT_ATOMIC_FUNC’
+ WT_ATOMIC_FUNC(size, size_t, size_t)
+ ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在全局域：
+/newssd1/zzz/wiredtiger/src/include/gcc.h:148:48: 错误：expected ‘,’ or ‘...’ before ‘new’
+ __wt_atomic_cas_ptr(void *vp, void *old, void *new)
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h: 在函数‘bool __wt_atomic_cas_ptr(void*, void*, void*)’中:
+/newssd1/zzz/wiredtiger/src/include/gcc.h:101:50: 错误：expected type-specifier before ‘)’ token
+  __sync_bool_compare_and_swap(ptr, oldval, newval)
+                                                  ^
+/newssd1/zzz/wiredtiger/src/include/gcc.h:150:10: 附注：in expansion of macro ‘WT_ATOMIC_CAS’
+  return (WT_ATOMIC_CAS((void **)vp, old, new));
+          ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:334:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/stat.h: 在函数‘int64_t __wt_stats_aggregate(void*, int)’中:
+/newssd1/zzz/wiredtiger/src/include/stat.h:96:8: 错误：从类型‘void*’到类型‘int64_t** {aka long int**}’的转换无效 [-fpermissive]
+  stats = stats_arg;
+        ^
+/newssd1/zzz/wiredtiger/src/include/stat.h: 在函数‘void __wt_stats_clear(void*, int)’中:
+/newssd1/zzz/wiredtiger/src/include/stat.h:130:8: 错误：从类型‘void*’到类型‘int64_t** {aka long int**}’的转换无效 [-fpermissive]
+  stats = stats_arg;
+        ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:374:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/cell.i: 在函数‘int __cell_data_ref(WT_SESSION_IMPL*, WT_PAGE*, int, WT_CELL_UNPACK*, WT_ITEM*)’中:
+/newssd1/zzz/wiredtiger/src/include/cell.i:769:31: 错误：从类型‘const void*’到类型‘const uint8_t* {aka const unsigned char*}’的转换无效 [-fpermissive]
+      session, huffman, store->data, store->size, store));
+                               ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:361:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/extern.h:673:12: 附注：  初始化‘int __wt_huffman_decode(WT_SESSION_IMPL*, void*, const uint8_t*, size_t, WT_ITEM*)’的实参 3
+ extern int __wt_huffman_decode(WT_SESSION_IMPL *session, void *huffman_arg, const uint8_t *from_arg, size_t from_len, WT_ITEM *to_buf) WT_GCC_FUNC_DECL_ATTRIBUTE((warn_unused_result)) WT_GCC_FUNC_DECL_ATTRIBUTE((visibility("hidden")));
+            ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:376:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/txn.i: 在函数‘int __wt_txn_modify(WT_SESSION_IMPL*, WT_UPDATE*)’中:
+/newssd1/zzz/wiredtiger/src/include/txn.i:76:6: 错误：‘WT_TXN_OP_INMEM’在此作用域中尚未声明
+      WT_TXN_OP_INMEM : WT_TXN_OP_BASIC;
+      ^
+/newssd1/zzz/wiredtiger/src/include/txn.i:76:24: 错误：‘WT_TXN_OP_BASIC’在此作用域中尚未声明
+      WT_TXN_OP_INMEM : WT_TXN_OP_BASIC;
+                        ^
+/newssd1/zzz/wiredtiger/src/include/txn.i: 在函数‘int __wt_txn_modify_ref(WT_SESSION_IMPL*, WT_REF*)’中:
+/newssd1/zzz/wiredtiger/src/include/txn.i:92:13: 错误：‘WT_TXN_OP_REF’在此作用域中尚未声明
+  op->type = WT_TXN_OP_REF;
+             ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:379:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/btree.i: 在函数‘WT_IKEY* __wt_ref_key_instantiated(WT_REF*)’中:
+/newssd1/zzz/wiredtiger/src/include/btree.i:723:47: 错误：从类型‘void*’到类型‘WT_IKEY* {aka __wt_ikey*}’的转换无效 [-fpermissive]
+  return (v & WT_IK_FLAG ? NULL : ref->ref_ikey);
+                                               ^
+/newssd1/zzz/wiredtiger/src/include/btree.i: 在函数‘bool __wt_row_leaf_key_info(WT_PAGE*, void*, WT_IKEY**, WT_CELL**, void*, size_t*)’中:
+/newssd1/zzz/wiredtiger/src/include/btree.i:837:11: 错误：从类型‘void*’到类型‘WT_CELL* {aka __wt_cell*}’的转换无效 [-fpermissive]
+    *cellp =
+           ^
+/newssd1/zzz/wiredtiger/src/include/btree.i:870:7: 错误：从类型‘void*’到类型‘WT_IKEY* {aka __wt_ikey*}’的转换无效 [-fpermissive]
+  ikey = copy;
+       ^
+/newssd1/zzz/wiredtiger/src/include/btree.i:872:10: 错误：从类型‘void*’到类型‘WT_IKEY* {aka __wt_ikey*}’的转换无效 [-fpermissive]
+   *ikeyp = copy;
+          ^
+/newssd1/zzz/wiredtiger/src/include/btree.i:874:10: 错误：从类型‘void*’到类型‘WT_CELL* {aka __wt_cell*}’的转换无效 [-fpermissive]
+   *cellp = WT_PAGE_REF_OFFSET(page, ikey->cell_offset);
+          ^
+/newssd1/zzz/wiredtiger/src/include/btree.i: 在函数‘void __wt_ref_info(WT_REF*, const uint8_t**, size_t*, u_int*)’中:
+/newssd1/zzz/wiredtiger/src/include/btree.i:1099:14: 错误：从类型‘void*’到类型‘WT_ADDR* {aka __wt_addr*}’的转换无效 [-fpermissive]
+  addr = ref->addr;
+              ^
+/newssd1/zzz/wiredtiger/src/include/btree.i:1134:20: 错误：从类型‘const void*’到类型‘const uint8_t* {aka const unsigned char*}’的转换无效 [-fpermissive]
+   *addrp = unpack->data;
+                    ^
+/newssd1/zzz/wiredtiger/src/include/btree.i: 在函数‘bool __wt_page_can_evict(WT_SESSION_IMPL*, WT_REF*, uint32_t*)’中:
+/newssd1/zzz/wiredtiger/src/include/btree.i:1304:42: 错误：‘WT_CKPT_OFF’在此作用域中尚未声明
+  if (modified && btree->checkpointing != WT_CKPT_OFF) {
+                                          ^
+/newssd1/zzz/wiredtiger/src/include/btree.i:1316:30: 错误：‘WT_CKPT_OFF’在此作用域中尚未声明
+  if (btree->checkpointing != WT_CKPT_OFF &&
+                              ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:341:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/btree.i: 在函数‘bool __wt_btree_lsm_over_size(WT_SESSION_IMPL*, uint64_t)’中:
+/newssd1/zzz/wiredtiger/src/include/btmem.h:495:11: 错误：不能在赋值时将‘__wt_page::<anonymous union>::<anonymous struct>::__wt_page_index* volatile’转换为‘WT_PAGE_INDEX* {aka __wt_page_index*}’
+  (pindex) = WT_INTL_INDEX_GET_SAFE(page);   \
+           ^
+/newssd1/zzz/wiredtiger/src/include/btree.i:1504:2: 附注：in expansion of macro ‘WT_INTL_INDEX_GET’
+  WT_INTL_INDEX_GET(session, root, pindex);
+  ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:379:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/btree.i:1505:12: 错误：对不完全的类型‘WT_PAGE_INDEX {aka struct __wt_page_index}’的非法使用
+  if (pindex->entries != 1)  /* > 1 child page, switch */
+            ^
+In file included from bridge.cc:11:0:
+/newssd1/zzz/wiredtiger/src/include/wt_internal.h:259:8: 附注：forward declaration of ‘WT_PAGE_INDEX {aka struct __wt_page_index}’
+ struct __wt_page_index;
+        ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:379:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/btree.i:1508:16: 错误：对不完全的类型‘WT_PAGE_INDEX {aka struct __wt_page_index}’的非法使用
+  first = pindex->index[0];
+                ^
+In file included from bridge.cc:11:0:
+/newssd1/zzz/wiredtiger/src/include/wt_internal.h:259:8: 附注：forward declaration of ‘WT_PAGE_INDEX {aka struct __wt_page_index}’
+ struct __wt_page_index;
+        ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:379:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/btree.i: 在函数‘void __wt_btree_lsm_switch_primary(WT_SESSION_IMPL*, bool)’中:
+/newssd1/zzz/wiredtiger/src/include/btree.i:1545:10: 错误：不能在赋值时将‘__wt_page::<anonymous union>::<anonymous struct>::__wt_page_index* volatile’转换为‘WT_PAGE_INDEX* {aka __wt_page_index*}’
+   pindex = WT_INTL_INDEX_GET_SAFE(root);
+          ^
+/newssd1/zzz/wiredtiger/src/include/btree.i:1547:13: 错误：对不完全的类型‘WT_PAGE_INDEX {aka struct __wt_page_index}’的非法使用
+       pindex->entries != 1)
+             ^
+In file included from bridge.cc:11:0:
+/newssd1/zzz/wiredtiger/src/include/wt_internal.h:259:8: 附注：forward declaration of ‘WT_PAGE_INDEX {aka struct __wt_page_index}’
+ struct __wt_page_index;
+        ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:379:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/btree.i:1549:17: 错误：对不完全的类型‘WT_PAGE_INDEX {aka struct __wt_page_index}’的非法使用
+   first = pindex->index[0];
+                 ^
+In file included from bridge.cc:11:0:
+/newssd1/zzz/wiredtiger/src/include/wt_internal.h:259:8: 附注：forward declaration of ‘WT_PAGE_INDEX {aka struct __wt_page_index}’
+ struct __wt_page_index;
+        ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:341:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/btree.i: 在函数‘bool __wt_split_descent_race(WT_SESSION_IMPL*, WT_REF*, WT_PAGE_INDEX*)’中:
+/newssd1/zzz/wiredtiger/src/include/btmem.h:495:11: 错误：不能在赋值时将‘__wt_page::<anonymous union>::<anonymous struct>::__wt_page_index* volatile’转换为‘WT_PAGE_INDEX* {aka __wt_page_index*}’
+  (pindex) = WT_INTL_INDEX_GET_SAFE(page);   \
+           ^
+/newssd1/zzz/wiredtiger/src/include/btree.i:1641:2: 附注：in expansion of macro ‘WT_INTL_INDEX_GET’
+  WT_INTL_INDEX_GET(session, ref->home, pindex);
+  ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:380:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/btree_cmp.i: 在函数‘int __wt_lex_compare(const WT_ITEM*, const WT_ITEM*)’中:
+/newssd1/zzz/wiredtiger/src/include/btree_cmp.i:40:21: 错误：从类型‘const void*’到类型‘const uint8_t* {aka const unsigned char*}’的转换无效 [-fpermissive]
+  userp = user_item->data;
+                     ^
+/newssd1/zzz/wiredtiger/src/include/btree_cmp.i:41:21: 错误：从类型‘const void*’到类型‘const uint8_t* {aka const unsigned char*}’的转换无效 [-fpermissive]
+  treep = tree_item->data;
+                     ^
+/newssd1/zzz/wiredtiger/src/include/btree_cmp.i: 在函数‘int __wt_lex_compare_short(const WT_ITEM*, const WT_ITEM*)’中:
+/newssd1/zzz/wiredtiger/src/include/btree_cmp.i:214:21: 错误：从类型‘const void*’到类型‘const uint8_t* {aka const unsigned char*}’的转换无效 [-fpermissive]
+  userp = user_item->data;
+                     ^
+/newssd1/zzz/wiredtiger/src/include/btree_cmp.i:215:21: 错误：从类型‘const void*’到类型‘const uint8_t* {aka const unsigned char*}’的转换无效 [-fpermissive]
+  treep = tree_item->data;
+                     ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:385:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/os_fhandle.i: 在函数‘int __wt_fextend(WT_SESSION_IMPL*, WT_FH*, wt_off_t)’中:
+/newssd1/zzz/wiredtiger/src/include/os_fhandle.i:54:32: 错误：expected ‘)’ before ‘PRIuMAX’
+      "%s: handle-extend: to %" PRIuMAX,
+                                ^
+/newssd1/zzz/wiredtiger/src/include/os_fhandle.i: 在函数‘int __wt_read(WT_SESSION_IMPL*, WT_FH*, wt_off_t, size_t, void*)’中:
+/newssd1/zzz/wiredtiger/src/include/os_fhandle.i:99:48: 错误：expected ‘)’ before ‘PRIuMAX’
+      "%s: handle-read: %" WT_SIZET_FMT " at %" PRIuMAX,
+                                                ^
+/newssd1/zzz/wiredtiger/src/include/os_fhandle.i: 在函数‘int __wt_ftruncate(WT_SESSION_IMPL*, WT_FH*, wt_off_t)’中:
+/newssd1/zzz/wiredtiger/src/include/os_fhandle.i:137:34: 错误：expected ‘)’ before ‘PRIuMAX’
+      "%s: handle-truncate: to %" PRIuMAX,
+                                  ^
+/newssd1/zzz/wiredtiger/src/include/os_fhandle.i: 在函数‘int __wt_write(WT_SESSION_IMPL*, WT_FH*, wt_off_t, size_t, const void*)’中:
+/newssd1/zzz/wiredtiger/src/include/os_fhandle.i:166:49: 错误：expected ‘)’ before ‘PRIuMAX’
+      "%s: handle-write: %" WT_SIZET_FMT " at %" PRIuMAX,
+                                                 ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:388:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/packing.i: 在函数‘int __pack_name_next(WT_PACK_NAME*, WT_CONFIG_ITEM*)’中:
+/newssd1/zzz/wiredtiger/src/include/packing.i:112:16: 错误：‘WT_CONFIG_ITEM_STRING’在此作用域中尚未声明
+   name->type = WT_CONFIG_ITEM_STRING;
+                ^
+/newssd1/zzz/wiredtiger/src/include/packing.i: 在函数‘size_t __pack_size(WT_SESSION_IMPL*, WT_PACK_VALUE*)’中:
+/newssd1/zzz/wiredtiger/src/include/packing.i:269:38: 错误：从类型‘const void*’到类型‘const char*’的转换无效 [-fpermissive]
+    len = __wt_json_strlen(pv->u.item.data,
+                                      ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:361:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/extern.h:301:16: 附注：  初始化‘ssize_t __wt_json_strlen(const char*, size_t)’的实参 1
+ extern ssize_t __wt_json_strlen(const char *src, size_t srclen) WT_GCC_FUNC_DECL_ATTRIBUTE((visibility("default")));
+                ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:348:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/packing.i: 在函数‘int __pack_write(WT_SESSION_IMPL*, WT_PACK_VALUE*, uint8_t**, size_t)’中:
+/newssd1/zzz/wiredtiger/src/include/packing.i:375:40: 错误：从类型‘const void*’到类型‘const char*’的转换无效 [-fpermissive]
+        (char **)pp, maxlen, pv->u.item.data, s));
+                                        ^
+/newssd1/zzz/wiredtiger/src/include/error.h:46:16: 附注：in definition of macro ‘WT_RET’
+  if ((__ret = (a)) != 0)      \
+                ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:361:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/extern.h:302:12: 附注：  初始化‘int __wt_json_strncpy(WT_SESSION*, char**, size_t, const char*, size_t)’的实参 4
+ extern int __wt_json_strncpy(WT_SESSION *wt_session, char **pdst, size_t dstlen, const char *src, size_t srclen) WT_GCC_FUNC_DECL_ATTRIBUTE((visibility("default"))) WT_GCC_FUNC_DECL_ATTRIBUTE((warn_unused_result));
+            ^
+In file included from /newssd1/zzz/wiredtiger/src/include/wt_internal.h:388:0,
+                 from bridge.cc:11:
+/newssd1/zzz/wiredtiger/src/include/packing.i: 在函数‘int __wt_struct_packv(WT_SESSION_IMPL*, void*, size_t, const char*, __va_list_tag*)’中:
+/newssd1/zzz/wiredtiger/src/include/packing.i:614:4: 错误：从类型‘void*’到类型‘uint8_t* {aka unsigned char*}’的转换无效 [-fpermissive]
+  p = buffer;
+    ^
+/newssd1/zzz/wiredtiger/src/include/packing.i: 在函数‘int __wt_struct_unpackv(WT_SESSION_IMPL*, const void*, size_t, const char*, __va_list_tag*)’中:
+/newssd1/zzz/wiredtiger/src/include/packing.i:679:4: 错误：从类型‘const void*’到类型‘const uint8_t* {aka const unsigned char*}’的转换无效 [-fpermissive]
+  p = buffer;
+    ^
+GNU gdb (GDB) Red Hat Enterprise Linux 7.6.1-94.el7
+Copyright (C) 2013 Free Software Foundation, Inc.
+License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.  Type "show copying"
+and "show warranty" for details.
+This GDB was configured as "x86_64-redhat-linux-gnu".
+For bug reporting instructions, please see:
+<http://www.gnu.org/software/gdb/bugs/>...
+Reading symbols from /newssd1/zzz/wiredtiger/api/terark/test_add...done.
+(gdb) quit
