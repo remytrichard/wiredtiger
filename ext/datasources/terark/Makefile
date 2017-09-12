@@ -23,7 +23,7 @@ integration_test:
 	${CXX} -g -std=c++11 ${INC} ${LIB} -lterark-adaptor -o integration_test integration_test.cc
 
 terark_adaptor: ${OBJS}
-	${CXX} -g -std=c++11 -shared -Wl,-soname,libterark-adaptor.so.1 -o libterark-adaptor.so.1.0 ${OBJS}
+	${CXX} -g -std=c++11 -shared -Wl,-soname,libterark-adaptor.so.1 -o libterark-adaptor.so.1.0 ${OBJS} ${LIB}
 	ln -sf libterark-adaptor.so.1.0 libterark-adaptor.so.1
 	ln -sf libterark-adaptor.so.1.0 libterark-adaptor.so
 #	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o adaptor terark_adaptor.cc
@@ -64,7 +64,7 @@ trk_meta_blocks.o: util/trk_meta_blocks.h util/trk_format.h util/trk_block.h
 trk_format.o: util/trk_format.h util/trk_common.h
 	${CXX} ${CFLAGS} ${INC} ${LIB} -c util/trk_format.cc
 
-git_version.c: ../../.git/HEAD ../../.git/index
+git_version.c: ../../../.git/HEAD ../../../.git/index
 	touch git_version.c
 	echo "const char *gitversion = \"$(shell git rev-parse HEAD)\";" > $@
 

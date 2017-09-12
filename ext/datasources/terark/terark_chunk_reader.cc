@@ -115,8 +115,6 @@ namespace terark {
 		seek_exact_prev_ = true;
 		size_t clen = fstringOf(target).commonPrefixLen(commonPrefix_);
 		if (clen != commonPrefix_.length()) {
-			printf("commonPrefix error, target %*s, commonPrefix %s\n",
-				   target.size(), target.data(), commonPrefix_.c_str());
 			status_ = Status::NotFound();
 			return;
 		}
