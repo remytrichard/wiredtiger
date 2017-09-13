@@ -66,7 +66,8 @@ namespace terark {
 
 		// second pass
 		void Add(const Slice& value) {
-			valvec<byte_t> record(value.data(), value.size());
+			valAdded2ndPass_ ++;
+			fstring record(value.data(), value.size());
 			zbuilder_->addRecord(record);
 		}
 		Status Finish2ndPass();
@@ -78,8 +79,8 @@ namespace terark {
 		struct KeyValueStatus {
 			TerarkIndex::KeyStat stat;
 			valvec<char> prefix;
-			Uint32Histogram key;
-			Uint32Histogram value;
+			Uint64Histogram key;
+			Uint64Histogram value;
 			size_t keyFileBegin = 0;
 			size_t keyFileEnd = 0;
 			size_t valueFileBegin = 0;
@@ -124,6 +125,7 @@ namespace terark {
 		std::mt19937_64 randomGenerator_;
 		uint64_t sampleUpperBound_;
 		size_t sampleLenSum_ = 0;
+		size_t valAdded2ndPass_ = 0;
 		uint64_t offset_ = 0;
 		Status status_;
 		TerarkTableProperties properties_;

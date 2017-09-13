@@ -405,6 +405,12 @@ namespace terark {
 	 *      Then write chunk file.
 	 */
 	Status TerarkChunkBuilder::Finish2ndPass() {
+		if (valAdded2ndPass_ != histogram_.front().stat.numKeys) {
+			printf("Finish2ndPass error: 2ndPass added keycnt:%d, 1stPass keycnt: %d", 
+				   valAdded2ndPass_, histogram_.front().stat.numKeys);
+			Abandon();
+			return Status::OK();
+		}
 		terark::BlobStore::Dictionary dict;
 		std::unique_ptr<terark::BlobStore> store;
 		DictZipBlobStore::ZipStat dzstat;
@@ -632,16 +638,12 @@ namespace terark {
 	}
 
 
-
-
 	void TerarkChunkBuilder::Abandon() {
 		closed_ = true;
-		//tmpKeyFile_.complete_write();
-		//tmpSampleFile_.complete_write();
-		//tmpZipDictFile_.Delete();
-		//tmpZipValueFile_.Delete();
+		tmpIndexFile_.Delete();
+		tmpStoreFile_.Delete();
+		file_writer_.close();
 	}
-
 
 	void TerarkChunkBuilder::DebugPrepare() {}
 

@@ -204,7 +204,8 @@ int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONF
 
 int trk_builder_cursor_insert(WT_CURSOR *cursor) {
 	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
-	builder->Add(terark::Slice((const char*)cursor->value.data, cursor->value.size));
+	terark::Slice slice((const char*)cursor->value.data, cursor->value.size);
+	builder->Add(slice);
 	return (0);
 }
 

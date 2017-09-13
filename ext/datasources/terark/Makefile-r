@@ -5,7 +5,7 @@ TerarkLib=/newssd1/zzz/terark-zip-rocksdb/pkg/terark-zip-rocksdb-Linux-x86_64-g+
 TigerDir=/newssd1/zzz/wiredtiger
 RocksDir=/newssd1/zzz/rocksdb
 CXX=g++
-CFLAGS=-g -std=c++11 -fPIC -O3
+CFLAGS=-g3 -std=c++11 -fPIC -O3
 INC=-I. -I./util -I$(TigerDir) -I$(TerarkDir)
 LIB=-L. -L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lterark-core-r -lterark-fsa-r -lterark-zbs-r
 
@@ -18,10 +18,10 @@ shared_lib: adaptor
 test: integration_test
 
 integration_test:
-	${CXX} -g -O3 -std=c++11 ${INC} ${LIB} -lterark-adaptor -o integration_test integration_test.cc
+	${CXX} -g3 -O3 -std=c++11 ${INC} ${LIB} -lterark-adaptor -o integration_test integration_test.cc
 
 adaptor: ${OBJS}
-	${CXX} -g -O3 -std=c++11 -shared -Wl,-soname,libterark-adaptor.so.1 -o libterark-adaptor.so.1.0 ${OBJS} ${LIB}
+	${CXX} -g3 -O3 -std=c++11 -shared -Wl,-soname,libterark-adaptor.so.1 -o libterark-adaptor.so.1.0 ${OBJS} ${LIB}
 #	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o adaptor terark_adaptor.cc
 
 test_add: ${OBJS}
