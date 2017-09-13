@@ -640,6 +640,7 @@ namespace terark {
 
 	void TerarkChunkBuilder::Abandon() {
 		closed_ = true;
+		zbuilder_.reset();
 		tmpIndexFile_.Delete();
 		tmpStoreFile_.Delete();
 		file_writer_.close();
