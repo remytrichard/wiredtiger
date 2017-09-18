@@ -31,6 +31,7 @@
 	goto err;							\
 } while (0)
 
+extern const char* gitversion;
 std::map<std::string, int> cur_stats;
 
 static terark::TerarkChunkManager* chunk_manager;
@@ -332,6 +333,7 @@ int trk_reader_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
  */
 int
 wiredtiger_extension_init(WT_CONNECTION *connection, WT_CONFIG_ARG *config) {
+	printf("gitversion is %s\n", gitversion);
 	// init terark manager
 	trk_init();
 	// add terark data source as extension into wt

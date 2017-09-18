@@ -293,6 +293,7 @@ namespace terark {
 					size_t fileOffset = 0;
 					FileStream writer(tmpIndexFile_, "wb+");
 					NativeDataInput<InputBuffer> tempKeyFileReader(&tmpKeyFile_.fp);
+					
 					for (size_t i = 0; i < histogram_.size(); ++i) {
 						auto& keyStat = histogram_[i].stat;
 						auto factory = TerarkIndex::SelectFactory(keyStat, table_options_.indexType);
@@ -338,23 +339,28 @@ namespace terark {
 			zipCond.notify_all();
 		} BOOST_SCOPE_EXIT_END;
 
-		auto waitIndex = [&]() {
+		//auto waitIndex = [&]() {
+		async_build_index_ = [&]() {
 			{
 				std::unique_lock<std::mutex> zipLock(zipMutex);
 				sumWorkingMem -= myDictMem;
 			}
 			myDictMem = 0; // success, set to 0
-			asyncIndexResult.get();
+			try {
+				printf("index result state: %d\n ", asyncIndexResult.valid());
+				asyncIndexResult.get();
+			} catch (std::exception& e) {
+				printf("exeption is %s\n", e.what());
+			}
 			std::unique_lock<std::mutex> zipLock(zipMutex);
 			waitQueue.trim(std::remove_if(waitQueue.begin(), waitQueue.end(),
 										  [this](PendingTask x) {return this == x.tztb; }));
 		};
-		return ZipValueToFinish(waitIndex);
+		return GenerateSample();
 	}
 
-	Status
-	TerarkChunkBuilder::
-	ZipValueToFinish(std::function<void()> waitIndex) {
+
+	Status TerarkChunkBuilder::GenerateSample() {
 		DebugPrepare();
 		assert(histogram_.size() == 1);
 		tmpStoreFile_.fpath = work_path_ + ".zbs";
@@ -393,11 +399,9 @@ namespace terark {
 		}
 		DebugCleanup();
 		// wait for indexing complete, if indexing is slower than value compressing
-		waitIndex();
+		//waitIndex();
 		return Status::OK();
 	}
-
-
 
 
 	/*
@@ -414,7 +418,6 @@ namespace terark {
 		terark::BlobStore::Dictionary dict;
 		std::unique_ptr<terark::BlobStore> store;
 		DictZipBlobStore::ZipStat dzstat;
-		//DictZipBlobStore* zstore;
 		zbuilder_->finish(DictZipBlobStore::ZipBuilder::FinishFreeDict);
 		dict = zbuilder_->getDictionary();
 		terark::MmapWholeFile mfile(tmpStoreFile_.fpath);
@@ -475,7 +478,10 @@ namespace terark {
 		auto& keyStat = kvs.stat;
 		const size_t realsampleLenSum = dict.memory.size();
 		long long rawBytes = properties_.raw_key_size + properties_.raw_value_size;
-		//long long t5 = g_pf.now();
+		{
+			// TBD(kg): should it be called here
+			async_build_index_();
+		}
 		tms_[kGetOrderMapStart] = g_pf.now();
 		std::unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile_));
 		printf("index->keys: %d, keyStat->keys: %d\n", index->NumKeys(), keyStat.numKeys);
@@ -640,6 +646,7 @@ namespace terark {
 
 	void TerarkChunkBuilder::Abandon() {
 		closed_ = true;
+		async_build_index_();
 		zbuilder_->finish(DictZipBlobStore::ZipBuilder::FinishFreeDict);
 		zbuilder_.reset();
 		tmpIndexFile_.Delete();

@@ -72,7 +72,6 @@ namespace terark {
 		}
 		Status Finish2ndPass();
 
-
 		void Abandon();
 		
 	private:
@@ -88,7 +87,7 @@ namespace terark {
 		};
 		Status EmptyTableFinish();
 
-		Status ZipValueToFinish(std::function<void()> waitIndex);
+		Status GenerateSample();
 		void   BuildReorderMap(TerarkIndex* index, KeyValueStatus& kvs);
 		Status WriteStore(TerarkIndex* index, BlobStore* store,
 						  KeyValueStatus& kvs, std::function<void(const void*, size_t)> write,
@@ -110,6 +109,7 @@ namespace terark {
 		const TerarkZipTableOptions& table_options_;
 		const TerarkTableBuilderOptions& table_build_options_; // replace ImmutableCFOptions with TerarkTBOptions
 
+		std::function<void()> async_build_index_;
 		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem
 		valvec<byte_t> prevUserKey_;
