@@ -288,7 +288,7 @@ namespace terark {
 		};
 		// indexing is also slow, run it in parallel
 		tmpIndexFile_.fpath = work_path_ + ".index";
-		std::future<void> asyncIndexResult = 
+		async_build_index_ = 
 			std::async(std::launch::async, [&]() {
 					size_t fileOffset = 0;
 					FileStream writer(tmpIndexFile_, "wb+");
@@ -339,19 +339,13 @@ namespace terark {
 			zipCond.notify_all();
 		} BOOST_SCOPE_EXIT_END;
 
-		//auto waitIndex = [&]() {
-		async_build_index_ = [&]() {
+		wait_index_done_ = [&]() {
 			{
 				std::unique_lock<std::mutex> zipLock(zipMutex);
 				sumWorkingMem -= myDictMem;
 			}
 			myDictMem = 0; // success, set to 0
-			try {
-				printf("index result state: %d\n ", asyncIndexResult.valid());
-				asyncIndexResult.get();
-			} catch (std::exception& e) {
-				printf("exeption is %s\n", e.what());
-			}
+			async_build_index_.get();
 			std::unique_lock<std::mutex> zipLock(zipMutex);
 			waitQueue.trim(std::remove_if(waitQueue.begin(), waitQueue.end(),
 										  [this](PendingTask x) {return this == x.tztb; }));
@@ -479,8 +473,7 @@ namespace terark {
 		const size_t realsampleLenSum = dict.memory.size();
 		long long rawBytes = properties_.raw_key_size + properties_.raw_value_size;
 		{
-			// TBD(kg): should it be called here
-			async_build_index_();
+			wait_index_done_();
 		}
 		tms_[kGetOrderMapStart] = g_pf.now();
 		std::unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile_));
@@ -646,7 +639,7 @@ namespace terark {
 
 	void TerarkChunkBuilder::Abandon() {
 		closed_ = true;
-		async_build_index_();
+		wait_index_done_();
 		zbuilder_->finish(DictZipBlobStore::ZipBuilder::FinishFreeDict);
 		zbuilder_.reset();
 		tmpIndexFile_.Delete();

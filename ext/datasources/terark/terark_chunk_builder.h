@@ -9,6 +9,7 @@
 #pragma once
 
 // std headers
+#include <future>
 #include <mutex>
 #include <random>
 #include <vector>
@@ -109,7 +110,8 @@ namespace terark {
 		const TerarkZipTableOptions& table_options_;
 		const TerarkTableBuilderOptions& table_build_options_; // replace ImmutableCFOptions with TerarkTBOptions
 
-		std::function<void()> async_build_index_;
+		std::future<void> async_build_index_;
+		std::function<void()> wait_index_done_;
 		std::unique_ptr<DictZipBlobStore::ZipBuilder> zbuilder_;
 		valvec<KeyValueStatus> histogram_; // per keyPrefix one elem
 		valvec<byte_t> prevUserKey_;
