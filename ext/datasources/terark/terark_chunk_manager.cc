@@ -160,6 +160,8 @@ namespace terark {
 			test.open_temp();
 			test.writer << "Terark";
 			test.complete_write();
+			// remove obsolete files in case crash happened
+			TerarkZipDeleteTempFiles(tzo.localTempDir);
 		} catch (...) {
 			fprintf(stderr
 					, "ERROR: bad localTempDir %s %s\n"

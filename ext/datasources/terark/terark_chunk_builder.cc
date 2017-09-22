@@ -336,15 +336,16 @@ namespace terark {
 			assert(sumWorkingMem >= myDictMem);
 			// if success, myDictMem is 0, else sumWorkingMem should be restored
 			sumWorkingMem -= myDictMem;
+			myDictMem = 0;
 			zipCond.notify_all();
 		} BOOST_SCOPE_EXIT_END;
 
 		wait_index_done_ = [&]() {
-			{
-				std::unique_lock<std::mutex> zipLock(zipMutex);
-				sumWorkingMem -= myDictMem;
-			}
-			myDictMem = 0; // success, set to 0
+			//{
+			//	std::unique_lock<std::mutex> zipLock(zipMutex);
+			//	sumWorkingMem -= myDictMem;
+			//}
+			//myDictMem = 0; // success, set to 0
 			async_build_index_.get();
 			std::unique_lock<std::mutex> zipLock(zipMutex);
 			waitQueue.trim(std::remove_if(waitQueue.begin(), waitQueue.end(),

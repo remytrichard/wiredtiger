@@ -10,7 +10,7 @@ INC=-I. -I./util -I$(TigerDir) -I$(TerarkDir)
 LIB=-L. -L$(TigerDir)/.libs -L$(TerarkLib)/lib -lpthread  -lwiredtiger -lterark-core-r -lterark-fsa-r -lterark-zbs-r
 
 
-OBJS = trk_block.o trk_common.o trk_meta_blocks.o trk_format.o terark_chunk_reader.o terark_zip_common.o terark_zip_config.o terark_zip_index.o terark_chunk_builder.o terark_chunk_manager.o terark_adaptor.o
+OBJS = trk_block.o trk_common.o trk_meta_blocks.o trk_format.o terark_chunk_reader.o terark_zip_common.o terark_zip_config.o terark_zip_index.o terark_chunk_builder.o terark_chunk_manager.o terark_adaptor.o git_version.c
 
 #all: test_add
 #all: bridge
@@ -22,6 +22,8 @@ integration_test:
 
 adaptor: ${OBJS}
 	${CXX} -g3 -O3 -std=c++11 -shared -Wl,-soname,libterark-adaptor.so.1 -o libterark-adaptor.so.1.0 ${OBJS} ${LIB}
+	ln -sf libterark-adaptor.so.1.0 libterark-adaptor.so.1
+	ln -sf libterark-adaptor.so.1.0 libterark-adaptor.so
 #	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o adaptor terark_adaptor.cc
 
 test_add: ${OBJS}

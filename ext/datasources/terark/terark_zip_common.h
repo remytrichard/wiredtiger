@@ -94,6 +94,8 @@ namespace terark {
 	extern WT_EXTENSION_API* wt_api;
 	int wt_strndup(const void *str, size_t len, void *retp);
 
+	void TerarkZipDeleteTempFiles(const std::string&);
+
 	class AutoDeleteFile {
 	public:
 		std::string fpath;

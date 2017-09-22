@@ -1,5 +1,5 @@
 
-
+#include <dirent.h>
 #include <stdlib.h>
 #include <ctime>
 #ifdef _MSC_VER
@@ -99,6 +99,20 @@ namespace terark {
 
 		*(void **)retp = p;
 		return (0);
+	}
+
+	void TerarkZipDeleteTempFiles(const std::string& tmpPath) {
+		// These are data types defined in the "dirent" header
+		DIR *theFolder = opendir(tmpPath.c_str());
+		struct dirent *next_file;
+		char filepath[256];
+		while ( (next_file = readdir(theFolder)) != NULL ) {
+			// build the path for each file in the folder
+			sprintf(filepath, "%s/%s", tmpPath.c_str(), next_file->d_name);
+			remove(filepath);
+		}
+		closedir(theFolder);
+		return;
 	}
 
 	void AutoDeleteFile::Delete() {

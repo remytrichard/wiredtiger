@@ -37,6 +37,26 @@ std::map<std::string, int> cur_stats;
 static terark::TerarkChunkManager* chunk_manager;
 static std::mutex g_lock;
 static WT_EXTENSION_API *wt_api;
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+	static int trk_reader_cursor_next(WT_CURSOR *cursor);
+	static int trk_reader_cursor_prev(WT_CURSOR *cursor);
+	static int trk_builder_cursor_reset(WT_CURSOR *cursor);
+	static int trk_reader_cursor_reset(WT_CURSOR *cursor);
+	static int trk_reader_cursor_search(WT_CURSOR *cursor);
+	static int trk_reader_cursor_search_near(WT_CURSOR *cursor, int *exactp);
+	static int trk_builder_cursor_insert(WT_CURSOR *cursor);
+	static int trk_builder_cursor_close(WT_CURSOR *cursor);
+	static int trk_reader_cursor_close(WT_CURSOR *cursor);
+
+#if defined(__cplusplus)
+}
+#endif
+
+
 int trk_init() {
 	// TBD(kg): add support for windows
 	std::unique_lock<std::mutex> lock(g_lock);
@@ -202,6 +222,16 @@ int trk_drop(WT_DATA_SOURCE *dsrc, WT_SESSION *session, const char *uri, WT_CONF
 	return (0);
 }
 
+// TBD(kg): ...
+int trk_verify(WT_DATA_SOURCE *dsrc, WT_SESSION *session, 
+			   const char *name, WT_CONFIG_ARG *config) {
+	(void)session;
+	(void)name;
+	(void)config;
+
+	return (0);
+}
+
 
 int trk_builder_cursor_insert(WT_CURSOR *cursor) {
 	terark::TerarkChunkBuilder* builder = chunk_manager->GetBuilder(cursor->uri);
@@ -347,7 +377,7 @@ wiredtiger_extension_init(WT_CONNECTION *connection, WT_CONFIG_ARG *config) {
 		NULL, //__wt_lsm_tree_salvage
 		NULL, //__wt_lsm_tree_truncate
 		NULL, //__wt_lsm_range_truncate
-		NULL, //__wt_lsm__verify
+		trk_verify,
 		NULL, //__wt_lsm_checkpoint
 		NULL,  //__wt_lsm_terminate
 		trk_pre_merge
