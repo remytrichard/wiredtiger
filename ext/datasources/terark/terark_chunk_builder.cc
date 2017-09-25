@@ -133,6 +133,11 @@ namespace terark {
 	 *      Exit once sample build task done.
 	 */
 	void TerarkChunkBuilder::Add(const Slice& key, const Slice& value) {
+		static int cnt = 1;
+		if (cnt == 1 || cnt == 10 || cnt == 100 || cnt == 1000 || cnt == 10000) {
+			printf("new income %d\n", cnt);
+		}
+		cnt++;
 		if (table_options_.debugLevel == 4) {
 			fprintf(tmpDumpFile_.fp(), "DEBUG: 1st pass => %s / %s \n", key.data(), value.data());
 		}
@@ -293,7 +298,6 @@ namespace terark {
 					size_t fileOffset = 0;
 					FileStream writer(tmpIndexFile_, "wb+");
 					NativeDataInput<InputBuffer> tempKeyFileReader(&tmpKeyFile_.fp);
-					
 					for (size_t i = 0; i < histogram_.size(); ++i) {
 						auto& keyStat = histogram_[i].stat;
 						auto factory = TerarkIndex::SelectFactory(keyStat, table_options_.indexType);
@@ -310,7 +314,6 @@ namespace terark {
 							zipCond.notify_all();
 						} BOOST_SCOPE_EXIT_END;
 
-						//long long t1 = g_pf.now();
 						tms_[kBuildIndexStart] = g_pf.now();
 						histogram_[i].keyFileBegin = fileOffset;
 						factory->Build(tempKeyFileReader, table_options_, [&fileOffset, &writer](const void* data, size_t size) {
@@ -393,8 +396,6 @@ namespace terark {
 			}
 		}
 		DebugCleanup();
-		// wait for indexing complete, if indexing is slower than value compressing
-		//waitIndex();
 		return Status::OK();
 	}
 

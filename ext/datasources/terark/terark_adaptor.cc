@@ -337,7 +337,7 @@ int trk_reader_cursor_search(WT_CURSOR *cursor) {
 }
 
 int trk_reader_cursor_search_near(WT_CURSOR *cursor, int *exactp) {
-	printf("search near entered: %s\n", cursor->uri);
+	//printf("search near entered: %s\n", cursor->uri);
 	terark::Iterator* iter = ((terark::wt_terark_cursor*)cursor)->iter;
 	WT_ITEM* kbuf = &cursor->key;
 	WT_ITEM* vbuf = &cursor->value;

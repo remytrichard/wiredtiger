@@ -87,6 +87,37 @@ namespace terark {
 	TerarkIndex::Factory::~Factory() {}
 	TerarkIndex::Iterator::~Iterator() {}
 
+	unique_ptr<TerarkIndex> TerarkIndex::LoadFile(fstring fpath) {
+		TerarkIndex::Factory* factory = NULL;
+		{
+			MmapWholeFile mmap(fpath);
+			auto header = (const TerarkIndexHeader*)mmap.base;
+			size_t idx = g_TerarkIndexFactroy.find_i(header->class_name);
+			if (idx >= g_TerarkIndexFactroy.end_i()) {
+				throw std::invalid_argument(
+											"TerarkIndex::LoadFile(" + fpath + "): Unknown class: "
+											+ header->class_name);
+			}
+			factory = g_TerarkIndexFactroy.val(idx).get();
+		}
+		return factory->LoadFile(fpath);
+	}
+
+	unique_ptr<TerarkIndex> TerarkIndex::LoadMemory(fstring mem) {
+		auto header = (const TerarkIndexHeader*)mem.data();
+		size_t idx = g_TerarkIndexFactroy.find_i(header->class_name);
+		if (idx >= g_TerarkIndexFactroy.end_i()) {
+			throw std::invalid_argument(
+										std::string("TerarkIndex::LoadMemory(): Unknown class: ")
+										+ header->class_name);
+		}
+		TerarkIndex::Factory* factory = g_TerarkIndexFactroy.val(idx).get();
+		return factory->LoadMemory(mem);
+	}
+
+	/*
+	 * Most commonly used type: NLTrie
+	 */
 	class NestLoudsTrieIterBase : public TerarkIndex::Iterator {
 	protected:
 		unique_ptr<terark::ADFA_LexIterator> m_iter;
@@ -391,6 +422,7 @@ namespace terark {
 					   const TerarkZipTableOptions& tzopt,
 					   std::function<void(const void *, size_t)> write,
 					   KeyStat& ks) const override {
+				printf("\n\n\n\n enter Uint64 Factory\n\n\n\n");
 				size_t commonPrefixLen = fstring(ks.minKey).commonPrefixLen(ks.maxKey);
 				assert(commonPrefixLen >= ks.commonPrefixLen);
 				if (ks.maxKeyLen != ks.minKeyLen ||
@@ -568,7 +600,9 @@ namespace terark {
 	template<class RankSelect>
 	const char* TerarkUintIndex<RankSelect>::index_name = "UintIndex";
 
-
+	/*
+	 * index register part
+	 */
 	typedef NestLoudsTrieDAWG_IL_256 NestLoudsTrieDAWG_IL_256_32;
 	typedef NestLoudsTrieDAWG_SE_512 NestLoudsTrieDAWG_SE_512_32;
 	typedef NestLoudsTrieIndex<NestLoudsTrieDAWG_SE_512_32> TerocksIndex_NestLoudsTrieDAWG_SE_512_32;
@@ -590,34 +624,5 @@ namespace terark {
 	TerarkIndexRegister(TerarkUintIndex_SE_256_32, "UintIndex_SE_256_32");
 	TerarkIndexRegister(TerarkUintIndex_SE_512_32, "UintIndex_SE_512_32");
 	TerarkIndexRegister(TerarkUintIndex_SE_512_64, "UintIndex_SE_512_64");
-
-
-	unique_ptr<TerarkIndex> TerarkIndex::LoadFile(fstring fpath) {
-		TerarkIndex::Factory* factory = NULL;
-		{
-			MmapWholeFile mmap(fpath);
-			auto header = (const TerarkIndexHeader*)mmap.base;
-			size_t idx = g_TerarkIndexFactroy.find_i(header->class_name);
-			if (idx >= g_TerarkIndexFactroy.end_i()) {
-				throw std::invalid_argument(
-											"TerarkIndex::LoadFile(" + fpath + "): Unknown class: "
-											+ header->class_name);
-			}
-			factory = g_TerarkIndexFactroy.val(idx).get();
-		}
-		return factory->LoadFile(fpath);
-	}
-
-	unique_ptr<TerarkIndex> TerarkIndex::LoadMemory(fstring mem) {
-		auto header = (const TerarkIndexHeader*)mem.data();
-		size_t idx = g_TerarkIndexFactroy.find_i(header->class_name);
-		if (idx >= g_TerarkIndexFactroy.end_i()) {
-			throw std::invalid_argument(
-										std::string("TerarkIndex::LoadMemory(): Unknown class: ")
-										+ header->class_name);
-		}
-		TerarkIndex::Factory* factory = g_TerarkIndexFactroy.val(idx).get();
-		return factory->LoadMemory(mem);
-	}
 
 } // namespace
