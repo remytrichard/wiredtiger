@@ -91,6 +91,8 @@ void test_search(WT_CURSOR* c) {
 	}
 }
 
+void try_stat(WT_CURSOR* c) {
+}
 
 int main() {
 	WT_SESSION *session;
@@ -105,7 +107,7 @@ int main() {
 	}
 
 	WT_CONNECTION *conn;
-	ret = wiredtiger_open(home, NULL, "create,"
+	ret = wiredtiger_open(home, NULL, "create,statistics=(all),"
 						  "extensions=[/newssd1/zzz/wiredtiger/ext/datasources/terark/libterark-adaptor.so]", &conn);
 	ret = conn->open_session(conn, NULL, NULL, &session);
 	{
@@ -136,9 +138,23 @@ int main() {
 			test_search(c);
 		}
 		std::cout << "\n\nTest Case Passed!\n\n";
-
 		c->close(c);
 	}
+
+	/*{
+		WT_CURSOR *c;
+		session->open_cursor(session,
+							 "statistics:table:bucket", NULL, "statistics=(all)", &c);
+		const char *desc, *pvalue;
+        uint64_t value;
+        int ret;
+        while ((ret = c->next(c)) == 0) {
+			ret = c->get_value(c, &desc, &pvalue, &value);
+			if (value != 0)
+				printf("%s=%s\n", desc, pvalue);
+        }
+		c->close(c);
+		}*/
 
 	ret = conn->close(conn, NULL);
 
