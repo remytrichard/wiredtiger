@@ -90,7 +90,7 @@ namespace terark {
 	TerarkIndex::Factory::~Factory() {}
 	TerarkIndex::Iterator::~Iterator() {}
 
-	unique_ptr<TerarkIndex> TerarkIndex::LoadFile(fstring fpath) {
+	unique_ptr<TerarkIndex> TerarkIndex::LoadFile(fstring fpath, const TerarkTableReaderOptions& ropt) {
 		TerarkIndex::Factory* factory = NULL;
 		{
 			MmapWholeFile mmap(fpath);
@@ -103,10 +103,10 @@ namespace terark {
 			}
 			factory = g_TerarkIndexFactroy.val(idx).get();
 		}
-		return factory->LoadFile(fpath);
+		return factory->LoadFile(fpath, ropt);
 	}
 
-	unique_ptr<TerarkIndex> TerarkIndex::LoadMemory(fstring mem) {
+	unique_ptr<TerarkIndex> TerarkIndex::LoadMemory(fstring mem, const TerarkTableReaderOptions& ropt) {
 		auto header = (const TerarkIndexHeader*)mem.data();
 		size_t idx = g_TerarkIndexFactroy.find_i(header->class_name);
 		if (idx >= g_TerarkIndexFactroy.end_i()) {
@@ -115,7 +115,7 @@ namespace terark {
 										+ header->class_name);
 		}
 		TerarkIndex::Factory* factory = g_TerarkIndexFactroy.val(idx).get();
-		return factory->LoadMemory(mem);
+		return factory->LoadMemory(mem, ropt);
 	}
 
 	/*
@@ -157,7 +157,9 @@ namespace terark {
 			bool Prev() override { return Done(m_trie, m_iter->decr()); }
 		};
 	public:
-		NestLoudsTrieIndex(NLTrie* trie) : m_trie(trie) {}
+		NestLoudsTrieIndex(NLTrie* trie, const TerarkTableReaderOptions& ropt)
+			: TerarkIndex(ropt), 
+			  m_trie(trie) {}
 		const char* Name() const override {
 			auto header = (const TerarkIndexHeader*)m_trie->get_mmap().data();
 			return header->class_name;
@@ -249,7 +251,8 @@ namespace terark {
 				//SaveMmap(write);
 			}
 
-			unique_ptr<TerarkIndex> LoadMemory(fstring mem) const override {
+			unique_ptr<TerarkIndex> LoadMemory(fstring mem, 
+											   const TerarkTableReaderOptions& ropt) const override {
 				unique_ptr<BaseDFA>
 					dfa(BaseDFA::load_mmap_user_mem(mem.data(), mem.size()));
 				auto trie = dynamic_cast<NLTrie*>(dfa.get());
@@ -257,12 +260,13 @@ namespace terark {
 					throw std::invalid_argument("Bad trie class: " + ClassName(*dfa)
 												+ ", should be " + ClassName<NLTrie>());
 				}
-				unique_ptr<TerarkIndex> index(new NestLoudsTrieIndex(trie));
+				unique_ptr<TerarkIndex> index(new NestLoudsTrieIndex(trie, ropt));
 				dfa.release();
 				return std::move(index);
 			}
 
-			unique_ptr<TerarkIndex> LoadFile(fstring fpath) const override {
+			unique_ptr<TerarkIndex> LoadFile(fstring fpath,
+											 const TerarkTableReaderOptions& ropt) const override {
 				unique_ptr<BaseDFA> dfa(BaseDFA::load_mmap(fpath));
 				auto trie = dynamic_cast<NLTrie*>(dfa.get());
 				if (NULL == trie) {
@@ -270,12 +274,13 @@ namespace terark {
 												"File: " + fpath + ", Bad trie class: " + ClassName(*dfa)
 												+ ", should be " + ClassName<NLTrie>());
 				}
-				unique_ptr<TerarkIndex> index(new NestLoudsTrieIndex(trie));
+				unique_ptr<TerarkIndex> index(new NestLoudsTrieIndex(trie, ropt));
 				dfa.release();
 				return std::move(index);
 			}
 
-			size_t MemSizeForBuild(const KeyStat& ks) const override {
+			size_t MemSizeForBuild(const TerarkTableBuilderOptions& tbo, 
+								   const KeyStat& ks) const override {
 				return sizeof(SortableStrVec::SEntry) * ks.numKeys + ks.sumKeyLen
 					- ks.commonPrefixLen * ks.numKeys;
 			}
@@ -297,6 +302,13 @@ namespace terark {
 			uint64_t max_value;
 			uint64_t index_mem_size;
 			uint32_t key_length;
+			/*
+			 * For one huge index, we'll split it into multipart-index for the sake of RAM, 
+			 * and each sub-index could have longer commonPrefix compared with ks.commonPrefix.
+			 * what's more, under such circumstances, ks.commonPrefix may have been rewritten
+			 * be upper-level builder to '0'. here, 
+			 * common_prefix_length = sub-index.commonPrefixLen - whole-index.commonPrefixLen
+			 */
 			uint32_t common_prefix_length;
 
 			FileHeader(size_t body_size) {
@@ -414,8 +426,8 @@ namespace terark {
 			}
 		protected:
 			void UpdateBuffer() {
-				AssignUint64(buffer_.data() + index_.commonPrefix_.size(),
-							 buffer_.data() + buffer_.size(), pos_ + index_.minValue_);
+				TerarkUintIndex::AssignUint64(index_.reader_options_.wt_session,
+											  pos_ + index_.minValue_, buffer_);
 			}
 			size_t pos_; // offset starting from min_val
 			valvec<byte_t> buffer_;
@@ -429,15 +441,9 @@ namespace terark {
 					   std::function<void(const void *, size_t)> write,
 					   KeyStat& ks) const override {
 				printf("\n\n\n\n enter Uint64 Factory\n\n\n\n");
-				size_t commonPrefixLen = fstring(ks.minKey).commonPrefixLen(ks.maxKey);
-				assert(commonPrefixLen >= ks.commonPrefixLen);
-				if (ks.maxKeyLen != ks.minKeyLen ||
-					ks.maxKeyLen - commonPrefixLen > sizeof(uint64_t)) {
-					abort();
-				}
 				uint64_t
-					minValue = ReadUint64(ks.minKey.begin() + commonPrefixLen, ks.minKey.end()),
-					maxValue = ReadUint64(ks.maxKey.begin() + commonPrefixLen, ks.maxKey.end());
+					minValue = TerarkUintIndex::ReadUint64(tbo.wt_session, ks.minKey.begin()),
+					maxValue = TerarkUintIndex::ReadUint64(tbo.wt_session, ks.maxKey.begin());
 				if (minValue > maxValue) {
 					std::swap(minValue, maxValue);
 				}
@@ -447,46 +453,53 @@ namespace terark {
 				indexSeq.resize(diff);
 				for (size_t seq_id = 0; seq_id < ks.numKeys; ++seq_id) {
 					reader >> keyBuf;
-					indexSeq.set1(ReadUint64(keyBuf.begin() + commonPrefixLen,
-											 keyBuf.end()) - minValue);
+					indexSeq.set1(TerarkUintIndex::ReadUint64(tbo.wt_session, keyBuf) - minValue);
 				}
 				indexSeq.build_cache(false, false);
-				unique_ptr<TerarkUintIndex<RankSelect>> ptr(new TerarkUintIndex<RankSelect>());
+				/*
+				 * in ideal world, when it comes to TerarkIndex we should always 
+				 * treat it as read-only, that's why reader_options is required.
+				 * here, unfortunately we create one during Build phase...
+				 */
+				TerarkTableReaderOptions ropt(tbo.internal_comparator);
+				unique_ptr<TerarkUintIndex<RankSelect>> ptr(new TerarkUintIndex<RankSelect>(ropt));
 				ptr->isUserMemory_ = false;
 				ptr->isBuilding_ = true;
 				FileHeader *header = new FileHeader(indexSeq.mem_size());
 				header->min_value = minValue;
 				header->max_value = maxValue;
 				header->index_mem_size = indexSeq.mem_size();
-				header->key_length = ks.minKeyLen - commonPrefixLen;
+				header->key_length = ks.maxKeyLen;
 				/*
 				 * For one huge index, we'll split it into multipart-index for the sake of RAM, 
 				 * and each sub-index could have longer commonPrefix compared with ks.commonPrefix.
 				 * what's more, under such circumstances, ks.commonPrefix may have been rewritten
 				 * be upper-level builder to '0'
 				 */
-				if (commonPrefixLen > ks.commonPrefixLen) {
+				/*if (commonPrefixLen > ks.commonPrefixLen) {
 					header->common_prefix_length = commonPrefixLen - ks.commonPrefixLen;
 					ptr->commonPrefix_.assign(ks.minKey.data(), header->common_prefix_length);
 					header->file_size += terark::align_up(header->common_prefix_length, 8);
-				}
+					}*/
 				ptr->header_ = header;
 				ptr->indexSeq_.swap(indexSeq);
 				//return ptr.release();
 				ptr->SaveMmap(write);
 			}
-			unique_ptr<TerarkIndex> LoadMemory(fstring mem) const override {
-				return unique_ptr<TerarkIndex>(loadImpl(mem, {}).release());
+			unique_ptr<TerarkIndex> LoadMemory(fstring mem, 
+											   const TerarkTableReaderOptions& ropt) const override {
+				return unique_ptr<TerarkIndex>(loadImpl(mem, {}, ropt).release());
 			}
-			unique_ptr<TerarkIndex> LoadFile(fstring fpath) const override {
-				return unique_ptr<TerarkIndex>(loadImpl({}, fpath).release());
+			unique_ptr<TerarkIndex> LoadFile(fstring fpath,
+											 const TerarkTableReaderOptions& ropt) const override {
+				return unique_ptr<TerarkIndex>(loadImpl({}, fpath, ropt).release());
 			}
-			size_t MemSizeForBuild(const KeyStat& ks) const override {
-				assert(ks.minKeyLen == ks.maxKeyLen);
+			size_t MemSizeForBuild(const TerarkTableBuilderOptions& tbo, 
+								   const KeyStat& ks) const override {
 				size_t length = ks.maxKeyLen - fstring(ks.minKey).commonPrefixLen(ks.maxKey);
 				uint64_t
-					minValue = ReadUint64(ks.minKey.begin(), ks.minKey.begin() + length),
-					maxValue = ReadUint64(ks.maxKey.begin(), ks.maxKey.begin() + length);
+					minValue = ReadUint64(tbo.wt_session, ks.minKey),
+					maxValue = ReadUint64(tbo.wt_session, ks.maxKey);
 				if (minValue > maxValue) {
 					std::swap(minValue, maxValue);
 				}
@@ -494,8 +507,9 @@ namespace terark {
 				return size_t(std::ceil(diff * 1.25 / 8));
 			}
 		protected:
-			unique_ptr<TerarkUintIndex<RankSelect>> loadImpl(fstring mem, fstring fpath) const {
-				unique_ptr<TerarkUintIndex<RankSelect>> ptr(new TerarkUintIndex<RankSelect>());
+			unique_ptr<TerarkUintIndex<RankSelect>> loadImpl(fstring mem, fstring fpath,
+															 const TerarkTableReaderOptions& ropt) const {
+				unique_ptr<TerarkUintIndex<RankSelect>> ptr(new TerarkUintIndex<RankSelect>(ropt));
 				ptr->isUserMemory_ = false;
 				ptr->isBuilding_ = false;
 
@@ -524,16 +538,18 @@ namespace terark {
 				ptr->minValue_ = header->min_value;
 				ptr->maxValue_ = header->max_value;
 				ptr->keyLength_ = header->key_length;
-				if (header->common_prefix_length > 0) {
-					ptr->commonPrefix_.risk_set_data((char*)mem.data() + header->header_size,
+				/*
+				  ptr->commonPrefix_.risk_set_data((char*)mem.data() + header->header_size,
 													 header->common_prefix_length);
-				}
 				ptr->indexSeq_.risk_mmap_from((unsigned char*)mem.data() + header->header_size
 											  + terark::align_up(header->common_prefix_length, 8), header->index_mem_size);
+				*/
+				ptr->indexSeq_.risk_mmap_from((unsigned char*)mem.data() + header->header_size, header->index_mem_size);
 				return ptr;
 			}
 		};
 		using TerarkIndex::FactoryPtr;
+		TerarkUintIndex(const TerarkTableReaderOptions& ropt) : TerarkIndex(ropt) {}
 		virtual ~TerarkUintIndex() {
 			if (isBuilding_) {
 				delete (FileHeader*)header_;
@@ -553,15 +569,8 @@ namespace terark {
 			write(indexSeq_.data(), indexSeq_.mem_size());
 		}
 		size_t Find(fstring key) const override {
-			if (key.size() != keyLength_ + commonPrefix_.size()) {
-				return size_t(-1);
-			}
-			if (key.commonPrefixLen(commonPrefix_) != commonPrefix_.size()) {
-				return size_t(-1);
-			}
-			key.n -= commonPrefix_.size();
-			assert(key.n == keyLength_);
-			uint64_t findValue = ReadUint64((const byte_t*)key.begin(), (const byte_t*)key.end());
+			uint64_t findValue = ReadUint64(reader_options_.wt_session, key.begin());
+			printf("findval %lld, key %s\n", findValue, key);
 			if (findValue < minValue_ || findValue > maxValue_) {
 				return size_t(-1);
 			}
@@ -592,6 +601,23 @@ namespace terark {
 		void BuildCache(double cacheRatio) override {
 			//do nothing
 		}
+
+		static uint64_t ReadUint64(WT_SESSION* wt_session, valvec<byte_t>& buf) {
+			uint64_t val;
+			wiredtiger_struct_unpack(wt_session, buf.begin(), buf.size(), "Q", &val);
+			return val;
+		}
+		static uint64_t ReadUint64(WT_SESSION* wt_session, fstring buf) {
+			uint64_t val;
+			wiredtiger_struct_unpack(wt_session, buf.begin(), buf.size(), "Q", &val);
+			return val;
+		}
+		static void AssignUint64(WT_SESSION* wt_session, uint64_t i, valvec<byte_t>& buf) {
+			buf.resize(8);
+			wiredtiger_struct_pack(wt_session, buf.begin(), 8, "Q", i); 
+		}
+
+
 	protected:
 		const FileHeader* header_;
 		MmapWholeFile     file_;
@@ -599,10 +625,10 @@ namespace terark {
 		RankSelect        indexSeq_;
 		uint64_t          minValue_;
 		uint64_t          maxValue_;
+		uint32_t          keyLength_;
 		bool              isUserMemory_;
 		bool              isBuilding_;
-		uint32_t          keyLength_;
-		WT_SESSION*       wt_session_;
+		//WT_SESSION*       wt_session_;
 	};
 	template<class RankSelect>
 	const char* TerarkUintIndex<RankSelect>::index_name = "UintIndex";

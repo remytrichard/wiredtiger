@@ -115,7 +115,7 @@ void test_uint_without_compact(WT_CONNECTION* conn) {
 		//sleep(20);
 		session->compact(session, "table:bucket64", 0);
 		//printf("compact done\n");
-		///test_search(c, dict);
+		test_search(c, dict);
 		//test_search_near(c, dict);
 
 		std::cout << "\n\nTest Case Passed!\n\n";
@@ -173,9 +173,10 @@ void test_search(WT_CURSOR* c, S2SDict& dict) {
 	printf("start test search() ...\n");
 	int i = 0;
 	for (auto& di : dict) {
-		//long recno = atol(di.first.c_str());
-		//c->set_key(c, recno);
-		c->set_key(c, di.first.c_str());
+		long recno = atol(di.first.c_str());
+		printf("will search %lld\n", recno);
+		c->set_key(c, recno);
+		//c->set_key(c, di.first.c_str());
 		int ret = c->search(c);
 		assert(ret == 0);
 		const char *value;
@@ -202,8 +203,8 @@ int main() {
 	WT_CONNECTION *conn;
 	ret = wiredtiger_open(home, NULL, "create,statistics=(all),"
 						  "extensions=[/newssd1/zzz/wiredtiger/ext/datasources/terark/libterark-adaptor.so]", &conn);
-	test_without_compact(conn);
-	//test_uint_without_compact(conn);
+	//test_without_compact(conn);
+	test_uint_without_compact(conn);
 	/*ret = conn->open_session(conn, NULL, NULL, &session);
 	{
 		WT_CURSOR *c;

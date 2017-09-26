@@ -13,10 +13,10 @@
 #include <terark/int_vector.hpp>
 #include <terark/io/DataIO.hpp>
 #include <terark/io/StreamBuffer.hpp>
+// adaptor
+#include "terark_zip_config.h"
 
 namespace terark {
-
-	extern WT_EXTENSION_API* g_wt_api;
 
 	using terark::fstring;
 	using terark::valvec;
@@ -26,7 +26,7 @@ namespace terark {
 	using std::unique_ptr;
 
 	struct TerarkZipTableOptions;
-	struct TerarkTableBuilderOptions;
+	//struct TerarkTableBuilderOptions;
 	class TempFileDeleteOnClose;
 
 	class TerarkIndex : boost::noncopyable {
@@ -63,9 +63,9 @@ namespace terark {
 						   const TerarkTableBuilderOptions& tbo,
 						   std::function<void(const void *, size_t)> write,
 						   KeyStat&) const = 0;
-		virtual unique_ptr<TerarkIndex> LoadMemory(fstring mem) const = 0;
-		virtual unique_ptr<TerarkIndex> LoadFile(fstring fpath) const = 0;
-		virtual size_t MemSizeForBuild(const KeyStat&) const = 0;
+		virtual unique_ptr<TerarkIndex> LoadMemory(fstring mem, const TerarkTableReaderOptions&) const = 0;
+		virtual unique_ptr<TerarkIndex> LoadFile(fstring fpath, const TerarkTableReaderOptions&) const = 0;
+		virtual size_t MemSizeForBuild(const TerarkTableBuilderOptions& tbo, const KeyStat&) const = 0;
 	};
 	typedef boost::intrusive_ptr<Factory> FactoryPtr;
 	struct AutoRegisterFactory {
@@ -75,8 +75,8 @@ namespace terark {
 	static const Factory* GetFactory(fstring name);
 	static const Factory* SelectFactory(const KeyStat&, 
 		fstring key_f, WT_SESSION* session, fstring name);
-	static unique_ptr<TerarkIndex> LoadFile(fstring fpath);
-	static unique_ptr<TerarkIndex> LoadMemory(fstring mem);
+	static unique_ptr<TerarkIndex> LoadFile(fstring fpath, const TerarkTableReaderOptions&);
+	static unique_ptr<TerarkIndex> LoadMemory(fstring mem, const TerarkTableReaderOptions&);
 	virtual ~TerarkIndex();
 	virtual const char* Name() const = 0;
 	virtual size_t Find(fstring key) const = 0;
@@ -88,6 +88,11 @@ namespace terark {
 	virtual bool NeedsReorder() const = 0;
 	virtual void GetOrderMap(terark::UintVecMin0& newToOld) const = 0;
 	virtual void BuildCache(double cacheRatio) = 0;
+
+	public:
+	TerarkIndex(const TerarkTableReaderOptions& reader_options) : reader_options_(reader_options) {}
+	protected:
+	TerarkTableReaderOptions reader_options_;
 	};
 
 #define TerarkIndexRegister(clazz, ...)									\

@@ -139,6 +139,9 @@ namespace terark {
 		const Comparator& internal_comparator;
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
+
+		std::string key_format;
+		WT_SESSION* wt_session;
 	};
 
 	// table properties' human-readable names in the property block.

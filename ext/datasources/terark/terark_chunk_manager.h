@@ -108,11 +108,13 @@ namespace terark {
 		bool IsChunkExist(const std::string&, const std::string&);
 
 		TerarkChunkBuilder*
-			NewTableBuilder(const TerarkTableBuilderOptions& table_builder_options,
+			NewTableBuilder(const TerarkTableBuilderOptions& builder_options,
 							const std::string& fname);
 		
 		Iterator* 
-			NewIterator(const std::string& fname, const std::string& cur_tag);
+			NewIterator(const TerarkTableReaderOptions& reader_options,
+						const std::string& fname, 
+						const std::string& cur_tag);
 
 		std::string GetPrintableTableOptions() const;
 

@@ -179,7 +179,10 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		cursor->search_near = trk_reader_cursor_search_near;
 		cursor->close = trk_reader_cursor_close;
 		// read iterator
-		terark::Iterator* iter = chunk_manager->NewIterator(path, uri);
+		terark::TerarkTableReaderOptions reader_options(*terark::GetBytewiseComparator());
+		reader_options.key_format = format_dict[uri].first;
+		reader_options.wt_session = session;
+		terark::Iterator* iter = chunk_manager->NewIterator(reader_options, path, uri);
 		terark_cursor->iter = iter;
 		chunk_manager->AddIterator(cursor);
 	} else {
@@ -265,6 +268,9 @@ int trk_reader_cursor_close(WT_CURSOR *cursor) {
  * However, i haven't found where free() is called hence no copy here at least now
  */
 static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
+	std::string uri = cursor->uri;
+	//if (uri == "Q" || uri == "r") {
+	//} else {
 	{
 		WT_ITEM* buf = &cursor->key;
 		terark::Slice key = iter->key();
@@ -279,7 +285,7 @@ static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
 	}
 	{
 		// not sure if such unpack is appropriate here
-		WT_CONNECTION *conn = cursor->session->connection;
+		//WT_CONNECTION *conn = cursor->session->connection;
 		//WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
 		WT_ITEM* buf = &cursor->value;
 		g_wt_api->struct_unpack(g_wt_api, cursor->session, buf->data,

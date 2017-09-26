@@ -300,7 +300,7 @@ namespace terark {
 		try {
 			store_.reset(terark::BlobStore::load_from_user_memory(
 					fstring(file_data.data(), table_props->data_size), fstringOf(valueDictBlock.data)));
-			index_ = TerarkIndex::LoadMemory(fstringOf(indexBlock.data));
+			index_ = TerarkIndex::LoadMemory(fstringOf(indexBlock.data), reader_options_);
 		} catch (const BadCrc32cException& ex) {
 			return Status::Corruption("TerarkZipTableBuilder::Open()", ex.what());
 		} catch (const std::exception& ex) {

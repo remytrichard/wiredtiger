@@ -307,7 +307,7 @@ namespace terark {
 							THROW_STD(invalid_argument,
 									  "invalid indexType: %s", table_options_.indexType.c_str());
 						}
-						const size_t myWorkMem = factory->MemSizeForBuild(keyStat);
+						const size_t myWorkMem = factory->MemSizeForBuild(table_build_options_, keyStat);
 						waitForMemory(myWorkMem, "nltTrie");
 						BOOST_SCOPE_EXIT(myWorkMem) {
 							std::unique_lock<std::mutex> zipLock(zipMutex);
@@ -481,7 +481,8 @@ namespace terark {
 			wait_index_done_();
 		}
 		tms_[kGetOrderMapStart] = g_pf.now();
-		std::unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile_));
+		TerarkTableReaderOptions ropt(table_build_options_.internal_comparator);
+		std::unique_ptr<TerarkIndex> index(TerarkIndex::LoadFile(tmpIndexFile_, ropt));
 		printf("index->keys: %d, keyStat->keys: %d\n", index->NumKeys(), keyStat.numKeys);
 		assert(index->NumKeys() == keyStat.numKeys);
 		Status s;

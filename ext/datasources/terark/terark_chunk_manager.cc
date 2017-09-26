@@ -230,10 +230,11 @@ namespace terark {
 	}
 
 	Iterator*
-	TerarkChunkManager::NewIterator(const std::string& fname, const std::string& cur_tag) {
+	TerarkChunkManager::NewIterator(const TerarkTableReaderOptions& reader_options,
+									const std::string& fname, const std::string& cur_tag) {
 		terark::TerarkChunkReader* reader = GetReader(cur_tag);
 		if (!reader) {
-			reader = new TerarkChunkReader(table_options_, fname);
+			reader = new TerarkChunkReader(table_options_, reader_options, fname);
 			AddReader(cur_tag, reader);
 		}
 		return reader->NewIterator();

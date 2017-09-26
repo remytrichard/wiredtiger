@@ -37,8 +37,11 @@ namespace terark {
 
 	class TerarkChunkReader : boost::noncopyable {
 	public:
-	TerarkChunkReader(const TerarkZipTableOptions& tzto,const std::string& fname) 
+	TerarkChunkReader(const TerarkZipTableOptions& tzto,
+					  const TerarkTableReaderOptions& reader_options,
+					  const std::string& fname) 
 		: table_options_(tzto),
+			reader_options_(reader_options),
 			chunk_name_(fname),
 			useUint64Comparator_(false),
 			ref_count_(0) {}
@@ -57,6 +60,7 @@ namespace terark {
 	private:
 		const std::string chunk_name_;
 		const TerarkZipTableOptions& table_options_;
+		TerarkTableReaderOptions reader_options_;
 		bool useUint64Comparator_;
 		int ref_count_;
 
