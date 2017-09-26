@@ -3,6 +3,9 @@
 #include <memory>
 // boost
 #include <boost/intrusive_ptr.hpp>
+// wt
+#include "wiredtiger.h"
+#include "wiredtiger_ext.h"
 // terark header
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>
@@ -13,6 +16,8 @@
 
 namespace terark {
 
+	extern WT_EXTENSION_API* g_wt_api;
+
 	using terark::fstring;
 	using terark::valvec;
 	using terark::byte_t;
@@ -21,6 +26,7 @@ namespace terark {
 	using std::unique_ptr;
 
 	struct TerarkZipTableOptions;
+	struct TerarkTableBuilderOptions;
 	class TempFileDeleteOnClose;
 
 	class TerarkIndex : boost::noncopyable {
@@ -54,6 +60,7 @@ namespace terark {
 		virtual ~Factory();
 		virtual void Build(NativeDataInput<InputBuffer>& tmpKeyFileReader,
 						   const TerarkZipTableOptions& tzopt,
+						   const TerarkTableBuilderOptions& tbo,
 						   std::function<void(const void *, size_t)> write,
 						   KeyStat&) const = 0;
 		virtual unique_ptr<TerarkIndex> LoadMemory(fstring mem) const = 0;
@@ -66,7 +73,8 @@ namespace terark {
 							const char* rtti_name, Factory* factory);
 	};
 	static const Factory* GetFactory(fstring name);
-	static const Factory* SelectFactory(const KeyStat&, fstring name);
+	static const Factory* SelectFactory(const KeyStat&, 
+		fstring key_f, WT_SESSION* session, fstring name);
 	static unique_ptr<TerarkIndex> LoadFile(fstring fpath);
 	static unique_ptr<TerarkIndex> LoadMemory(fstring mem);
 	virtual ~TerarkIndex();

@@ -9,7 +9,8 @@
 
 #include <string>
 #include <vector>
-
+// wt
+#include "wiredtiger.h"
 // terark headers
 #include <terark/fstring.hpp>
 #include <terark/valvec.hpp>
@@ -118,13 +119,16 @@ namespace terark {
 
 	class TerarkTableBuilderOptions {
 	public:
-	TerarkTableBuilderOptions(const Comparator& comp) 
-		: internal_comparator(comp) {}
+	    TerarkTableBuilderOptions(const Comparator& comp) 
+			: internal_comparator(comp) {}
 
 		const Comparator& internal_comparator;
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
 		int num_levels;
+
+		std::string key_format;
+		WT_SESSION* wt_session;
 	};
 
 	class TerarkTableReaderOptions {

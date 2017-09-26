@@ -31,12 +31,13 @@
 	goto err;							\
 } while (0)
 
+typedef std::pair<std::string, std::string> StrPair;
 extern const char* gitversion;
 std::map<std::string, int> cur_stats;
-
+std::map<std::string, StrPair> format_dict;
 static terark::TerarkChunkManager* chunk_manager;
 static std::mutex g_lock;
-static WT_EXTENSION_API *wt_api;
+WT_EXTENSION_API *g_wt_api;
 
 #if defined(__cplusplus)
 extern "C" {
@@ -108,50 +109,47 @@ static inline std::string ComposeLSMName(const std::string& uri) {
 	return "lsm:" + sub;
 }
 
+static void parse_table_config(WT_SESSION *session, const char *uri) {
+	WT_CONNECTION *conn = session->connection;
+	char* config = nullptr;
+	WT_CONFIG_ITEM key_item, value_item;
+	std::string key_f = "u", value_f = "u";
+	std::string lsm_uri = ComposeLSMName(uri);
+	if (g_wt_api->metadata_search(g_wt_api, session, lsm_uri.c_str(), &config) == 0 &&
+		g_wt_api->config_get_string(g_wt_api, session, config, "key_format", &key_item) == 0 &&
+		g_wt_api->config_get_string(g_wt_api, session, config, "value_format", &value_item) == 0) {
+		key_f.assign(key_item.str, key_item.len);
+		value_f.assign(value_item.str, value_item.len);
+	}
+	StrPair str_pair(key_f, value_f);
+	format_dict.insert(std::make_pair(uri, str_pair));
+}
+
 int trk_create(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 			   const char *uri, WT_CONFIG_ARG *config) {
+	/*
+	 * extract conf, set into builder_options
+	 */ 
 	const terark::Comparator* comparator = terark::GetBytewiseComparator();
 	terark::TerarkTableBuilderOptions builder_options(*comparator);
+	parse_table_config(session, uri);
+	builder_options.key_format = format_dict[uri].first;
+	builder_options.wt_session = session;
 
 	WT_CONNECTION *conn = session->connection;
 	std::string path = ComposePath(conn, uri);
    	::remove(path.c_str()); // make sure such file is not exist, remove it anyway
 	terark::TerarkChunkBuilder* builder = chunk_manager->NewTableBuilder(builder_options, path);
 	chunk_manager->AddBuilder(uri, builder);
-	
-	// insert config into metatable
-	// during cur_ds:open_cursor, such config will be used
+
+	/*
+	 * insert config into metatable,
+	 * during cur_ds:open_cursor, such config will be used
+	 */
 	char* sconfig = ((char**)config)[0];
-	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
-	wt_api->metadata_insert(wt_api, session, uri, sconfig);
+	g_wt_api->metadata_insert(g_wt_api, session, uri, sconfig);
 
 	return (0);
-}
-
-static void parse_cursor_config(WT_SESSION *session, const char *uri, WT_CURSOR *cursor) {
-	WT_CONNECTION *conn = session->connection;
-	WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
-	char* config = nullptr;
-	WT_CONFIG_ITEM key_item, value_item;
-
-#define WT_GOTO(a) do {            \
-		int __ret;                 \
-		if ((__ret = (a)) != 0)    \
-			goto defaults;         \
-	} while (0)
-
-	WT_GOTO(wt_api->metadata_search(wt_api, session, uri, &config));
-	WT_GOTO(wt_api->config_get_string(wt_api, session, config, "key_format", &key_item));
-	WT_GOTO(wt_api->config_get_string(wt_api, session, config, "value_format", &value_item));
-	
-	terark::wt_strndup(key_item.str, key_item.len, &cursor->key_format);
-	terark::wt_strndup(value_item.str, value_item.len, &cursor->value_format);
-	
-	if (0) {
- defaults:
-	 	cursor->key_format = "u";
-		cursor->value_format = "u";
-	}
 }
 
 int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
@@ -162,8 +160,11 @@ int trk_open_cursor(WT_DATA_SOURCE *dsrc, WT_SESSION *session,
 		return (errno);
 	WT_CURSOR *cursor = (WT_CURSOR*)&terark_cursor->iface;
 
-	// update cursor format
-	parse_cursor_config(session, uri, cursor);
+	// update cursor config
+	//std::string key_f = format_dict[uri].first,
+	//	value_f = format_dict[uri].second;
+	terark::wt_strndup("u", 1, &cursor->key_format);
+	terark::wt_strndup("u", 1, &cursor->value_format);
 	cursor->uri = uri;
 	cursor->session = session;
 
@@ -279,9 +280,9 @@ static inline void set_kv(terark::Iterator* iter, WT_CURSOR* cursor) {
 	{
 		// not sure if such unpack is appropriate here
 		WT_CONNECTION *conn = cursor->session->connection;
-		WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
+		//WT_EXTENSION_API *wt_api = conn->get_extension_api(conn);
 		WT_ITEM* buf = &cursor->value;
-		wt_api->struct_unpack(wt_api, cursor->session, buf->data,
+		g_wt_api->struct_unpack(g_wt_api, cursor->session, buf->data,
 							  buf->size, "r", &cursor->recno);
 	}
 }
@@ -382,14 +383,14 @@ wiredtiger_extension_init(WT_CONNECTION *connection, WT_CONFIG_ARG *config) {
 		NULL,  //__wt_lsm_terminate
 		trk_pre_merge
 	};
-	wt_api = connection->get_extension_api(connection);
+	g_wt_api = connection->get_extension_api(connection);
 
 	int ret = 0;
 	if ((ret = connection->add_data_source(
 		connection, "terark:", &trk_dsrc, NULL)) != 0) {
-		EMSG_ERR(wt_api, NULL, 
+		EMSG_ERR(g_wt_api, NULL, 
 				 "WT_CONNECTION.add_data_source: %s",
-				 wt_api->strerror(wt_api, NULL, ret));
+				 g_wt_api->strerror(g_wt_api, NULL, ret));
 	}
 	ret = connection->configure_method(
 		connection, "WT_SESSION.open_cursor", NULL, "collator=", "string", NULL);

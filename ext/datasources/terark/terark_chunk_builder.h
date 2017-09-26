@@ -108,7 +108,7 @@ namespace terark {
 		const std::string chunk_name_;
 
 		const TerarkZipTableOptions& table_options_;
-		const TerarkTableBuilderOptions& table_build_options_; // replace ImmutableCFOptions with TerarkTBOptions
+		TerarkTableBuilderOptions table_build_options_; // replace ImmutableCFOptions with TerarkTBOptions
 
 		std::future<void> async_build_index_;
 		std::function<void()> wait_index_done_;

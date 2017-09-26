@@ -97,9 +97,9 @@ void test_uint_without_compact(WT_CONNECTION* conn) {
 	{
 		WT_CURSOR *c;
 		session->create(session, "table:bucket64", 
-						//"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=5,suffix=.trk),chunk_size=5MB),"
-						"type=lsm,"
-						"key_format=r,value_format=S");
+						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2,suffix=.trk),chunk_size=2MB),"
+						//"type=lsm,"
+						"key_format=Q,value_format=S");
 
 		session->open_cursor(session, "table:bucket64", NULL, NULL, &c);
 
@@ -113,7 +113,7 @@ void test_uint_without_compact(WT_CONNECTION* conn) {
 		
 		printf("insert done, start compact...\n");
 		//sleep(20);
-		session->compact(session, "table:bucket", 0);
+		session->compact(session, "table:bucket64", 0);
 		//printf("compact done\n");
 		///test_search(c, dict);
 		//test_search_near(c, dict);
@@ -202,7 +202,8 @@ int main() {
 	WT_CONNECTION *conn;
 	ret = wiredtiger_open(home, NULL, "create,statistics=(all),"
 						  "extensions=[/newssd1/zzz/wiredtiger/ext/datasources/terark/libterark-adaptor.so]", &conn);
-	test_uint_without_compact(conn);
+	test_without_compact(conn);
+	//test_uint_without_compact(conn);
 	/*ret = conn->open_session(conn, NULL, NULL, &session);
 	{
 		WT_CURSOR *c;

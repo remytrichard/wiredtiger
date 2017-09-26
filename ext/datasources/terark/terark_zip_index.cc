@@ -61,13 +61,16 @@ namespace terark {
 	}
 
 	const TerarkIndex::Factory*
-	TerarkIndex::SelectFactory(const KeyStat& ks, fstring name) {
-		if (ks.maxKeyLen == ks.minKeyLen &&
-			ks.maxKeyLen - ks.commonPrefixLen <= sizeof(uint64_t)) {
-			uint64_t
-				minValue = ReadUint64(ks.minKey.begin() + ks.commonPrefixLen, ks.minKey.end()),
-				maxValue = ReadUint64(ks.maxKey.begin() + ks.commonPrefixLen, ks.maxKey.end());
-			uint64_t diff = (minValue < maxValue ? maxValue - minValue : minValue - maxValue) + 1;
+	TerarkIndex::SelectFactory(const KeyStat& ks, fstring key_f, 
+							   WT_SESSION* session, fstring name) {
+		if (key_f == "Q" || key_f == "r") {
+			uint64_t minVal, maxVal;
+			wiredtiger_struct_unpack(session, ks.minKey.begin(), 
+									 ks.minKey.size(), "Q", &minVal);
+			wiredtiger_struct_unpack(session, ks.maxKey.begin(), 
+									 ks.maxKey.size(), "Q", &maxVal);
+			printf("[SelectFactory] key_format %s, min: %lld, max %lld\n", key_f.c_str(), minVal, maxVal);
+			uint64_t diff = (minVal < maxVal ? maxVal - minVal : minVal - maxVal) + 1;
 			if (diff < ks.numKeys * 30) {
 				if (diff < (4ull << 30)) {
 					return GetFactory("UintIndex");
@@ -205,6 +208,7 @@ namespace terark {
 		public:
 			void Build(NativeDataInput<InputBuffer>& reader,
 					   const TerarkZipTableOptions& tzopt,
+					   const TerarkTableBuilderOptions& tbo,
 					   std::function<void(const void *, size_t)> write,
 					   KeyStat& ks) const override {
 				size_t sumPrefixLen = ks.commonPrefixLen * ks.numKeys;
@@ -286,6 +290,7 @@ namespace terark {
 	class TerarkUintIndex : public TerarkIndex {
 	public:
 		static const char* index_name;
+		
 		struct FileHeader : public TerarkIndexHeader
 		{
 			uint64_t min_value;
@@ -420,6 +425,7 @@ namespace terark {
 		public:
 			void Build(NativeDataInput<InputBuffer>& reader,
 					   const TerarkZipTableOptions& tzopt,
+					   const TerarkTableBuilderOptions& tbo,
 					   std::function<void(const void *, size_t)> write,
 					   KeyStat& ks) const override {
 				printf("\n\n\n\n enter Uint64 Factory\n\n\n\n");
@@ -596,6 +602,7 @@ namespace terark {
 		bool              isUserMemory_;
 		bool              isBuilding_;
 		uint32_t          keyLength_;
+		WT_SESSION*       wt_session_;
 	};
 	template<class RankSelect>
 	const char* TerarkUintIndex<RankSelect>::index_name = "UintIndex";

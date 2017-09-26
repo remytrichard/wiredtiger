@@ -300,7 +300,9 @@ namespace terark {
 					NativeDataInput<InputBuffer> tempKeyFileReader(&tmpKeyFile_.fp);
 					for (size_t i = 0; i < histogram_.size(); ++i) {
 						auto& keyStat = histogram_[i].stat;
-						auto factory = TerarkIndex::SelectFactory(keyStat, table_options_.indexType);
+						auto factory = TerarkIndex::SelectFactory(keyStat, table_build_options_.key_format,
+																  table_build_options_.wt_session,
+																  table_options_.indexType);
 						if (!factory) {
 							THROW_STD(invalid_argument,
 									  "invalid indexType: %s", table_options_.indexType.c_str());
@@ -316,10 +318,11 @@ namespace terark {
 
 						tms_[kBuildIndexStart] = g_pf.now();
 						histogram_[i].keyFileBegin = fileOffset;
-						factory->Build(tempKeyFileReader, table_options_, [&fileOffset, &writer](const void* data, size_t size) {
-								fileOffset += size;
-								writer.ensureWrite(data, size);
-							}, keyStat);
+						factory->Build(tempKeyFileReader, table_options_, table_build_options_,
+									   [&fileOffset, &writer](const void* data, size_t size) {
+										   fileOffset += size;
+										   writer.ensureWrite(data, size);
+									   }, keyStat);
 						histogram_[i].keyFileEnd = fileOffset;
 						assert((fileOffset - histogram_[i].keyFileBegin) % 8 == 0);
 						long long tt = g_pf.now();
