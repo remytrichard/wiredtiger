@@ -73,14 +73,30 @@ int trk_init() {
 			ss << "trk_localTempDir=" << "./terark_tmp,";
 			system("mkdir terark_tmp");
 		}
-		ss << "trk_indexNestLevel=2,";
-		ss << "trk_indexCacheRatio=0.005,";
-		ss << "trk_smallTaskMemory=1G,";
-		ss << "trk_softZipWorkingMemLimit=16G,";
-		ss << "trk_hardZipWorkingMemLimit=32G,";
-		ss << "trk_minDictZipValueSize=1024,";
-		ss << "trk_offsetArrayBlockUnits=128,";
-		ss << "trk_max_background_flushes=4";
+		
+		auto SetFromEnv = [&](const std::string& env_key,
+							  const std::string& key, 
+							  const std::string& default_val) {
+			char* val = 0;
+			if ((val = getenv(env_key.c_str())) != NULL) {
+				ss << key << "=" << val << ",";
+			} else {
+				ss << key << "=" << default_val << ",";
+			}
+		};
+		SetFromEnv("WT_trk_indexNestLevel", "trk_indexNestLevel", "2");
+		SetFromEnv("WT_trk_indexCacheRatio", "trk_indexCacheRatio", "0.005");
+		/*
+		 * smallTaskMemory: used in rocksdb, prevent 'flush' to be stalled 
+		 *     waiting for memory
+		 */
+		SetFromEnv("WT_trk_smallTaskMemory", "trk_smallTaskMemory", "1G");
+		SetFromEnv("WT_trk_softZipWorkingMemLimit", "trk_softZipWorkingMemLimit", "16G");
+		SetFromEnv("WT_trk_hardZipWorkingMemLimit", "trk_hardZipWorkingMemLimit", "32G");
+		SetFromEnv("WT_trk_minDictZipValueSize", "trk_minDictZipValueSize", "32");
+		SetFromEnv("WT_trk_offsetArrayBlockUnits", "trk_offsetArrayBlockUnits", "128");
+		SetFromEnv("WT_trk_max_background_flushes", "trk_max_background_flushes", "4");
+
 		chunk_manager = new terark::TerarkChunkManager(ss.str());
 	}
 	return (0);

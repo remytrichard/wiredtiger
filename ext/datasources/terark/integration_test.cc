@@ -221,37 +221,7 @@ int main() {
 						  "extensions=[/newssd1/zzz/wiredtiger/ext/datasources/terark/libterark-adaptor.so]", &conn);
 	test_without_compact(conn);
 	test_uint_without_compact(conn);
-	/*ret = conn->open_session(conn, NULL, NULL, &session);
-	{
-		WT_CURSOR *c;
-		session->create(session, "table:bucket", 
-						"type=lsm,lsm=(merge_min=2,merge_custom=(prefix=terark,start_generation=2,suffix=.trk),chunk_size=2MB),"
-						"key_format=S,value_format=S");
-
-		session->open_cursor(session, "table:bucket", NULL, NULL, &c);
-
-		printf("start insert...\n");
-		InitDict();
-		For (auto& iter : dict) {
-			//long recno = atol(iter.first.c_str());
-			//c->set_key(c, recno);
-			c->set_key(c, iter.first.c_str());
-			c->set_value(c, iter.second.c_str());
-			c->insert(c);
-		}
-		printf("insert done\n");
-		//printf("sleep 10s\n");
-		//sleep(10);
-		printf("start search...\n");
-		if (g_search_near) {
-			test_search_near(c);
-		} else {
-			test_search(c);
-		}
-		std::cout << "\n\nTest Case Passed!\n\n";
-		c->close(c);
-		}*/
-
+	
 	/*{
 		WT_CURSOR *c;
 		session->open_cursor(session,
@@ -271,4 +241,3 @@ int main() {
 
 	return (ret == 0 ? EXIT_SUCCESS : EXIT_FAILURE);
 }
-//c->set_key(c, recno);

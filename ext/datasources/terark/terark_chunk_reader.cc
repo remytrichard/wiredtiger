@@ -80,7 +80,8 @@ namespace terark {
 				return;
 			}
 			lazyCreateIter();
-			UnzipIterRecord(iter_->Seek(fstringOf(target).substr(clen)));
+			//UnzipIterRecord(iter_->Seek(fstringOf(target).substr(clen)));
+			UnzipIterRecord(iter_->Seek(fstringOf(target), clen));
 		}
 
 		void SeekExact(const Slice&);
@@ -118,7 +119,8 @@ namespace terark {
 			status_ = Status::NotFound();
 			return;
 		}
-		size_t recId = chunk_->index_->Find(fstringOf(target).substr(clen));
+		//size_t recId = chunk_->index_->Find(fstringOf(target).substr(clen));
+		size_t recId = chunk_->index_->Find(fstringOf(target), clen);
 		if (recId == std::string::npos) {
 			status_ = Status::NotFound();
 			return;

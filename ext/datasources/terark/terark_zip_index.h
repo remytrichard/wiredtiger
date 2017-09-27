@@ -38,11 +38,17 @@ namespace terark {
 		virtual ~Iterator();
 		virtual bool SeekToFirst() = 0;
 		virtual bool SeekToLast() = 0;
-		virtual bool Seek(fstring target) = 0;
+		virtual bool Seek(fstring target, size_t commonPrefixLen) = 0;
 		virtual bool Next() = 0;
 		virtual bool Prev() = 0;
 		inline bool Valid() const { return size_t(-1) != m_id; }
 		inline size_t id() const { return m_id; }
+		/*
+		 * During Search(), we'll pass in complete key & commonPrefixLen, let
+		 * the object to decide how to handle them.
+		 * When we have key() called, we just return key after stripped of the
+		 * common prefix. it really sucks here...
+		 */
 		virtual fstring key() const = 0;
 		inline void SetInvalid() { m_id = size_t(-1); }
 	};
@@ -79,7 +85,7 @@ namespace terark {
 	static unique_ptr<TerarkIndex> LoadMemory(fstring mem, const TerarkTableReaderOptions&);
 	virtual ~TerarkIndex();
 	virtual const char* Name() const = 0;
-	virtual size_t Find(fstring key) const = 0;
+	virtual size_t Find(fstring key, size_t commonPrefixLen) const = 0;
 	virtual size_t NumKeys() const = 0;
 	virtual size_t TotalKeySize() const = 0;
 	virtual fstring Memory() const = 0;

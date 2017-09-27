@@ -150,8 +150,9 @@ namespace terark {
 			{}
 			bool SeekToFirst() override { return Done(m_trie, m_iter->seek_begin()); }
 			bool SeekToLast()  override { return Done(m_trie, m_iter->seek_end()); }
-			bool Seek(fstring key) override {
-				return Done(m_trie, m_iter->seek_lower_bound(key));
+			bool Seek(fstring key, size_t cplen) override {
+				fstring stripped_key = fstring(key).substr(cplen);
+				return Done(m_trie, m_iter->seek_lower_bound(stripped_key));
 			}
 			bool Next() override { return Done(m_trie, m_iter->incr()); }
 			bool Prev() override { return Done(m_trie, m_iter->decr()); }
@@ -167,13 +168,14 @@ namespace terark {
 		void SaveMmap(std::function<void(const void *, size_t)> write) const override {
 			m_trie->save_mmap(write);
 		}
-		size_t Find(fstring key) const override final {
+		size_t Find(fstring key, size_t cplen) const override final {
 			MY_THREAD_LOCAL(terark::MatchContext, ctx);
 			ctx.root = 0;
 			ctx.pos = 0;
 			ctx.zidx = 0;
 			ctx.zbuf_state = size_t(-1);
-			return m_trie->index(ctx, key);
+			fstring stripped_key = fstring(key).substr(cplen);
+			return m_trie->index(ctx, stripped_key);
 		}
 		size_t NumKeys() const override final {
 			return m_trie->num_words();
@@ -303,11 +305,16 @@ namespace terark {
 			uint64_t index_mem_size;
 			uint32_t key_length;
 			/*
-			 * For one huge index, we'll split it into multipart-index for the sake of RAM, 
+			 * (Rocksdb) For one huge index, we'll split it into multipart-index for the sake of RAM, 
 			 * and each sub-index could have longer commonPrefix compared with ks.commonPrefix.
 			 * what's more, under such circumstances, ks.commonPrefix may have been rewritten
 			 * be upper-level builder to '0'. here, 
 			 * common_prefix_length = sub-index.commonPrefixLen - whole-index.commonPrefixLen
+			 *
+			 * (wt) however, wt save uint64 in a space-saving manner, with prefix stripped, 
+			 * the uint64 we generated will be wrong. hence we will add back 'commonPrefix' during 
+			 * search. and there is no multipart-index either, here 
+			 * common_prefix_length = whole-index.commonPrefixLen
 			 */
 			uint32_t common_prefix_length;
 
@@ -329,8 +336,8 @@ namespace terark {
 		public:
 			UIntIndexIterator(const TerarkUintIndex& index) : index_(index) {
 				pos_ = size_t(-1);
-				buffer_.resize_no_init(index_.commonPrefix_.size() + index_.keyLength_);
-				memcpy(buffer_.data(), index_.commonPrefix_.data(), index_.commonPrefix_.size());
+				buffer_.resize_no_init(index_.commonPrefix_.size());
+				buffer_.assign(index_.commonPrefix_.data(), index_.commonPrefix_.size());
 			}
 			virtual ~UIntIndexIterator() {}
 
@@ -346,8 +353,8 @@ namespace terark {
 				UpdateBuffer();
 				return true;
 			}
-			bool Seek(fstring target) override {
-				size_t cplen = target.commonPrefixLen(index_.commonPrefix_);
+			bool Seek(fstring target, size_t cplen) override {
+				//size_t cplen = target.commonPrefixLen(index_.commonPrefix_);
 				if (cplen != index_.commonPrefix_.size()) {
 					assert(target.size() >= cplen);
 					assert(target.size() == cplen || target[cplen] != index_.commonPrefix_[cplen]);
@@ -359,13 +366,6 @@ namespace terark {
 						return false;
 					}
 				}
-				//target.n -= index_.commonPrefix_.size();
-				//byte_t targetBuffer[8] = {};
-				//memcpy(targetBuffer + (8 - index_.keyLength_),
-				//	   target.data(), std::min<size_t>(index_.keyLength_, target.size()));
-				/*
-				 * TBD(kg): may need to add back commonPrefix ?
-				 */
 				uint64_t targetValue = TerarkUintIndex::ReadUint64(index_.reader_options_.wt_session,
 																   target);
 				if (targetValue > index_.maxValue_) {
@@ -418,7 +418,7 @@ namespace terark {
 			}
 			fstring key() const override {
 				assert(m_id != size_t(-1));
-				return buffer_;
+				return fstring(buffer_).substr(index_.commonPrefix_.size());
 			}
 		protected:
 			void UpdateBuffer() {
@@ -460,23 +460,17 @@ namespace terark {
 				unique_ptr<TerarkUintIndex<RankSelect>> ptr(new TerarkUintIndex<RankSelect>(ropt));
 				ptr->isUserMemory_ = false;
 				ptr->isBuilding_ = true;
-				FileHeader *header = new FileHeader(indexSeq.mem_size());
-				header->min_value = minValue;
-				header->max_value = maxValue;
-				header->index_mem_size = indexSeq.mem_size();
-				header->key_length = ks.maxKeyLen;
-				/*
-				 * For one huge index, we'll split it into multipart-index for the sake of RAM, 
-				 * and each sub-index could have longer commonPrefix compared with ks.commonPrefix.
-				 * what's more, under such circumstances, ks.commonPrefix may have been rewritten
-				 * be upper-level builder to '0'
-				 */
-				/*if (commonPrefixLen > ks.commonPrefixLen) {
-					header->common_prefix_length = commonPrefixLen - ks.commonPrefixLen;
-					ptr->commonPrefix_.assign(ks.minKey.data(), header->common_prefix_length);
+				ptr->commonPrefix_.assign(ks.minKey.data(), ks.commonPrefixLen);
+				{
+					FileHeader *header = new FileHeader(indexSeq.mem_size());
+					header->min_value = minValue;
+					header->max_value = maxValue;
+					header->index_mem_size = indexSeq.mem_size();
+					header->key_length = ks.maxKeyLen;
+					header->common_prefix_length = ks.commonPrefixLen;
 					header->file_size += terark::align_up(header->common_prefix_length, 8);
-					}*/
-				ptr->header_ = header;
+					ptr->header_ = header;
+				}
 				ptr->indexSeq_.swap(indexSeq);
 				//return ptr.release();
 				ptr->SaveMmap(write);
@@ -533,13 +527,20 @@ namespace terark {
 				ptr->minValue_ = header->min_value;
 				ptr->maxValue_ = header->max_value;
 				ptr->keyLength_ = header->key_length;
-				/*
-				  ptr->commonPrefix_.risk_set_data((char*)mem.data() + header->header_size,
-													 header->common_prefix_length);
-				ptr->indexSeq_.risk_mmap_from((unsigned char*)mem.data() + header->header_size
-											  + terark::align_up(header->common_prefix_length, 8), header->index_mem_size);
-				*/
-				ptr->indexSeq_.risk_mmap_from((unsigned char*)mem.data() + header->header_size, header->index_mem_size);
+				ptr->commonPrefix_.assign((char*)mem.data() + header->header_size,
+										  header->common_prefix_length);
+				ptr->indexSeq_.risk_mmap_from((unsigned char*)mem.data() + header->header_size +
+											  terark::align_up(header->common_prefix_length, 8), 
+											  header->index_mem_size);
+				/*{
+					valvec<byte_t> buf_min, buf_max;
+					TerarkUintIndex::AssignUint64(ropt.wt_session, ptr->minVal, buf_min);
+					TerarkUintIndex::AssignUint64(ropt.wt_session, ptr->maxVal, buf_max);
+					size_t clen = fstring(buf_min).commonPrefixLen(fstring(buf_max));
+					ptr->commonPrefix_.assign(buf.begin(), clen);
+					}*/
+				//ptr->indexSeq_.risk_mmap_from((unsigned char*)mem.data() + header->header_size, header->index_mem_size);
+				
 				return ptr;
 			}
 		};
@@ -563,7 +564,8 @@ namespace terark {
 			}
 			write(indexSeq_.data(), indexSeq_.mem_size());
 		}
-		size_t Find(fstring key) const override {
+		// ignore common prefix len, we need the complete key to decode
+		size_t Find(fstring key, size_t cplen) const override {
 			uint64_t findValue = ReadUint64(reader_options_.wt_session, key);
 			if (findValue < minValue_ || findValue > maxValue_) {
 				return size_t(-1);

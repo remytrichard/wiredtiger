@@ -48,7 +48,6 @@ namespace terark {
 		~TerarkChunkManager() {}
 
 	public:
-		//static TerarkChunkManager* sharedInstance();
 		const char* Name() const { return "TerarkChunkManager"; }
 
 	public:

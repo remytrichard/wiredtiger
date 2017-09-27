@@ -58,12 +58,12 @@ namespace terark {
 				}
 			}
             if (dict.empty()) {
-				STD_INFO("TerarkZipConfigFromConfigString() failed because config is empty\n");
+				printf("TerarkZipConfigFromConfigString() failed because config is empty\n");
 				return false;
             }
 			const std::string localTempDir = dict["trk_localTempDir"];
 			if (localTempDir.empty()) {
-				STD_INFO("TerarkZipConfigFromConfigString() failed because localTempDir is not defined\n");
+				printf("TerarkZipConfigFromConfigString() failed because localTempDir is not defined\n");
 				return false;
 			}
 			tzo.localTempDir = localTempDir;
@@ -139,12 +139,9 @@ namespace terark {
 			return true;
 		}
 
-
-
 		bool IsBytewiseComparator(const Comparator* cmp) {
 			return cmp->Name() == std::string("leveldb.BytewiseComparator");
 		}
-
 	} // namespace
 
 
