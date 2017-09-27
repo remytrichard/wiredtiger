@@ -133,11 +133,6 @@ namespace terark {
 	 *      Exit once sample build task done.
 	 */
 	void TerarkChunkBuilder::Add(const Slice& key, const Slice& value) {
-		static int cnt = 1;
-		if (cnt == 1 || cnt == 10 || cnt == 100 || cnt == 1000 || cnt == 10000) {
-			printf("new income %d\n", cnt);
-		}
-		cnt++;
 		if (table_options_.debugLevel == 4) {
 			fprintf(tmpDumpFile_.fp(), "DEBUG: 1st pass => %s / %s \n", key.data(), value.data());
 		}

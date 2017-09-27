@@ -359,11 +359,15 @@ namespace terark {
 						return false;
 					}
 				}
-				target.n -= index_.commonPrefix_.size();
-				byte_t targetBuffer[8] = {};
-				memcpy(targetBuffer + (8 - index_.keyLength_),
-					   target.data(), std::min<size_t>(index_.keyLength_, target.size()));
-				uint64_t targetValue = ReadUint64Aligned(targetBuffer, targetBuffer + 8);
+				//target.n -= index_.commonPrefix_.size();
+				//byte_t targetBuffer[8] = {};
+				//memcpy(targetBuffer + (8 - index_.keyLength_),
+				//	   target.data(), std::min<size_t>(index_.keyLength_, target.size()));
+				/*
+				 * TBD(kg): may need to add back commonPrefix ?
+				 */
+				uint64_t targetValue = TerarkUintIndex::ReadUint64(index_.reader_options_.wt_session,
+																   target);
 				if (targetValue > index_.maxValue_) {
 					m_id = size_t(-1);
 					return false;
@@ -376,14 +380,6 @@ namespace terark {
 				m_id = index_.indexSeq_.rank1(pos_);
 				if (!index_.indexSeq_[pos_]) {
 					pos_ += index_.indexSeq_.zero_seq_len(pos_);
-				}
-				else if (target.size() > index_.keyLength_) {
-					if (pos_ == index_.indexSeq_.size() - 1) {
-						m_id = size_t(-1);
-						return false;
-					}
-					++m_id;
-					pos_ = pos_ + index_.indexSeq_.zero_seq_len(pos_ + 1) + 1;
 				}
 				UpdateBuffer();
 				return true;
@@ -440,10 +436,9 @@ namespace terark {
 					   const TerarkTableBuilderOptions& tbo,
 					   std::function<void(const void *, size_t)> write,
 					   KeyStat& ks) const override {
-				printf("\n\n\n\n enter Uint64 Factory\n\n\n\n");
 				uint64_t
-					minValue = TerarkUintIndex::ReadUint64(tbo.wt_session, ks.minKey.begin()),
-					maxValue = TerarkUintIndex::ReadUint64(tbo.wt_session, ks.maxKey.begin());
+					minValue = TerarkUintIndex::ReadUint64(tbo.wt_session, ks.minKey),
+					maxValue = TerarkUintIndex::ReadUint64(tbo.wt_session, ks.maxKey);
 				if (minValue > maxValue) {
 					std::swap(minValue, maxValue);
 				}
@@ -569,8 +564,7 @@ namespace terark {
 			write(indexSeq_.data(), indexSeq_.mem_size());
 		}
 		size_t Find(fstring key) const override {
-			uint64_t findValue = ReadUint64(reader_options_.wt_session, key.begin());
-			printf("findval %lld, key %s\n", findValue, key);
+			uint64_t findValue = ReadUint64(reader_options_.wt_session, key);
 			if (findValue < minValue_ || findValue > maxValue_) {
 				return size_t(-1);
 			}
@@ -613,8 +607,10 @@ namespace terark {
 			return val;
 		}
 		static void AssignUint64(WT_SESSION* wt_session, uint64_t i, valvec<byte_t>& buf) {
-			buf.resize(8);
-			wiredtiger_struct_pack(wt_session, buf.begin(), 8, "Q", i); 
+			size_t sz = 0;
+			wiredtiger_struct_size(wt_session, &sz, "Q", i);
+			buf.resize(sz);
+			wiredtiger_struct_pack(wt_session, buf.begin(), buf.size(), "Q", i); 
 		}
 
 

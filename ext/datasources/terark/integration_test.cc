@@ -27,8 +27,8 @@
 bool g_search_near = false;
 
 typedef std::map<std::string, std::string> S2SDict;
-static void test_search_near(WT_CURSOR*, S2SDict&);
-static void test_search(WT_CURSOR*, S2SDict&);
+static void test_search_near(WT_CURSOR*, S2SDict&, bool);
+static void test_search(WT_CURSOR*, S2SDict&, bool);
 
 void InitDict(const std::string& fpath, S2SDict& dict) {
 	//std::ifstream fi("./samples_large.txt");
@@ -72,11 +72,11 @@ void test_without_compact(WT_CONNECTION* conn) {
 		}
 		
 		printf("insert done, start compact...\n");
-		//sleep(20);
-		//session->compact(session, "table:bucket", 0);
-		//printf("compact done\n");
-		test_search(c, dict);
-		test_search_near(c, dict);
+		session->compact(session, "table:bucket", 0);
+		printf("compact done\n");
+		bool isUint = false;
+		test_search(c, dict, isUint);
+		test_search_near(c, dict, isUint);
 
 		std::cout << "\n\nTest Case Passed!\n\n";
 		c->close(c);
@@ -84,12 +84,6 @@ void test_without_compact(WT_CONNECTION* conn) {
 }
 
 void test_uint_without_compact(WT_CONNECTION* conn) {
-	/*
-	 * 1. init dict & create table
-	 * 2. test_search
-	 * 3. test_search_near
-	 * 4. drop table
-	 */
 	S2SDict dict;
 	InitDict("./samples_uint64.txt", dict);
 	WT_SESSION *session = 0;
@@ -112,18 +106,18 @@ void test_uint_without_compact(WT_CONNECTION* conn) {
 		}
 		
 		printf("insert done, start compact...\n");
-		//sleep(20);
 		session->compact(session, "table:bucket64", 0);
-		//printf("compact done\n");
-		test_search(c, dict);
-		//test_search_near(c, dict);
+		printf("compact done\n");
+		bool isUint = true;
+		test_search(c, dict, isUint);
+		test_search_near(c, dict, isUint);
 
 		std::cout << "\n\nTest Case Passed!\n\n";
 		c->close(c);
 	}
 }
 
-void test_search_near(WT_CURSOR* c, S2SDict& dict) {
+void test_search_near(WT_CURSOR* c, S2SDict& dict, bool isUint) {
 	printf("start search_near()...\n");
 	int exact = 0;
 	auto di = dict.begin();
@@ -133,56 +127,78 @@ void test_search_near(WT_CURSOR* c, S2SDict& dict) {
 		if (ni == dict.end()) break;
 		// just minor larger than key
 		std::string low_key = di->first + "\x01";
-		c->set_key(c, low_key.c_str());
+		if (isUint) {
+			long recno = atol(di->first.c_str()) + 1;
+			c->set_key(c, recno);
+		} else {
+			c->set_key(c, low_key.c_str());
+		}
 		int ret = c->search_near(c, &exact);
 		assert(ret == 0);
 		assert(exact = 1);
 		const char *value;
 		c->get_value(c, &value);
 		ret = memcmp(value, ni->second.c_str(), strlen(value));
-		if (ret != 0) {
+		if (ret != 0 && !isUint) {
 			printf("low_key %s not equal %d\n", low_key.c_str(), cnt);
 			printf("expected %s, actual val %s\n", ni->second.c_str(), value);
 		}
 		assert(ret == 0);
+		c->reset(c);
 		cnt ++;
 	}
 	printf("exact == 1 done\n");
 
 	{
-		//const char *key = "10000000000000999999", *value;
-		const char *key = "~~~~~~~~~~~~", *value;
-		c->set_key(c, key);
+		const char* value;
+		if (isUint) {
+			long recno = 999999999999;
+			c->set_key(c, recno);
+		} else {
+			const char *key = "~~~~~~~~~~~~";
+			c->set_key(c, key);
+		}
 		int ret = c->search_near(c, &exact);
 		assert(exact == -1);
 		printf("exact == -1 done\n");
+		c->reset(c);
 	}
 
 	{
-		//const char *key = "0000000000000999975", *value;
-		const char *key = "!%5?", *value;
-        c->set_key(c, key);
+		const char* value;
+		if (isUint) {
+			long recno = 999975;
+			c->set_key(c, recno);
+		} else {
+			const char *key = "!%5?";
+			c->set_key(c, key);
+		}
         int ret = c->search_near(c, &exact);
         assert(exact == 0);
 		printf("exact == 0 done\n");
+		c->reset(c);
 	}
+
 	printf("\ntest search_near() done\n");
 }
 
-void test_search(WT_CURSOR* c, S2SDict& dict) {
+void test_search(WT_CURSOR* c, S2SDict& dict, bool isUint) {
 	printf("start test search() ...\n");
 	int i = 0;
 	for (auto& di : dict) {
-		long recno = atol(di.first.c_str());
-		printf("will search %lld\n", recno);
-		c->set_key(c, recno);
-		//c->set_key(c, di.first.c_str());
+		if (isUint) {
+			long recno = atol(di.first.c_str());
+			c->set_key(c, recno);
+		} else {
+			c->set_key(c, di.first.c_str());
+		}
 		int ret = c->search(c);
 		assert(ret == 0);
 		const char *value;
 		c->get_value(c, &value);
 		ret = memcmp(value, di.second.c_str(), strlen(value));
 		assert(ret == 0);
+		c->reset(c);
 	}
 	printf("\ntest search() done\n");
 }
@@ -203,7 +219,7 @@ int main() {
 	WT_CONNECTION *conn;
 	ret = wiredtiger_open(home, NULL, "create,statistics=(all),"
 						  "extensions=[/newssd1/zzz/wiredtiger/ext/datasources/terark/libterark-adaptor.so]", &conn);
-	//test_without_compact(conn);
+	test_without_compact(conn);
 	test_uint_without_compact(conn);
 	/*ret = conn->open_session(conn, NULL, NULL, &session);
 	{
