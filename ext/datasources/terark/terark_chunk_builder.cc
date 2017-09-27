@@ -72,8 +72,7 @@ namespace terark {
 		const std::string& fname)
 		: table_options_(tzto)
 		, table_build_options_(tbo)
-		, chunk_name_(fname)
-		, useUint64Comparator_(false) {
+		, chunk_name_(fname) {
 		// temp mmap files
 		sampleUpperBound_ = randomGenerator_.max() * table_options_.sampleRatio;
 		size_t pos = fname.find_last_of('/');
@@ -103,12 +102,6 @@ namespace terark {
 		currentHistogram.stat.sumKeyLen = 0;
 		currentHistogram.stat.numKeys = 0;
 		tms_.resize(10);
-#if BOOST_ENDIAN_LITTLE_BYTE
-		useUint64Comparator_ = tzto.useUint64Comparator;
-#endif
-		if (useUint64Comparator_) {
-			properties_.comparator_name = "uint64comparator";
-		}
 	}
 
 	TerarkChunkBuilder::~TerarkChunkBuilder() {}
@@ -140,14 +133,6 @@ namespace terark {
 		uint64_t offset = uint64_t((properties_.raw_key_size + properties_.raw_value_size)
 								   * table_options_.estimateCompressionRatio);
 		fstring userKey(key.data(), key.size());
-		{   // special impl for uint64 comp
-			uint64_t u64_key;
-			if (useUint64Comparator_) {
-				assert(userKey.size() == 8);
-				u64_key = byte_swap(*reinterpret_cast<const uint64_t*>(userKey.data()));
-				userKey = fstring(reinterpret_cast<const char*>(&u64_key), 8);
-			}
-		}
 		{	
 			// update stat
 			auto& currentHistogram = histogram_.back();
@@ -157,7 +142,6 @@ namespace terark {
 				keyStat.commonPrefixLen = fstring(prevUserKey_.data(), keyStat.commonPrefixLen)
 					.commonPrefixLen(userKey);
 			} else {
-				//t0 = g_pf.now();
 				tms_[kBuildStart] = (g_pf.now());
 				keyStat.commonPrefixLen = userKey.size();
 				keyStat.minKey.assign(userKey);

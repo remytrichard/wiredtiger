@@ -196,37 +196,6 @@ namespace terark {
 		}
 	}
 
-
-	class TerarkChunkeUint64Iterator : public TerarkChunkIterator {
-	public:
-		TerarkChunkeUint64Iterator(TerarkChunkReader* chunk, const std::string& commonPrefix)
-			: TerarkChunkIterator(chunk, commonPrefix) {}
-		
-		void Seek(const Slice& target) override {
-			assert(target.size() == 8);
-			uint64_t u64_target = byte_swap(*reinterpret_cast<const uint64_t*>(target.data()));
-			Slice user_key = Slice(reinterpret_cast<const char*>(&u64_target), 8);
-			TerarkChunkIterator::Seek(user_key);
-		}
-		void SeekExact(const Slice& target) override {
-            assert(target.size() == 8);
-            uint64_t u64_target = byte_swap(*reinterpret_cast<const uint64_t*>(target.data()));
-            Slice user_key = Slice(reinterpret_cast<const char*>(&u64_target), 8);
-			TerarkChunkIterator::SeekExact(user_key);
-        }
-
-		
-		// key data is serialized as Big Endian, transform to Little Endian back to user
-		bool UnzipIterRecord(bool hasRecord) override {
-			bool ret = TerarkChunkIterator::UnzipIterRecord(hasRecord);
-			if (ret) {
-				byte_swap(keyBuf_.data(), keyBuf_.size());
-			}
-			return ret;
-		}
-	};
-
-
 	TerarkChunkReader::~TerarkChunkReader() {
 		index_.reset();
 		store_.reset();
@@ -240,17 +209,7 @@ namespace terark {
 			printf("Fail to open chunk: %s\n", s.getState());
 			return nullptr;
 		}
-		if (!useUint64Comparator_) {
-			return new TerarkChunkIterator(this, commonPrefix_);
-		} else {
-			// under big endian condition, uint64Iterator works
-			// the same way as Iterator. 
-#if BOOST_ENDIAN_LITTLE_BYTE
-			return new TerarkChunkeUint64Iterator(this, commonPrefix_);
-#else
-			return new TerarkChunkIterator(this, commonPrefix_);
-#endif
-		}
+		return new TerarkChunkIterator(this, commonPrefix_);
 	}
 
 	Status
@@ -272,11 +231,6 @@ namespace terark {
 			return s;
 		}
 		assert(nullptr != table_props);
-		// if chunk was build with 'uint64comparator', we
-		// will stick with it without asking table_options
-		if (table_props->comparator_name == "uint64comparator") {
-			useUint64Comparator_ = true;
-		}
 		TerarkBlockContents valueDictBlock, indexBlock, commonPrefixBlock;
 		s = TerarkReadMetaBlock(file_data, file_size, kTerarkZipTableMagicNumber,
 								kTerarkZipTableValueDictBlock, &valueDictBlock);
