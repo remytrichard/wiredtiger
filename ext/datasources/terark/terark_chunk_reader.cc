@@ -75,12 +75,7 @@ namespace terark {
 			reset_ = false;
 			seek_exact_prev_ = false;
 			size_t clen = fstringOf(target).commonPrefixLen(commonPrefix_);
-			if (clen != commonPrefix_.length()) {
-				status_ = Status::NotFound();
-				return;
-			}
 			lazyCreateIter();
-			//UnzipIterRecord(iter_->Seek(fstringOf(target).substr(clen)));
 			UnzipIterRecord(iter_->Seek(fstringOf(target), clen));
 		}
 
@@ -249,6 +244,7 @@ namespace terark {
 		if (s.ok()) {
 			commonPrefix_.assign(commonPrefixBlock.data.data(),
 								 commonPrefixBlock.data.size());
+			reader_options_.common_prefix = commonPrefix_;
 		} else {
 			return s;
 		}

@@ -49,6 +49,11 @@ namespace terark {
 	class Iterator;
 	struct wt_terark_cursor {
 		WT_CURSOR iface;
+		/*
+		 * Use TerarkChunkIterator instead of Iterator* here could speed up
+		 * search(). The reason i adaopted Iterator* is it's more elegant to code this
+		 * way. I'd rather sacrifice little performance for code readability.
+		 */
 		Iterator* iter;
 	};
 

@@ -140,6 +140,7 @@ namespace terark {
 
 		int level; // what level this table/file is on, -1 for "not set, don't know"
 
+		std::string common_prefix;
 		std::string key_format;
 		WT_SESSION* wt_session;
 	};

@@ -41,6 +41,14 @@ namespace terark {
 		uint64_t  reserved_102_24;
 	};
 
+	namespace {
+		bool isWTUintType(fstring key_f) {
+			return (key_f == "Q" || key_f == "q" ||
+					key_f == "i" || key_f == "I" ||
+					key_f == "l" || key_f == "L");
+		}
+	}
+
 	TerarkIndex::AutoRegisterFactory::AutoRegisterFactory(std::initializer_list<const char*> names,
 														  const char* riit_name,
 														  Factory* factory) {
@@ -63,7 +71,8 @@ namespace terark {
 	const TerarkIndex::Factory*
 	TerarkIndex::SelectFactory(const KeyStat& ks, fstring key_f, 
 							   WT_SESSION* session, fstring name) {
-		if (key_f == "Q" || key_f == "r") {
+		//if (key_f == "Q" || key_f == "r") {
+		if (isWTUintType(key_f)) {
 			uint64_t minVal, maxVal;
 			wiredtiger_struct_unpack(session, ks.minKey.begin(), 
 									 ks.minKey.size(), "Q", &minVal);
@@ -138,21 +147,34 @@ namespace terark {
 		NestLoudsTrieIterBase(terark::ADFA_LexIterator* iter)
 			: m_iter(iter) {}
 	};
+
+
 	template<class NLTrie>
 	class NestLoudsTrieIndex : public TerarkIndex {
 		unique_ptr<NLTrie> m_trie;
 		class MyIterator : public NestLoudsTrieIterBase {
 			const NLTrie* m_trie;
+			std::string commonPrefix_;
 		public:
-			explicit MyIterator(NLTrie* trie)
+			explicit MyIterator(NLTrie* trie, const std::string& cp)
 				: NestLoudsTrieIterBase(trie->adfa_make_iter(initial_state))
 				, m_trie(trie)
+				, commonPrefix_(cp)
 			{}
 			bool SeekToFirst() override { return Done(m_trie, m_iter->seek_begin()); }
 			bool SeekToLast()  override { return Done(m_trie, m_iter->seek_end()); }
 			bool Seek(fstring key, size_t cplen) override {
-				fstring stripped_key = fstring(key).substr(cplen);
-				return Done(m_trie, m_iter->seek_lower_bound(stripped_key));
+				if (cplen != commonPrefix_.size()) {
+					if (key.size() == cplen || key[cplen] < commonPrefix_[cplen]) {
+						return SeekToFirst();
+					} else {
+						m_id = size_t(-1);
+						return false;
+					}
+				} else {
+					fstring stripped_key = fstring(key).substr(cplen);
+					return Done(m_trie, m_iter->seek_lower_bound(stripped_key));
+				}
 			}
 			bool Next() override { return Done(m_trie, m_iter->incr()); }
 			bool Prev() override { return Done(m_trie, m_iter->decr()); }
@@ -187,7 +209,7 @@ namespace terark {
 			return m_trie->get_mmap();
 		}
 		Iterator* NewIterator() const override final {
-			return new MyIterator(m_trie.get());
+			return new MyIterator(m_trie.get(), reader_options_.common_prefix);
 		}
 		bool NeedsReorder() const override final { return true; }
 		void GetOrderMap(terark::UintVecMin0& newToOld)
@@ -366,8 +388,8 @@ namespace terark {
 						return false;
 					}
 				}
-				uint64_t targetValue = TerarkUintIndex::ReadUint64(index_.reader_options_.wt_session,
-																   target);
+				uint64_t targetValue = 
+					TerarkUintIndex::ReadUint64(index_.reader_options_.wt_session, target);
 				if (targetValue > index_.maxValue_) {
 					m_id = size_t(-1);
 					return false;
@@ -626,7 +648,6 @@ namespace terark {
 		uint32_t          keyLength_;
 		bool              isUserMemory_;
 		bool              isBuilding_;
-		//WT_SESSION*       wt_session_;
 	};
 	template<class RankSelect>
 	const char* TerarkUintIndex<RankSelect>::index_name = "UintIndex";
