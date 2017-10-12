@@ -71,7 +71,6 @@ namespace terark {
 	const TerarkIndex::Factory*
 	TerarkIndex::SelectFactory(const KeyStat& ks, fstring key_f, 
 							   WT_SESSION* session, fstring name) {
-		//if (key_f == "Q" || key_f == "r") {
 		if (isWTUintType(key_f)) {
 			uint64_t minVal, maxVal;
 			wiredtiger_struct_unpack(session, ks.minKey.begin(), 
@@ -438,6 +437,9 @@ namespace terark {
 					return true;
 				}
 			}
+			/*
+			 * only reply with key after striping of common-prefix
+			 */
 			fstring key() const override {
 				assert(m_id != size_t(-1));
 				return fstring(buffer_).substr(index_.commonPrefix_.size());
@@ -554,15 +556,6 @@ namespace terark {
 				ptr->indexSeq_.risk_mmap_from((unsigned char*)mem.data() + header->header_size +
 											  terark::align_up(header->common_prefix_length, 8), 
 											  header->index_mem_size);
-				/*{
-					valvec<byte_t> buf_min, buf_max;
-					TerarkUintIndex::AssignUint64(ropt.wt_session, ptr->minVal, buf_min);
-					TerarkUintIndex::AssignUint64(ropt.wt_session, ptr->maxVal, buf_max);
-					size_t clen = fstring(buf_min).commonPrefixLen(fstring(buf_max));
-					ptr->commonPrefix_.assign(buf.begin(), clen);
-					}*/
-				//ptr->indexSeq_.risk_mmap_from((unsigned char*)mem.data() + header->header_size, header->index_mem_size);
-				
 				return ptr;
 			}
 		};

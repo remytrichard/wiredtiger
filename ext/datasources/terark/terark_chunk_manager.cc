@@ -106,14 +106,14 @@ namespace terark {
 			tzo.warmUpValueOnOpen = GetInt("trk_warmUpValueOnOpen", 0);
 			tzo.disableSecondPassIter = GetInt("trk_disableSecondPassIter", 1);
 			tzo.useUint64Comparator = GetInt("trk_useUint64Comparator", 0);
-			{   // TBD(kg):...
+			{
 				size_t page_num  = sysconf(_SC_PHYS_PAGES);
 				size_t page_size = sysconf(_SC_PAGE_SIZE);
 				size_t memBytesLimit = page_num * page_size;
 
-				tzo.softZipWorkingMemLimit = memBytesLimit * 7 / 8;
-				tzo.hardZipWorkingMemLimit = tzo.softZipWorkingMemLimit;
-				tzo.smallTaskMemory = memBytesLimit / 16;
+				tzo.softZipWorkingMemLimit = memBytesLimit * 1 / 8;
+				tzo.hardZipWorkingMemLimit = tzo.softZipWorkingMemLimit * 2;
+				tzo.smallTaskMemory = memBytesLimit / 64;
 				tzo.indexNestLevel = 2;
 			}
 			tzo.estimateCompressionRatio = GetDouble("trk_estimateCompressionRatio", 0.20);
