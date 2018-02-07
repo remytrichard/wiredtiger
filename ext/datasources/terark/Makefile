@@ -23,7 +23,7 @@ integration_test:
 	${CXX} -g3 -std=c++11 ${INC} ${LIB} -lterark-adaptor -o integration_test integration_test.cc
 
 terark_adaptor: ${OBJS}
-	${CXX} -g3 -std=c++11 -shared -Wl,-soname,libterark-adaptor.so.1 -o libterark-adaptor.so.1.0 ${OBJS} ${LIB}
+	${CXX} -g3 -std=c++11 -fPIC -shared -Wl,-soname,libterark-adaptor.so.1 -o libterark-adaptor.so.1.0 ${OBJS} ${LIB}
 	ln -sf libterark-adaptor.so.1.0 libterark-adaptor.so.1
 	ln -sf libterark-adaptor.so.1.0 libterark-adaptor.so
 #	${CXX} ${CFLAGS} ${INC} ${LIB} ${OBJS} -o adaptor terark_adaptor.cc
