@@ -50,7 +50,7 @@ void InitDict(const std::string& fpath, S2SDict& dict) {
 	}
 }
 
-void test_larget(WT_CONNECTION* conn) {
+void test_large(WT_CONNECTION* conn) {
 	/*
 	 * 1. init dict & create table
 	 * 2. test_search
@@ -274,7 +274,7 @@ int main() {
 	WT_CONNECTION *conn;
 	ret = wiredtiger_open(home, NULL, "create,statistics=(all),"
 						  "extensions=[/newssd1/zzz/wiredtiger/ext/datasources/terark/libterark-adaptor.so]", &conn);
-	test_larget(conn);
+	test_large(conn);
 	test_simple(conn);
 	test_uint64(conn);
 	
